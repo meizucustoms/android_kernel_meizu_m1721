@@ -256,6 +256,7 @@ struct fastrpc_file {
 	int cid;
 	int ssrcount;
 	struct fastrpc_apps *apps;
+	struct mutex map_mutex;
 };
 
 static struct fastrpc_apps gfa;
@@ -1152,9 +1153,18 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 		struct fastrpc_mmap *map = ctx->maps[i];
 		if (map && map->uncached)
 			continue;
-		if (rpra[i].buf.len && ctx->overps[oix]->mstart)
-			dmac_flush_range(uint64_to_ptr(rpra[i].buf.pv),
-			uint64_to_ptr(rpra[i].buf.pv + rpra[i].buf.len));
+		if (rpra[i].buf.len && ctx->overps[oix]->mstart) {
+			if (map && map->handle)
+				msm_ion_do_cache_op(ctx->fl->apps->client,
+					map->handle,
+					uint64_to_ptr(rpra[i].buf.pv),
+					rpra[i].buf.len,
+					ION_IOC_CLEAN_INV_CACHES);
+			else
+				dmac_flush_range(uint64_to_ptr(rpra[i].buf.pv),
+					uint64_to_ptr(rpra[i].buf.pv
+						+ rpra[i].buf.len));
+		}
 	}
 	inh = inbufs + outbufs;
 	for (i = 0; i < REMOTE_SCALARS_INHANDLES(sc); i++) {
@@ -1162,7 +1172,7 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 		rpra[inh + i].buf.len = ctx->lpra[inh + i].buf.len;
 		rpra[inh + i].h = ctx->lpra[inh + i].h;
 	}
-	dmac_flush_range((char *)rpra, (char *)rpra + ctx->used);
+
  bail:
 	return err;
 }
@@ -1201,27 +1211,49 @@ static int put_args(uint32_t kernel, struct smq_invoke_ctx *ctx,
 	return err;
 }
 
-static void inv_args_pre(uint32_t sc, remote_arg64_t *rpra)
+static void inv_args_pre(struct smq_invoke_ctx *ctx)
 {
 	int i, inbufs, outbufs;
+	uint32_t sc = ctx->sc;
+	remote_arg64_t *rpra = ctx->rpra;
 	uintptr_t end;
 
 	inbufs = REMOTE_SCALARS_INBUFS(sc);
 	outbufs = REMOTE_SCALARS_OUTBUFS(sc);
 	for (i = inbufs; i < inbufs + outbufs; ++i) {
+		struct fastrpc_mmap *map = ctx->maps[i];
+
 		if (!rpra[i].buf.len)
 			continue;
 		if (buf_page_start(ptr_to_uint64((void *)rpra)) ==
 				buf_page_start(rpra[i].buf.pv))
 			continue;
-		if (!IS_CACHE_ALIGNED((uintptr_t)uint64_to_ptr(rpra[i].buf.pv)))
-			dmac_flush_range(uint64_to_ptr(rpra[i].buf.pv),
-				(char *)(uint64_to_ptr(rpra[i].buf.pv + 1)));
+		if (!IS_CACHE_ALIGNED((uintptr_t)
+				uint64_to_ptr(rpra[i].buf.pv))) {
+			if (map && map->handle)
+				msm_ion_do_cache_op(ctx->fl->apps->client,
+					map->handle,
+					uint64_to_ptr(rpra[i].buf.pv),
+					sizeof(uintptr_t),
+					ION_IOC_CLEAN_INV_CACHES);
+			else
+				dmac_flush_range(
+					uint64_to_ptr(rpra[i].buf.pv), (char *)
+					uint64_to_ptr(rpra[i].buf.pv + 1));
+		}
 		end = (uintptr_t)uint64_to_ptr(rpra[i].buf.pv +
 							rpra[i].buf.len);
-		if (!IS_CACHE_ALIGNED(end))
-			dmac_flush_range((char *)end,
-				(char *)end + 1);
+		if (!IS_CACHE_ALIGNED(end)) {
+			if (map && map->handle)
+				msm_ion_do_cache_op(ctx->fl->apps->client,
+						map->handle,
+						uint64_to_ptr(end),
+						sizeof(uintptr_t),
+						ION_IOC_CLEAN_INV_CACHES);
+			else
+				dmac_flush_range((char *)end,
+					(char *)end + 1);
+		}
 	}
 }
 
@@ -1230,7 +1262,6 @@ static void inv_args(struct smq_invoke_ctx *ctx)
 	int i, inbufs, outbufs;
 	uint32_t sc = ctx->sc;
 	remote_arg64_t *rpra = ctx->rpra;
-	int used = ctx->used;
 	int inv = 0;
 
 	inbufs = REMOTE_SCALARS_INBUFS(sc);
@@ -1248,7 +1279,7 @@ static void inv_args(struct smq_invoke_ctx *ctx)
 		}
 		if (map && map->handle)
 			msm_ion_do_cache_op(ctx->fl->apps->client, map->handle,
-				(char *)uint64_to_ptr(rpra[i].buf.pv),
+				uint64_to_ptr(rpra[i].buf.pv),
 				rpra[i].buf.len, ION_IOC_INV_CACHES);
 		else
 			dmac_inv_range((char *)uint64_to_ptr(rpra[i].buf.pv),
@@ -1256,8 +1287,6 @@ static void inv_args(struct smq_invoke_ctx *ctx)
 						 + rpra[i].buf.len));
 	}
 
-	if (inv || REMOTE_SCALARS_OUTHANDLES(sc))
-		dmac_inv_range(rpra, (char *)rpra + used);
 }
 
 static int fastrpc_invoke_send(struct smq_invoke_ctx *ctx,
@@ -1399,7 +1428,7 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 			goto bail;
 	}
 
-	inv_args_pre(ctx->sc, ctx->rpra);
+	inv_args_pre(ctx);
 	if (FASTRPC_MODE_SERIAL == mode)
 		inv_args(ctx);
 	VERIFY(err, 0 == fastrpc_invoke_send(ctx, kernel, invoke->handle));
@@ -1465,11 +1494,19 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 		inbuf.pgid = current->tgid;
 		inbuf.namelen = strlen(current->comm) + 1;
 		inbuf.filelen = init->filelen;
+		VERIFY(err, access_ok(0, (void __user *)init->file,
+			init->filelen));
+		if (err)
+			goto bail;
 		VERIFY(err, !fastrpc_mmap_create(fl, init->filefd, init->file,
 					init->filelen, mflags, &file));
 		if (err)
 			goto bail;
 		inbuf.pageslen = 1;
+		VERIFY(err, access_ok(1, (void __user *)init->mem,
+			init->memlen));
+		if (err)
+			goto bail;
 		VERIFY(err, !fastrpc_mmap_create(fl, init->memfd, init->mem,
 					init->memlen, mflags, &mem));
 		if (err)
@@ -1717,6 +1754,8 @@ static int fastrpc_internal_munmap(struct fastrpc_file *fl,
 {
 	int err = 0;
 	struct fastrpc_mmap *map = NULL;
+
+	mutex_lock(&fl->map_mutex);
 	if (!fastrpc_mmap_remove(fl, ud->vaddrout, ud->size,
 				 &map)) {
 		VERIFY(err, !fastrpc_munmap_on_dsp(fl, map));
@@ -1727,6 +1766,7 @@ static int fastrpc_internal_munmap(struct fastrpc_file *fl,
 bail:
 	if (err && map)
 		fastrpc_mmap_add(map);
+	mutex_unlock(&fl->map_mutex);
 	return err;
 }
 
@@ -1736,9 +1776,13 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
 
 	struct fastrpc_mmap *map = NULL;
 	int err = 0;
+
+	mutex_lock(&fl->map_mutex);
 	if (!fastrpc_mmap_find(fl, ud->fd, (uintptr_t)ud->vaddrin, ud->size,
-			       ud->flags, &map))
+			       ud->flags, &map)){
+		mutex_unlock(&fl->map_mutex);
 		return 0;
+	}
 
 	VERIFY(err, !fastrpc_mmap_create(fl, ud->fd, (uintptr_t)ud->vaddrin,
 					 ud->size, ud->flags, &map));
@@ -1751,6 +1795,7 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
  bail:
 	if (err && map)
 		fastrpc_mmap_free(map);
+	mutex_unlock(&fl->map_mutex);
 	return err;
 }
 
@@ -1791,8 +1836,7 @@ static int fastrpc_file_free(struct fastrpc_file *fl)
 	spin_unlock(&fl->apps->hlock);
 
 	if (!fl->sctx) {
-		kfree(fl);
-		return 0;
+		goto bail;
 	}
 
 	(void)fastrpc_release_current_dsp_process(fl);
@@ -1804,6 +1848,9 @@ static int fastrpc_file_free(struct fastrpc_file *fl)
 	if (fl->ssrcount == fl->apps->channel[cid].ssrcount)
 		kref_put_mutex(&fl->apps->channel[cid].kref,
 				fastrpc_channel_close, &fl->apps->smd_mutex);
+
+bail:
+	mutex_destroy(&fl->map_mutex);
 	kfree(fl);
 	return 0;
 }
@@ -2114,6 +2161,7 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 						me->channel[cid].ssrcount;
 		}
 	}
+	mutex_init(&fl->map_mutex);
 	spin_lock(&me->hlock);
 	hlist_add_head(&fl->hn, &me->drivers);
 	spin_unlock(&me->hlock);
