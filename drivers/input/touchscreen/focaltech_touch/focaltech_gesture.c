@@ -521,7 +521,7 @@ int fts_gesture_init(struct input_dev *input_dev, struct i2c_client *client)
 	__set_bit(KEY_WAKEUP, input_dev->keybit);
 
 	fts_create_gesture_sysfs(client);
-	fts_gesture_data.enabled = false;
+	fts_gesture_data.enabled = true;
 	FTS_FUNC_EXIT();
 
 	return 0;
