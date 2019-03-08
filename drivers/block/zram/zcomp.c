@@ -19,6 +19,8 @@
 #include "zcomp.h"
 
 static const char * const backends[] = {
+	"lzo",
+	"lzo-rle",
 	"lz4",
 #if IS_ENABLED(CONFIG_CRYPTO_ZSTD)
 	"zstd",
