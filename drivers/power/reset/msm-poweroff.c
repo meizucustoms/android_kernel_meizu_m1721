@@ -301,7 +301,11 @@ static void msm_restart_prepare(const char *cmd)
 #endif
 
 	/* Hard reset the PMIC unless memory contents must be maintained. */
+#ifdef CONFIG_MACH_MEIZU_M1721
+	if (in_panic || need_warm_reset) {
+#else
 	if (need_warm_reset) {
+#endif
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
 	} else {
 		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
