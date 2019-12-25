@@ -794,7 +794,7 @@ int soc_new_compress(struct snd_soc_pcm_runtime *rtd, int num)
 		return -EINVAL;
 	}
 
-	if (playback)
+	if(playback)
 		direction = SND_COMPRESS_PLAYBACK;
 	else
 		direction = SND_COMPRESS_CAPTURE;
