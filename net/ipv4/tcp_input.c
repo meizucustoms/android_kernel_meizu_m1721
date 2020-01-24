@@ -1521,6 +1521,7 @@ static struct sk_buff *tcp_shift_skb_data(struct sock *sk, struct sk_buff *skb,
 		goto out;
 
 	len = skb->len;
+
 	if (skb_shift(prev, skb, len)) {
 		pcount += tcp_skb_pcount(skb);
 		tcp_shifted_skb(sk, prev, skb, state, tcp_skb_pcount(skb),
@@ -1731,8 +1732,11 @@ tcp_sacktag_write_queue(struct sock *sk, const struct sk_buff *ack_skb,
 		}
 
 		/* Ignore very old stuff early */
-		if (!after(sp[used_sacks].end_seq, prior_snd_una))
+		if (!after(sp[used_sacks].end_seq, prior_snd_una)) {
+			if (i == 0)
+				first_sack_index = -1;
 			continue;
+		}
 
 		used_sacks++;
 	}

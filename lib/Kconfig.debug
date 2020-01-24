@@ -1858,10 +1858,8 @@ config CC_WERROR
 
 	  If unsure, say N.
 
-
 source "samples/Kconfig"
 
 source "lib/Kconfig.kgdb"
 
 source "lib/Kconfig.ubsan"
-
