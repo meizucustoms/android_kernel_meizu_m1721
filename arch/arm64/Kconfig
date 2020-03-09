@@ -282,6 +282,8 @@ config ARCH_MSM
 	select ARCH_HAS_OPP
 	select THERMAL_WRITABLE_TRIPS
 	select CPU_FREQ_MSM
+	select ARM_MEMLAT_MON
+	select DEVFREQ_GOV_MEMLAT
 	help
 	  This enables support for the ARMv8 based Qualcomm chipsets.
 
@@ -380,17 +382,11 @@ config MACH_XIAOMI_DUMMY
 	help
 	  A stub configuration that doesn't enable support for anything.
 
-config MACH_XIAOMI_MIDO
-	bool "Redmi Note 4(X)"
+config MACH_XIAOMI_C6
+	bool "C6 board"
 	select MACH_XIAOMI_MSM8953
 	help
 	  This enables support for Xiaomi Redmi Note 4(X).
-
-config MACH_XIAOMI_TISSOT
-	bool "Mi A1"
-	select MACH_XIAOMI_MSM8953
-	help
-	  This enables support for Xiaomi Mi A1.
 
 endchoice
 
@@ -735,6 +731,7 @@ config ARCH_NR_GPIO
 
 
 source kernel/Kconfig.preempt
+
 source kernel/Kconfig.hz
 
 config ARCH_HAS_HOLES_MEMORYMODEL
@@ -760,16 +757,6 @@ config HW_PERF_EVENTS
 	help
 	  Enable hardware performance counter support for perf events. If
 	  disabled, perf events will use software events only.
-
-config PERF_EVENTS_USERMODE
-	bool "Enable usermode access for perf events"
-	depends on PERF_EVENTS
-	help
-	  Enable user-mode access to performance counters for perf events.
-	  If enabled, the access permissions allowing CPU performance
-	  counters to be accessed from user-mode are set.
-
-	  If you want user-mode programs to access perf events, say Y
 
 config PERF_EVENTS_RESET_PMU_DEBUGFS
 	bool "Reset PMU via debugfs node"

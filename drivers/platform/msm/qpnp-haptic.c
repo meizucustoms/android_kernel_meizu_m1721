@@ -1789,8 +1789,6 @@ static void qpnp_timed_enable_worker(struct work_struct *work)
 	if (!value && !hap->state)
 		return;
 
-	flush_work(&hap->work);
-
 	mutex_lock(&hap->lock);
 
 	if (hap->act_type == QPNP_HAP_LRA &&
@@ -2722,7 +2720,6 @@ static int qpnp_haptic_probe(struct spmi_device *spmi)
 	mutex_init(&hap->wf_lock);
 	mutex_init(&hap->set_lock);
 	spin_lock_init(&hap->td_lock);
-
 	INIT_WORK(&hap->work, qpnp_hap_worker);
 	INIT_DELAYED_WORK(&hap->sc_work, qpnp_handle_sc_irq);
 	init_completion(&hap->completion);

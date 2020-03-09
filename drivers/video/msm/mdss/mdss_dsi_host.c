@@ -1215,21 +1215,20 @@ int mdss_dsi_reg_status_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 	return ret;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_MIDO
+#ifdef CONFIG_MACH_XIAOMI_C6
 extern u32 te_count;
 static u32 te_count_old = 1;
-
-int mdss_dsi_TE_NT35596_check (struct mdss_dsi_ctrl_pdata *ctrl_pdata)
+int mdss_dsi_TE_NT35596_check(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int ret = 1;
 
-	if (te_count_old != te_count) {
-
+	if (te_count_old != te_count)
 		te_count_old = te_count;
-	} else {
+	else {
+		pr_err("liujia te_count doesn't add as time\n");
 		ret = 0;
-		pr_err("liujia te_count doesnt add as time");
 	}
+
 	if (te_count >= 10000)
 		te_count = 0;
 
@@ -2634,7 +2633,6 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp)
 	bool hs_req = false;
 	bool cmd_mutex_acquired = false;
 
-	pm_qos_update_request(&ctrl->pm_qos_req, 100);
 	if (from_mdp) {	/* from mdp kickoff */
 		if (!ctrl->burst_mode_enabled) {
 			mutex_lock(&ctrl->cmd_mutex);
@@ -2793,8 +2791,6 @@ need_lock:
 				(req && (req->flags & CMD_REQ_HS_MODE)))
 			mdss_dsi_cmd_stop_hs_clk_lane(ctrl);
 	}
-
-	pm_qos_update_request(&ctrl->pm_qos_req, PM_QOS_DEFAULT_VALUE);
 
 	return ret;
 }

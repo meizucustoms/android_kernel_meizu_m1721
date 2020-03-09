@@ -1018,7 +1018,7 @@ do { \
 #define SET_CB_TTBR0_RGN(b, c, v)   SET_CONTEXT_FIELD(b, c, CB_TTBR0, RGN, v)
 #define SET_CB_TTBR0_NOS(b, c, v)   SET_CONTEXT_FIELD(b, c, CB_TTBR0, NOS, v)
 #define SET_CB_TTBR0_IRGN0(b, c, v) SET_CONTEXT_FIELD(b, c, CB_TTBR0, IRGN0, v)
-#define SET_CB_TTBR0_ADDR(b, c, v)  SET_CONTEXT_FIELD_Q(b, c, CB_TTBR0, ADDR, v)
+#define SET_CB_TTBR0_ADDR(b, c, v)  SET_CONTEXT_FIELD(b, c, CB_TTBR0, ADDR, v)
 
 #define GET_CB_TTBR0_IRGN1(b, c)    GET_CONTEXT_FIELD(b, c, CB_TTBR0, IRGN1)
 #define GET_CB_TTBR0_S(b, c)        GET_CONTEXT_FIELD(b, c, CB_TTBR0, S)
@@ -1962,7 +1962,7 @@ do { \
 #define CB_TTBR0_RGN_MASK          0x01
 #define CB_TTBR0_NOS_MASK          0x01
 #define CB_TTBR0_IRGN0_MASK        0x01
-#define CB_TTBR0_ADDR_MASK         0xFFFFFF
+#define CB_TTBR0_ADDR_MASK         0xFFFFFFU
 
 #define CB_TTBR1_IRGN1_MASK        0x1
 #define CB_TTBR1_S_MASK            0x1

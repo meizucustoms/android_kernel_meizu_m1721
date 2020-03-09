@@ -4179,12 +4179,12 @@ tLimMlmRemoveKeyCnf  mlmRemoveKeyCnf;
   
 
 
-  psessionEntry->limMlmState = eLIM_MLM_WT_REMOVE_STA_KEY_STATE;
-  MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId, psessionEntry->limMlmState));
+    psessionEntry->limMlmState = eLIM_MLM_WT_REMOVE_STA_KEY_STATE;
+    MTRACE(macTrace(pMac, TRACE_CODE_MLM_STATE, psessionEntry->peSessionId, psessionEntry->limMlmState));
 
-  // Package WDA_REMOVE_STAKEY_REQ message parameters
-  limSendRemoveStaKeyReq( pMac,pMlmRemoveKeyReq,staIdx,psessionEntry);
-  return;
+    // Package WDA_REMOVE_STAKEY_REQ message parameters
+    limSendRemoveStaKeyReq( pMac,pMlmRemoveKeyReq,staIdx,psessionEntry);
+    return;
  
 end:
     limPostSmeRemoveKeyCnf( pMac,
@@ -4255,14 +4255,7 @@ limProcessMinChannelTimeout(tpAniSirGlobal pMac)
         {
             // This shouldn't be the case, but when this happens, this timeout should be for the last channelId. 
             // Get the channelNum as close to correct as possible.
-            if(pMac->lim.gpLimMlmScanReq->channelList.channelNumber)
-            {
-                channelNum = pMac->lim.gpLimMlmScanReq->channelList.channelNumber[pMac->lim.gpLimMlmScanReq->channelList.numChannels - 1];
-            }
-            else
-            {
-               channelNum = 1;
-            }
+            channelNum = pMac->lim.gpLimMlmScanReq->channelList.channelNumber[pMac->lim.gpLimMlmScanReq->channelList.numChannels - 1];
         }
 
         limLog(pMac, LOGW,
@@ -4331,14 +4324,7 @@ limProcessMaxChannelTimeout(tpAniSirGlobal pMac)
         }
         else
         {
-            if(pMac->lim.gpLimMlmScanReq->channelList.channelNumber)
-            {
-                channelNum = pMac->lim.gpLimMlmScanReq->channelList.channelNumber[pMac->lim.gpLimMlmScanReq->channelList.numChannels - 1];
-            }
-            else
-            {
-               channelNum = 1;
-            }
+            channelNum = pMac->lim.gpLimMlmScanReq->channelList.channelNumber[pMac->lim.gpLimMlmScanReq->channelList.numChannels - 1];
         }
         limLog(pMac, LOGW,
            FL("Sending End Scan req from MAX_CH_TIMEOUT in state %d on ch-%d"),

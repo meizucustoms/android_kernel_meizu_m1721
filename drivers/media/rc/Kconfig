@@ -4,13 +4,6 @@ config RC_CORE
 	depends on INPUT
 	default y
 
-config SPI_PEELIR
-	tristate "PEELIR"
-	default y
-
-	---help---
-	   Enable this option if you use peelir
-
 source "drivers/media/rc/keymaps/Kconfig"
 
 menuconfig RC_DECODERS
@@ -139,7 +132,6 @@ config IR_DUMP_DECODER
 	---help---
 	   Enable this option if you have an infrared remote control which
 	   you want to dump the IR signal.
-
 endif #RC_DECODERS
 
 menuconfig RC_DEVICES
@@ -357,7 +349,6 @@ config IR_GPIO_CIR
 
 	   To compile this driver as a module, choose M here: the module will
 	   be called gpio-ir-recv.
-
 
 config IR_GPIO
 	tristate "GPIO IR remote control"

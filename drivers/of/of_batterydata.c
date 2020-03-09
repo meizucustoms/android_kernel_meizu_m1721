@@ -316,7 +316,7 @@ struct device_node *of_batterydata_get_best_profile(
 {
 	struct batt_ids batt_ids;
 	struct device_node *node, *best_node = NULL;
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
+#ifdef CONFIG_MACH_XIAOMI_C6
 	struct device_node *default_node = NULL;
 #endif
 	struct power_supply *psy;
@@ -325,7 +325,7 @@ struct device_node *of_batterydata_get_best_profile(
 	int delta = 0, best_delta = 0, best_id_kohm = 0, id_range_pct,
 		batt_id_kohm = 0, i = 0, rc = 0, limit = 0;
 	bool in_range = false;
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
+#ifdef CONFIG_MACH_XIAOMI_C6
 	int checknum = 0, match = 0;
 #endif
 
@@ -378,7 +378,7 @@ struct device_node *of_batterydata_get_best_profile(
 				delta = abs(batt_ids.kohm[i] - batt_id_kohm);
 				limit = (batt_ids.kohm[i] * id_range_pct) / 100;
 				in_range = (delta <= limit);
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
+#ifdef CONFIG_MACH_XIAOMI_C6
 				if (in_range != 0)
 					match = 1;
 #endif
@@ -387,12 +387,8 @@ struct device_node *of_batterydata_get_best_profile(
 				 * and also if the limits are in range
 				 * before selecting the best node.
 				 */
-#ifdef CONFIG_MACH_XIAOMI_MIDO
+#ifdef CONFIG_MACH_XIAOMI_C6
 				if (batt_ids.kohm[i] == 82)
-                                        default_node = node;
-#endif
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-				if (batt_ids.kohm[i] == 50)
 					default_node = node;
 #endif
 				if ((delta < best_delta || !best_node)
@@ -405,20 +401,21 @@ struct device_node *of_batterydata_get_best_profile(
 		}
 	}
 
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
+#ifdef CONFIG_MACH_XIAOMI_C6
 	checknum = abs(best_id_kohm - batt_id_kohm);
 	if (match == 0) {
 		best_node = default_node;
 		checknum = 0;
 	}
 #endif
+
 	if (best_node == NULL) {
 		pr_err("No battery data found\n");
 		return best_node;
 	}
 
 	/* check that profile id is in range of the measured batt_id */
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
+#ifdef CONFIG_MACH_XIAOMI_C6
 	if (checknum >
 #else
 	if (abs(best_id_kohm - batt_id_kohm) >

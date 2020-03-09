@@ -1,4 +1,4 @@
-config FINGERPRINT_FPC1020_MIDO
+config FINGERPRINT_FPC1020_C6
 	tristate "FingerPrint Cards fingerprint driver support"
 	depends on INPUT_FINGERPRINT
 	help

@@ -57,7 +57,7 @@ define build_output
 endef
 
 saved-output := $(BUILD_OUTPUT)
-BUILD_OUTPUT := $(shell cd $(BUILD_OUTPUT) && pwd)
+BUILD_OUTPUT := $(shell cd $(BUILD_OUTPUT) && /bin/pwd)
 $(if $(BUILD_OUTPUT),, \
      $(error output directory "$(saved-output)" does not exist))
 

@@ -33,7 +33,6 @@
 #include "mdss_debug.h"
 #include "mdss_dsi_phy.h"
 #include "mdss_dba_utils.h"
-#include "mdss_livedisplay.h"
 
 #define XO_CLK_RATE	19200000
 #define CMDLINE_DSI_CTL_NUM_STRING_LEN 2
@@ -46,9 +45,8 @@ static struct mdss_dsi_data *mdss_dsi_res;
 
 static struct pm_qos_request mdss_dsi_pm_qos_request;
 
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
+#ifdef CONFIG_MACH_XIAOMI_C6
 int panel_suspend_reset_flag = 0;
-int panel_suspend_power_flag = 0;
 #endif
 
 static void mdss_dsi_pm_qos_add_request(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
@@ -278,12 +276,7 @@ static int mdss_dsi_regulator_init(struct platform_device *pdev,
 	return rc;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-extern int ft8716_suspend;
-extern int  ft8716_gesture_func_on;
-int acc_vreg = 0;
-#endif
-int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
+static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 {
 	int ret = 0;
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
@@ -306,40 +299,20 @@ int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 	if (mdss_dsi_pinctrl_set_state(ctrl_pdata, false))
 		pr_debug("reset disable: pinctrl not enabled\n");
 
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	if (2 == panel_suspend_reset_flag)
-		msleep(1); //dealy 2ms
-
-	if (4 == panel_suspend_reset_flag)
-		msleep(4); //delay 4ms
+#ifdef CONFIG_MACH_XIAOMI_C6
+	if (panel_suspend_reset_flag == 2)
+		msleep(1); /* delay 1ms */
+	else if (panel_suspend_reset_flag == 3)
+		msleep(4); /* delay 4ms */
 #endif
 
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	if ((panel_suspend_power_flag != 3) && acc_vreg) {
-#endif
-		ret = msm_dss_enable_vreg(
+	ret = msm_dss_enable_vreg(
 		ctrl_pdata->panel_power_data.vreg_config,
 		ctrl_pdata->panel_power_data.num_vreg, 0);
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-		acc_vreg--;
-#endif
-		if (ret)
-			pr_err("%s: failed to disable vregs for %s\n",
+	if (ret)
+		pr_err("%s: failed to disable vregs for %s\n",
 			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	} else {
-		if (!ft8716_gesture_func_on && ft8716_suspend && acc_vreg) {
-			ret = msm_dss_enable_vreg(
-					ctrl_pdata->panel_power_data.vreg_config,
-					ctrl_pdata->panel_power_data.num_vreg, 0);
-			acc_vreg--;
-			if (ret)
-				pr_err("%s: failed to disable vregs for %s\n",
-					 __func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
-		}
-	}
 
-#endif
 end:
 	return ret;
 }
@@ -356,23 +329,14 @@ static int mdss_dsi_panel_power_on(struct mdss_panel_data *pdata)
 	ctrl_pdata = container_of(pdata, struct mdss_dsi_ctrl_pdata,
 				panel_data);
 
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	if (!acc_vreg) {
-#endif
-		ret = msm_dss_enable_vreg(
+	ret = msm_dss_enable_vreg(
 		ctrl_pdata->panel_power_data.vreg_config,
 		ctrl_pdata->panel_power_data.num_vreg, 1);
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-		acc_vreg++;
-#endif
-		if (ret) {
-			pr_err("%s: failed to enable vregs for %s\n",
-				__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
-			return ret;
-		}
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
+	if (ret) {
+		pr_err("%s: failed to enable vregs for %s\n",
+			__func__, __mdss_dsi_pm_name(DSI_PANEL_PM));
+		return ret;
 	}
-#endif
 
 	/*
 	 * If continuous splash screen feature is enabled, then we need to
@@ -2813,9 +2777,6 @@ static int mdss_dsi_event_handler(struct mdss_panel_data *pdata,
 					&ctrl_pdata->dba_work, HZ);
 		}
 		break;
-	case MDSS_EVENT_UPDATE_LIVEDISPLAY:
-		rc = mdss_livedisplay_update(ctrl_pdata, (int)(unsigned long) arg);
-		break;
 	default:
 		pr_debug("%s: unhandled event=%d\n", __func__, event);
 		break;
@@ -2946,22 +2907,15 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 		}
 		pr_info("%s: cmdline:%s panel_name:%s\n",
 			__func__, panel_cfg, panel_name);
+#ifdef CONFIG_MACH_XIAOMI_C6
+		if (!strcmp(panel_name, "qcom,mdss_dsi_otm1911_fhd_video"))
+			panel_suspend_reset_flag = 2;
+		else if (!strcmp(panel_name, "qcom,mdss_dsi_ili9885_boe_fhd_video"))
+			panel_suspend_reset_flag = 3;
+		else
+#endif
 		if (!strcmp(panel_name, NONE_PANEL))
 			goto exit;
-
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
-		if (!strcmp(panel_name, "qcom,mdss_dsi_td4310_fhd_video")) {
-			panel_suspend_reset_flag = 1;
-			panel_suspend_power_flag = 1;
-		} else if (!strcmp(panel_name, "qcom,mdss_dsi_otm1911_fhd_video")) {
-			panel_suspend_reset_flag = 2;
-			panel_suspend_power_flag = 2;
-		} else if (!strcmp(panel_name, "qcom,mdss_dsi_ft8716_fhd_video")) {
-			panel_suspend_reset_flag = 3;
-			panel_suspend_power_flag = 3;
-		} else if (!strcmp(panel_name, "qcom,mdss_dsi_ili9885_boe_fhd_video"))
-			panel_suspend_reset_flag = 4;
-#endif
 
 		mdss_node = of_parse_phandle(pdev->dev.of_node,
 			"qcom,mdss-mdp", 0);
@@ -3237,10 +3191,6 @@ end:
 	return rc;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-struct mdss_panel_data *panel_data;
-#endif
-
 static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 {
 	int rc = 0;
@@ -3342,13 +3292,6 @@ static int mdss_dsi_ctrl_probe(struct platform_device *pdev)
 	} else {
 		ctrl_pdata->bklt_ctrl = UNKNOWN_CTRL;
 	}
-
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	panel_data = &ctrl_pdata->panel_data;
-#endif
-
-	pm_qos_add_request(&ctrl_pdata->pm_qos_req, PM_QOS_CPU_DMA_LATENCY,
-PM_QOS_DEFAULT_VALUE);
 
 	rc = dsi_panel_device_register(pdev, dsi_pan_node, ctrl_pdata);
 	if (rc) {
@@ -4160,15 +4103,14 @@ static int mdss_dsi_parse_ctrl_params(struct platform_device *ctrl_pdev,
 
 }
 
-#ifdef CONFIG_MACH_XIAOMI_MIDO
+#ifdef CONFIG_MACH_XIAOMI_C6
 u32 te_count;
 static irqreturn_t te_interrupt(int irq, void *data)
 {
 	disable_irq_nosync(irq);
-
 	te_count++;
-
 	enable_irq(irq);
+
 	return IRQ_HANDLED;
 }
 
@@ -4176,19 +4118,23 @@ int init_te_irq(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 {
 	int rc = -1;
 	int irq;
+
 	if (gpio_is_valid(ctrl_pdata->disp_te_gpio)) {
 		rc = gpio_request(ctrl_pdata->disp_te_gpio, "te-gpio");
 		if (rc < 0) {
 			pr_err("%s: gpio_request fail rc=%d\n", __func__, rc);
 			return rc ;
 		}
+
 		rc = gpio_direction_input(ctrl_pdata->disp_te_gpio);
 		if (rc < 0) {
-			pr_err("%s: gpio_direction_input fail rc=%d\n", __func__, rc);
+			pr_err("%s: gpio_direction_input fail rc=%d\n",
+				__func__, rc);
 			return rc ;
 		}
+
 		irq = gpio_to_irq(ctrl_pdata->disp_te_gpio);
-		pr_err("%s:liujia  irq = %d\n", __func__, irq);
+		pr_debug("%s:liujia irq = %d\n", __func__, irq);
 		rc = request_threaded_irq(irq, te_interrupt, NULL,
 			IRQF_TRIGGER_RISING|IRQF_ONESHOT,
 			"te-irq", ctrl_pdata);
@@ -4198,11 +4144,12 @@ int init_te_irq(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
 		}
 	} else {
 		 pr_err("%s:liujia irq gpio not provided\n", __func__);
-		 return rc ;
+		 return rc;
 	}
-		return 0;
+
+	return 0;
 }
-#endif
+#endif /* MACH_XIAOMI_C6 */
 
 static int mdss_dsi_parse_gpio_params(struct platform_device *ctrl_pdev,
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata)
@@ -4369,7 +4316,7 @@ int dsi_panel_device_register(struct platform_device *ctrl_pdev,
 		ctrl_pdata->check_status = mdss_dsi_reg_status_check;
 	else if (ctrl_pdata->status_mode == ESD_BTA)
 		ctrl_pdata->check_status = mdss_dsi_bta_status_check;
-#ifdef CONFIG_MACH_XIAOMI_MIDO
+#ifdef CONFIG_MACH_XIAOMI_C6
 	else if (ctrl_pdata->status_mode == ESD_TE_NT35596) {
 		ctrl_pdata->check_status = mdss_dsi_TE_NT35596_check;
 		init_te_irq(ctrl_pdata);

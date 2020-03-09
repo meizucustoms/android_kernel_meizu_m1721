@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -1403,7 +1403,7 @@ void usb_bam_finish_suspend_(struct work_struct *w)
 
 	info_ptr = container_of(w, struct usb_bam_ipa_handshake_info,
 			finish_suspend_work);
-	cur_bam = info_ptr->cur_bam_mode;
+	cur_bam = info_ptr->bam_type;
 
 	log_event_dbg("%s: Finishing suspend sequence(BAM=%s)\n", __func__,
 			bam_enable_strings[cur_bam]);
@@ -1627,6 +1627,22 @@ static void usb_bam_ipa_create_resources(enum usb_ctrl cur_bam)
 				__func__);
 		return;
 	}
+}
+
+static void usb_bam_ipa_delete_resources(enum usb_ctrl cur_bam)
+{
+	int ret;
+
+	ret = ipa_rm_delete_resource(ipa_rm_resource_prod[cur_bam]);
+	if (ret)
+		log_event_err("%s: Failed to delete USB_PROD resource\n",
+							__func__);
+
+	ret = ipa_rm_delete_resource(ipa_rm_resource_cons[cur_bam]);
+	if (ret)
+		log_event_err("%s: Failed to delete USB_CONS resource\n",
+							__func__);
+
 }
 
 static void wait_for_prod_granted(enum usb_ctrl cur_bam)
@@ -3576,6 +3592,7 @@ static int usb_bam_remove(struct platform_device *pdev)
 	enum usb_ctrl bam_type = pdata->bam_type;
 	struct usb_bam_ctx_type *ctx = &msm_usb_bam[bam_type];
 
+	usb_bam_ipa_delete_resources(bam_type);
 	destroy_workqueue(ctx->usb_bam_wq);
 
 	return 0;

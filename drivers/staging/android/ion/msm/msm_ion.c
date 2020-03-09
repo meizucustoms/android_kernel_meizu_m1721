@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -714,13 +714,11 @@ long msm_ion_custom_ioctl(struct ion_client *client,
 			handle = ion_handle_get_by_id_nolock(client,
 						(int)data.flush_data.handle);
 			if (IS_ERR(handle)) {
-				mutex_unlock(&client->lock);
 				pr_info("%s: Could not find handle: %d\n",
 					__func__, (int)data.flush_data.handle);
 				unlock_client(client);
 				return PTR_ERR(handle);
 			}
-			mutex_unlock(&client->lock);
 		} else {
 			handle = ion_import_dma_buf_nolock(client,
 							   data.flush_data.fd);
@@ -762,13 +760,15 @@ long msm_ion_custom_ioctl(struct ion_client *client,
 		int ret;
 
 		ret = ion_walk_heaps(client, data.prefetch_data.heap_id,
-			ION_HEAP_TYPE_SECURE_DMA,
-			(void *)data.prefetch_data.len,
-			ion_secure_cma_prefetch);
+				     (enum ion_heap_type)
+				     ION_HEAP_TYPE_SECURE_DMA,
+				     (void *)data.prefetch_data.len,
+				     ion_secure_cma_prefetch);
 		if (ret)
 			return ret;
 
 		ret = ion_walk_heaps(client, data.prefetch_data.heap_id,
+			(enum ion_heap_type)
 			ION_HEAP_TYPE_SYSTEM_SECURE,
 			(void *)&data.prefetch_data,
 			ion_system_secure_heap_prefetch);
@@ -781,6 +781,7 @@ long msm_ion_custom_ioctl(struct ion_client *client,
 		int ret;
 
 		ret = ion_walk_heaps(client, data.prefetch_data.heap_id,
+			(enum ion_heap_type)
 			ION_HEAP_TYPE_SECURE_DMA,
 			(void *)data.prefetch_data.len,
 			ion_secure_cma_drain_pool);

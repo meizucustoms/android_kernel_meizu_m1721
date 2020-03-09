@@ -1175,21 +1175,6 @@ static struct snd_soc_dai_link msm8952_common_fe_dai[] = {
 		 /* this dai link has playback support */
 		.be_id = MSM_FRONTEND_DAI_MULTIMEDIA19,
 	},
-	{/* hw:x,40 */
-		.name = "SLIMBUS_2 Hostless",
-		.stream_name = "SLIMBUS_2 Hostless",
-		.cpu_dai_name = "SLIMBUS2_HOSTLESS",
-		.platform_name = "msm-pcm-hostless",
-		.dynamic = 1,
-		.dpcm_capture = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-			SND_SOC_DPCM_TRIGGER_POST},
-		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-	},
 };
 
 static struct snd_soc_dai_link msm8952_common_misc_fe_dai[] = {

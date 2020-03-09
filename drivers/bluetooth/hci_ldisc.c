@@ -355,11 +355,7 @@ static void hci_uart_tty_close(struct tty_struct *tty)
 	}
 
 	if (test_and_clear_bit(HCI_UART_PROTO_READY, &hu->flags)) {
-		if (hdev) {
-			if (test_bit(HCI_UART_REGISTERED, &hu->flags))
-				hci_unregister_dev(hdev);
-			hci_free_dev(hdev);
-		}
+		hci_uart_proto_lock(hu);
 		hu->proto->close(hu);
 		hu->proto = NULL;
 		hci_uart_proto_unlock(hu);

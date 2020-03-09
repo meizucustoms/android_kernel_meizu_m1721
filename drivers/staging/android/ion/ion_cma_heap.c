@@ -85,7 +85,7 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 
 	info->table = kmalloc(sizeof(struct sg_table), GFP_KERNEL);
 	if (!info->table)
-		goto free_mem;
+		goto err;
 
 	info->is_cached = ION_IS_CACHED(flags);
 
@@ -97,11 +97,6 @@ static int ion_cma_allocate(struct ion_heap *heap, struct ion_buffer *buffer,
 	dev_dbg(dev, "Allocate buffer %pK\n", buffer);
 	return 0;
 
-free_mem:
-	if (!ION_IS_CACHED(flags))
-		dma_free_writecombine(dev, len, info->cpu_addr, info->handle);
-	else
-		dma_free_nonconsistent(dev, len, info->cpu_addr, info->handle);
 err:
 	kfree(info);
 	return ION_CMA_ALLOCATE_FAILED;
@@ -230,7 +225,7 @@ struct ion_heap *ion_cma_heap_create(struct ion_platform_heap *data)
 	/* set device as private heaps data, later it will be
 	 * used to make the link with reserved CMA memory */
 	heap->priv = data->priv;
-	heap->type = ION_HEAP_TYPE_DMA;
+	heap->type = (enum ion_heap_type)ION_HEAP_TYPE_DMA;
 	cma_heap_has_outer_cache = data->has_outer_cache;
 	return heap;
 }
@@ -344,7 +339,7 @@ struct ion_heap *ion_cma_secure_heap_create(struct ion_platform_heap *data)
 	 * used to make the link with reserved CMA memory
 	 */
 	heap->priv = data->priv;
-	heap->type = ION_HEAP_TYPE_HYP_CMA;
+	heap->type = (enum ion_heap_type)ION_HEAP_TYPE_HYP_CMA;
 	cma_heap_has_outer_cache = data->has_outer_cache;
 	return heap;
 }

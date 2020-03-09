@@ -1,4 +1,4 @@
-config FINGERPRINT_GOODIX_GF3208_MIDO
+config FINGERPRINT_GOODIX_GF3208_C6
 	tristate "Goodix GF3208 fingerprint driver support"
 	depends on INPUT_FINGERPRINT
 	help

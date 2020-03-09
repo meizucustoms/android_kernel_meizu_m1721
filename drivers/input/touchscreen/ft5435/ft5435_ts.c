@@ -30,6 +30,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/firmware.h>
 #include <linux/debugfs.h>
+#include <linux/wakelock.h>
 #include "ft5435_ts.h"
 
 
@@ -329,7 +330,7 @@ u8 vr_on;
 };
 static bool disable_keys_function = false;
 bool is_ft5435 = false;
-struct wakeup_source ft5436_wakelock;
+struct wake_lock ft5436_wakelock;
 
 static int ft5435_i2c_read(struct i2c_client *client, char *writebuf,
 			   int writelen, char *readbuf, int readlen);
@@ -1127,7 +1128,7 @@ static irqreturn_t ft5435_ts_interrupt(int irq, void *dev_id)
 			input_sync(vps_ft5436->proximity_dev);
 			printk("[Fu]close\n");
 		} else if (proximity_status == 0xE0) {
-			_pm_wakeup_event(&ft5436_wakelock, 1000);
+			wake_lock_timeout(&ft5436_wakelock, 1*HZ);
 			input_report_abs(vps_ft5436->proximity_dev, ABS_DISTANCE, 1);
 			input_sync(vps_ft5436->proximity_dev);
 			printk("[Fu]leave\n");
@@ -2528,7 +2529,7 @@ rel_fw:
 #if defined(FOCALTECH_LOCK_DOWN_INFO)
 #define CTP_PROC_LOCKDOWN_FILE "tp_lockdown_info"
 static struct proc_dir_entry *ctp_lockdown_status_proc;
-static char tp_lockdown_info[32];
+static char tp_lockdown_info[128];
 
 static int ctp_lockdown_proc_show(struct seq_file *file, void *data)
 {
@@ -3973,7 +3974,7 @@ INIT_WORK(&data->work_vr, ft5435_change_vr_switch);
 	while (retry--) {
 		err = ft5435_i2c_read(client, &reg_addr, 1, &reg_value, 1);
 		if (!(err < 0)) {
-#ifdef CONFIG_MACH_XIAOMI_MIDO
+#ifdef CONFIG_MACH_XIAOMI_C6
 			set_usb_charge_mode_par = 2;
 #endif
 			dev_info(&client->dev, "Device ID = 0x%x\n", reg_value);
@@ -4230,7 +4231,7 @@ g_ft5435_ts_data = data;
 	w_buf[0] = FT_REG_RESET_FW;
 	ft5435_i2c_write(client, w_buf, 1);
 	init_ok = 1;
-	wakeup_source_init(&ft5436_wakelock, "ft5436");
+	wake_lock_init(&ft5436_wakelock, WAKE_LOCK_SUSPEND, "ft5436");
 	if (fts_fw_vendor_id == FTS_VENDOR_1) {
 		strcpy(tp_info_summary, "[Vendor]Biel, [IC]FT5435, [FW]Ver");
 	} else if (fts_fw_vendor_id == FTS_VENDOR_2) {
@@ -4352,7 +4353,7 @@ static int ft5435_ts_remove(struct i2c_client *client)
 #endif
 
 	input_unregister_device(data->input_dev);
-	wakeup_source_trash(&ft5436_wakelock);
+	wake_lock_destroy(&ft5436_wakelock);
 
 	return 0;
 }

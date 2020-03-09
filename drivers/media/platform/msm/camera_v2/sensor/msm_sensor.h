@@ -89,7 +89,7 @@ struct msm_sensor_ctrl_t {
 	uint32_t set_mclk_23880000;
 	uint8_t is_csid_tg_mode;
 	uint32_t is_secure;
-#ifndef CONFIG_MACH_XIAOMI_MIDO 
+#ifndef CONFIG_MACH_XIAOMI_C6
 	uint8_t bypass_video_node_creation;
 #endif
 };

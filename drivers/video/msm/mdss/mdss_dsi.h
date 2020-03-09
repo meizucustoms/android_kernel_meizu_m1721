@@ -19,7 +19,6 @@
 #include <linux/irqreturn.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/gpio.h>
-#include <linux/pm_qos.h>
 
 #include "mdss_panel.h"
 #include "mdss_dsi_cmd.h"
@@ -108,7 +107,7 @@ enum dsi_panel_status_mode {
 	ESD_BTA,
 	ESD_REG,
 	ESD_REG_NT35596,
-#ifdef CONFIG_MACH_XIAOMI_MIDO
+#ifdef CONFIG_MACH_XIAOMI_C6
 	ESD_TE_NT35596,
 #endif
 	ESD_TE,
@@ -230,10 +229,6 @@ enum dsi_pm_type {
 extern struct device dsi_dev;
 extern u32 dsi_irq;
 extern struct mdss_dsi_ctrl_pdata *ctrl_list[];
-
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-extern int ft8716_gesture_func_on;
-#endif
 
 enum {
 	DSI_CTRL_0,
@@ -565,15 +560,6 @@ struct mdss_dsi_ctrl_pdata {
 	bool update_phy_timing; /* flag to recalculate PHY timings */
 
 	bool phy_power_off;
-
-	struct notifier_block wake_notif;
-	struct task_struct *wake_thread;
-	struct completion wake_comp;
-	wait_queue_head_t wake_waitq;
-	atomic_t disp_is_on;
-	atomic_t needs_wake;
-
-	struct pm_qos_request pm_qos_req;
 };
 
 struct dsi_status_data {
@@ -661,7 +647,7 @@ int mdss_dsi_cmdlist_commit(struct mdss_dsi_ctrl_pdata *ctrl, int from_mdp);
 void mdss_dsi_cmdlist_kickoff(int intf);
 int mdss_dsi_bta_status_check(struct mdss_dsi_ctrl_pdata *ctrl);
 int mdss_dsi_reg_status_check(struct mdss_dsi_ctrl_pdata *ctrl);
-#ifdef CONFIG_MACH_XIAOMI_MIDO
+#ifdef CONFIG_MACH_XIAOMI_C6
 int mdss_dsi_TE_NT35596_check(struct mdss_dsi_ctrl_pdata *ctrl);
 #endif
 bool __mdss_dsi_clk_enabled(struct mdss_dsi_ctrl_pdata *ctrl, u8 clk_type);
