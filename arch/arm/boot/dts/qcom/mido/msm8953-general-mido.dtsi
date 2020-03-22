@@ -110,7 +110,6 @@
 
 };
 
-
 &pmi8950_charger {
 	qcom,float-voltage-mv = <4400>;
 	qcom,resume-delta-mv = <50>;
@@ -277,13 +276,14 @@
 
         goodix_fp {
                 compatible = "goodix,fingerprint";
-                spi-max-frequency = <1000000>;
+                spi-max-frequency = <8000000>;
                 input-device-name = "gf3208";
-                interrupt-parent = <&tlmm>;
-                interrupts = <9 0x0>;
+                interrupt-parent = <0xbe>;
+				interrupts = <0x30 0x01>;
 
-                goodix,gpio_reset    = <&tlmm 140 0>;
-                goodix,gpio_irq      = <&tlmm 48 0>;
+                goodix,gpio_irq = <0xbe 0x30 0x00>;
+				goodix,gpio_reset = <0xbe 0x8c 0x00>;
+                goodix,gpio_pwr = <0xbe 0x86 0x00>;
 
                 clock-names = "iface_clk", "core_clk";
                 clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
@@ -441,8 +441,9 @@
 					00 00 00 00 00 00 00 00 00 00
 					00 00 00 00 00 00 83 01];
 		};
-
         };
+        
+        
 
 	i2c@78b6000 { /* BLSP1 QUP3 */
                 aw2013@45 {
@@ -485,6 +486,48 @@
                         };
                 };
         };
+        
+        i2c_8: i2c@7af8000 {
+                cs35l35@40 {
+				status = "ok";
+				compatible = "cirrus,cs35l35";
+				reg = <0x40>;
+				reset-gpios = <0xbe 0x5b 0x01>;
+				irq-gpio = <0xbe 0x5a 0x01>;
+				interrupt-parent = <0xbe>;
+				interrupts = <0x5a 0x08>;
+				debounce = <0x5a 0x64>;
+				pinctrl-names = "cs35l35_irq_default";
+				pinctrl-0 = <0xf5>;
+				cirrus,audio-channel = <0x00>;
+				cirrus,sp-drv-strength = <0x00>;
+				cirrus,boost-ctl = <0x7f>;
+				cirrus,boost-ipk = <0x19>;
+
+				cirrus,classh-internal-algo {
+					cirrus,classh-bst-overide;
+					cirrus,classh-bst-max-limit = <0x01>;
+					cirrus,classh-mem-depth = <0x01>;
+					cirrus,classh-release-rate = <0x03>;
+					cirrus,classh-headroom = <0x08>;
+					cirrus,classh-wk-fet-disable = <0x00>;
+					cirrus,classh-wk-fet-delay = <0x04>;
+					cirrus,classh-wk-fet-thld = <0x01>;
+					cirrus,classh-vpch-auto = <0x01>;
+					cirrus,classh-vpch-rate = <0x02>;
+					cirrus,classh-vpch-man = <0x05>;
+				};
+
+				cirrus,monitor-signal-format {
+					cirrus,imon = [03 00 01];
+					cirrus,vmon = [03 00 00];
+					cirrus,vpmon = [00 04 00];
+					cirrus,vbstmon = [00 04 01];
+					cirrus,vpbrstat = [00 04 00];
+					cirrus,zerofill = [00 00 00];
+				};
+			};
+		};
 };
 
 &usb3 {

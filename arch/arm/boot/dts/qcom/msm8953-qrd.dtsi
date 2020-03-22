@@ -29,6 +29,14 @@
 			linux,code = <115>;
 			debounce-interval = <15>;
 		};
+        home {
+				label = "home";
+				gpios = <&tlmm 141 0x1>;
+				linux,input-type = <1>;
+				linux,code = <102>;
+				gpio-key,wakeup;
+				debounce-interval = <15>;
+        };
 	};
 
 	i2c@78b7000 { /* BLSP1 QUP3 */
@@ -240,16 +248,4 @@
 
 &pm8953_vadc {
 	/delete-node/ chan@11;
-};
-
-&sdc2_cmd_on {
-	config {
-		drive-strength=<12>;
-	};
-};
-
-&sdc2_data_on {
-	config {
-		drive-strength=<12>;
-	};
 };

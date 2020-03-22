@@ -2912,7 +2912,7 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 			panel_suspend_reset_flag = 2;
 		else if (!strcmp(panel_name, "qcom,mdss_dsi_ili9885_boe_fhd_video"))
 			panel_suspend_reset_flag = 3;
-		else
+        else
 #endif
 		if (!strcmp(panel_name, NONE_PANEL))
 			goto exit;

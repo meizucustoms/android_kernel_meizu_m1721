@@ -14,6 +14,7 @@
 #include "msm8953-wsa881x.dtsi"
 
 &int_codec {
+    
 	qcom,model = "msm8953-snd-card-mtp";
 
 	qcom,cdc-us-euro-gpios = <&tlmm 63 0>;
