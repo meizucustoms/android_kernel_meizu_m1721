@@ -1412,6 +1412,18 @@ static int fts_ts_resume(struct device *dev)
 	return 0;
 }
 
+void tpd_usb_plugin(bool mode)
+{
+	struct fts_ts_data *data = fts_wq_data;
+	int ret = -1;
+	if (data->suspended)
+		return ;
+	if (fts_i2c_client == NULL)
+		return ;
+	ret = fts_i2c_write_reg(fts_i2c_client, 0x8b, mode);
+	if (ret < 0)
+		pr_err("usb detect write err: %s %d.\n", __FUNCTION__, mode);
+}
 /*****************************************************************************
 * I2C Driver
 *****************************************************************************/

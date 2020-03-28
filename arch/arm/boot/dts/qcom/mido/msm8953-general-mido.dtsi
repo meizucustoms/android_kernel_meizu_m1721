@@ -100,12 +100,92 @@
 };
 
 &qrd_batterydata {
-	qcom,batt-id-range-pct = <5>;
-	#include "batterydata-qrd-sunwoda-4v4-4100mah.dtsi"
-	#include "batterydata-qrd-sunwoda-ATL-4v4-4100mah.dtsi"
-	#include "batterydata-qrd-coslight-4v4-4100mah.dtsi"
-	#include "batterydata-qrd-desay-lisheng-4v4-4100mah.dtsi"
-	#include "batterydata-qrd-desay-4v4-4100mah.dtsi"
+	qcom,batt-id-range-pct = <30>;
+
+		qcom,jiade_ca436580g_4020mah {
+			qcom,max-voltage-uv = <0x432380>;
+			qcom,nom-batt-capacity-mah = <0xfb4>;
+			qcom,batt-id-kohm = <0xc8>;
+			qcom,battery-beta = <0xd34>;
+			qcom,battery-type = "jiade_ca436580g_4000mah";
+			qcom,fastchg-current-ma = <0xfa0>;
+			qcom,fg-cc-cv-threshold-mv = <0x1126>;
+			qcom,chg-rslow-comp-c1 = <0x3840d2>;
+			qcom,chg-rslow-comp-c2 = <0x627b75>;
+			qcom,chg-rs-to-rslow = <0xb9ddd>;
+			qcom,chg-rslow-comp-thr = <0xb7>;
+			qcom,checksum = <0x952e>;
+			qcom,gui-version = "PMI8950GUI - 2.0.0.16";
+			qcom,fg-profile-data = <0xf0836d7d 0x9881227c 0x5d83656c 0x4b839b8d 0xeb813a9a 0x85bc71c8 0x5b110188 0x977da281 0x217c5283 0xa969ae79 0xbe861f82 0x739abebd 0x2fcb5a0e 0xdc0f8359 0x1470eefc 0x47447b3f 0xeb400000 0x5466930 0xfe1a0000 0x00 0x00 0x2b6bd169 0x6a731291 0x93776c71 0x46765f71 0x5e75426b 0x96666a2 0x24da5b73 0x5da0710c 0x2800ff36 0xf0113003 0x0c>;
+		};
+
+		qcom,jiade_atl446580_4020mah {
+			qcom,max-voltage-uv = <0x432380>;
+			qcom,nom-batt-capacity-mah = <0xfb4>;
+			qcom,batt-id-kohm = <0x12c>;
+			qcom,battery-beta = <0xd34>;
+			qcom,battery-type = "jiade_atl446580_4000mah";
+			qcom,fastchg-current-ma = <0xfa0>;
+			qcom,fg-cc-cv-threshold-mv = <0x1126>;
+			qcom,chg-rslow-comp-c1 = <0x2ddb09>;
+			qcom,chg-rslow-comp-c2 = <0x3cda94>;
+			qcom,chg-rs-to-rslow = <0xc8771>;
+			qcom,chg-rslow-comp-thr = <0x9f>;
+			qcom,checksum = <0xb43>;
+			qcom,gui-version = "PMI8950GUI - 2.0.0.16";
+			qcom,fg-profile-data = <0xec833f7d 0x7181f677 0x55839752 0x52804587 0x1682ab9a 0xf3bd44cb 0x5b0e0588 0xeb7dde81 0x557c4f83 0x42704270 0x55845082 0x9299d5bc 0xb0c95a0d 0xb50f5059 0x1470eefc 0x833f1d3e 0x7b400000 0x4345bc30 0x3f290000 0x00 0x00 0xec6aed69 0x8978f789 0x546f5463 0x6b610a80 0xf06cd25b 0xa17c2ea1 0x1a1162e3 0x5fa0710c 0x2800ff36 0xf0113003 0x0c>;
+		};
+
+		qcom,deerneng-ca436580g_4000mah {
+			qcom,max-voltage-uv = <0x432380>;
+			qcom,nom-batt-capacity-mah = <0xfa0>;
+			qcom,batt-id-kohm = <0x64>;
+			qcom,battery-beta = <0xd34>;
+			qcom,battery-type = "deerneng-ca436580g_4000mah";
+			qcom,fastchg-current-ma = <0xfa0>;
+			qcom,fg-cc-cv-threshold-mv = <0x1126>;
+			qcom,chg-rslow-comp-c1 = <0x2eec11>;
+			qcom,chg-rslow-comp-c2 = <0x4856fb>;
+			qcom,chg-rs-to-rslow = <0xa7bf6>;
+			qcom,chg-rslow-comp-thr = <0xac>;
+			qcom,checksum = <0xc816>;
+			qcom,gui-version = "PMI8950GUI - 2.0.0.16";
+			qcom,fg-profile-data = <0xf183767d 0x8d81017c 0x5b831667 0xe582728d 0xa82fa99 0x8bbcabc8 0x5a0f0288 0xbd7dbe81 0x317c4f83 0xd6bff72 0x3852782 0x3e9a7dbd 0xbeca5a0e 0xcd0fbb58 0x1470eefc 0x4545e937 0x363b0000 0x5345392a 0xdd370000 0x00 0x00 0x5c6a7769 0x9c631d80 0xc4675a60 0xcf629e79 0xcc640359 0x7c7e7a91 0x1d0161f7 0x5da0710c 0x2800ff36 0xf0113003 0x0c>;
+		};
+
+		qcom,deerneng-atl446580_4000mah {
+			qcom,max-voltage-uv = <0x432380>;
+			qcom,nom-batt-capacity-mah = <0xfa0>;
+			qcom,batt-id-kohm = <0x32>;
+			qcom,battery-beta = <0xd34>;
+			qcom,battery-type = "deerneng_atl446580_4000mah";
+			qcom,fastchg-current-ma = <0xfa0>;
+			qcom,fg-cc-cv-threshold-mv = <0x1126>;
+			qcom,chg-rslow-comp-c1 = <0x30d3ae>;
+			qcom,chg-rslow-comp-c2 = <0x43103e>;
+			qcom,chg-rs-to-rslow = <0xca280>;
+			qcom,chg-rslow-comp-thr = <0xa2>;
+			qcom,checksum = <0x8aaf>;
+			qcom,gui-version = "PMI8950GUI - 2.0.0.16";
+			qcom,fg-profile-data = <0xdf83c87c 0x19815577 0x6183ba6f 0x36895c94 0x3282b299 0xb3bc3ec9 0x550ffa83 0x497d5b81 0xa4775f83 0xab5deb83 0xc28f4982 0x89a75bd 0xaeca520d 0xb60f6859 0x1470eefc 0x6e3e0c45 0xe6410000 0x5a461c30 0x1e2a0000 0x00 0x00 0x6f6bfb69 0x9971a98b 0xfb75d06b 0x216d1579 0x2a6f2d68 0x583504a8 0x214163ff 0x64a0710c 0x2800ff36 0xf0113003 0x0c>;
+		};
+
+		qcom,dummy_cell_4020mah {
+			qcom,max-voltage-uv = <0x432380>;
+			qcom,nom-batt-capacity-mah = <0xfb4>;
+			qcom,batt-id-kohm = <0x50>;
+			qcom,battery-beta = <0xd34>;
+			qcom,battery-type = "dummy_cell_4000mah";
+			qcom,fastchg-current-ma = <0xfa0>;
+			qcom,fg-cc-cv-threshold-mv = <0x1126>;
+			qcom,chg-rslow-comp-c1 = <0x3840d2>;
+			qcom,chg-rslow-comp-c2 = <0x627b75>;
+			qcom,chg-rs-to-rslow = <0xb9ddd>;
+			qcom,chg-rslow-comp-thr = <0xb7>;
+			qcom,checksum = <0x952e>;
+			qcom,gui-version = "PMI8950GUI - 2.0.0.16";
+			qcom,fg-profile-data = <0xf0836d7d 0x9881227c 0x5d83656c 0x4b839b8d 0xeb813a9a 0x85bc71c8 0x5b110188 0x977da281 0x217c5283 0xa969ae79 0xbe861f82 0x739abebd 0x2fcb5a0e 0xdc0f8359 0x1470eefc 0x47447b3f 0xeb400000 0x5466930 0xfe1a0000 0x00 0x00 0x2b6bd169 0x6a731291 0x93776c71 0x46765f71 0x5e75426b 0x96666a2 0x24da5b73 0x5da0710c 0x2800ff36 0xf0113003 0x0c>;
+		};
 	/delete-node/ qcom,qrd_msm8937_sku1_2920mah;
 
 };
@@ -176,61 +256,60 @@
 
 &soc {
 	qcom,mpm@601d4 {
-		qcom,gpio-map = <3  38 >,
-                        <4  1 >,
-                        <5  5 >,
-                        <6  9 >,
-                        <8  37>,
-                        <9  36>,
-                        <10  13>,
-                        <11  35>,
-                        <12  17>,
-                        <13  21>,
-                        <14  54>,
-                        <15  34>,
-                        <16  31>,
-                        <17  58>,
-                        <18  28>,
-                        <19  42>,
-                        <20  25>,
-                        <21  12>,
-                        <22  43>,
-                        <23  44>,
-                        <24  45>,
-                        <25  46>,
-                        <26  48>,
-                        <27  65>,
-                        <28  93>,
-                        <29  97>,
-                        <30  63>,
-                        <31  70>,
-                        <32  71>,
-                        <33  72>,
-                        <34  81>,
-                        <35  85>,
-                        <36  90>,
-                        <50  67>,
-                        <51  73>,
-                        <52  74>,
-                        <53  62>,
-                        <59  59>,
-                        <60  60>,
-                        <61  61>,
-                        <62  86>,
-                        <63  87>,
-                        <64  91>,
-                        <65  129>,
-                        <66  130>,
-                        <67  131>,
-                        <68  132>,
-                        <69  133>,
-                        <70  137>,
-                        <71  138>,
-                        <72  139>,
-                        <73  140>,
-                        <74  141>,
-                        <0xff 24>, /* added by xiaomi */
-                        <0xff 88>;
+		qcom,gpio-map = <0x03 0x26>,
+                        <0x04 0x01>,
+                        <0x05 0x05>,
+                        <0x06 0x09>,
+                        <0x08 0x25>,
+                        <0x09 0x24>,
+                        <0x0a 0x0d>,
+                        <0x0b 0x23>,
+                        <0x0c 0x11>,
+                        <0x0d 0x15>,
+                        <0x0e 0x36>,
+                        <0x0f 0x22>,
+                        <0x10 0x1f>,
+                        <0x11 0x3a>,
+                        <0x12 0x1c>,
+                        <0x13 0x2a>,
+                        <0x14 0x19>,
+                        <0x15 0x0c>,
+                        <0x16 0x2b>,
+                        <0x17 0x2c>,
+                        <0x18 0x2d>,
+                        <0x19 0x2e>,
+                        <0x1a 0x30>,
+                        <0x1b 0x41>,
+                        <0x1c 0x5d>,
+                        <0x1d 0x61>,
+                        <0x1e 0x3f>,
+                        <0x1f 0x46>,
+                        <0x20 0x47>,
+                        <0x21 0x48>,
+                        <0x22 0x51>,
+                        <0x23 0x55>,
+                        <0x24 0x5a>,
+                        <0x32 0x43>,
+                        <0x33 0x49>, 
+                        <0x34 0x4a>,
+                        <0x35 0x3e>,
+                        <0x3b 0x3b>,
+                        <0x3c 0x3c>,
+                        <0x3d 0x3d>,
+                        <0x3e 0x56>,
+                        <0x3f 0x57>,
+                        <0x40 0x5b>,
+                        <0x41 0x81>,
+                        <0x42 0x82>,
+                        <0x43 0x83>,
+                        <0x44 0x84>,
+                        <0x45 0x85>,
+                        <0x46 0x89>,
+                        <0x47 0x8a>,
+                        <0x48 0x8b>,
+                        <0x49 0x8c>,
+                        <0x4a 0x8d>,
+                        <0xff 0x58>;
 		};
 	sn_fuse: snfuse@0xa4128 {
 		compatible = "qcom,sn-fuse";
@@ -238,92 +317,37 @@
 		reg-names = "sn-base";
 	};
 
-	qcom_seecom: qseecom@84a00000 { /* renamed from caf qseecom@85b00000 */
-                compatible = "qcom,qseecom";
-                reg = <0x84a00000 0x1900000>; /* changed by xiaomi */
-                reg-names = "secapp-region";
-                qcom,hlos-num-ce-hw-instances = <1>;
-                qcom,hlos-ce-hw-instance = <0>;
-                qcom,qsee-ce-hw-instance = <0>;
-                qcom,disk-encrypt-pipe-pair = <2>;
-                qcom,support-fde;
-                qcom,msm-bus,name = "qseecom-noc";
-                qcom,msm-bus,num-cases = <4>;
-                qcom,msm-bus,num-paths = <1>;
-                qcom,support-bus-scaling;
-                qcom,msm-bus,vectors-KBps =
-                        <55 512 0 0>,
-                        <55 512 0 0>,
-                        <55 512 120000 1200000>,
-                        <55 512 393600 3936000>;
-                clocks = <&clock_gcc clk_crypto_clk_src>,
-                         <&clock_gcc clk_gcc_crypto_clk>,
-                         <&clock_gcc clk_gcc_crypto_ahb_clk>,
-                         <&clock_gcc clk_gcc_crypto_axi_clk>;
-                clock-names = "core_clk_src", "core_clk",
-                                "iface_clk", "bus_clk";
-                qcom,ce-opp-freq = <100000000>;
-        };
+	spi@78B5000 {
+			compatible = "qcom,spi-qup-v2";
+			#address-cells = <0x01>;
+			#size-cells = <0x00>;
+			reg-names = "spi_physical", "spi_bam_physical";
+			reg = <0x78b5000 0x600 0x7884000 0x23000>;
+			interrupt-names = "spi_irq", "spi_bam_irq";
+			interrupts = <0x00 0x5f 0x00 0x00 0xee 0x00>;
+			spi-max-frequency = <0x124f800>;
+			qcom,infinite-mode = <0x00>;
+			qcom,use-bam;
+			qcom,ver-reg-exists;
+			qcom,bam-consumer-pipe-index = <0x08>;
+			qcom,bam-producer-pipe-index = <0x09>;
+			qcom,master-id = <0x56>;
+			qcom,use-pinctrl;
+			clock-names = "iface_clk", "core_clk";
+			clocks = <0x37 0x8caa5b4f 0x37 0x759a76b0>;
+			status = "ok";
 
-        /delete-node/ qseecom@85b00000;
-
-	pwm_ir {
-                compatible = "pwm-ir";
-                pwms = <&pmi8950_pwm 0 0>;
-                reg-id = "vdd";
-                vdd-supply = <&pm8953_l8>;
-        };
-
-        goodix_fp {
-                compatible = "goodix,fingerprint";
-                spi-max-frequency = <8000000>;
-                input-device-name = "gf3208";
-                interrupt-parent = <0xbe>;
+			goodix_fp@0 {
+				compatible = "goodix,fingerprint";
+				reg = <0x00>;
+				interrupt-parent = <0xbe>;
 				interrupts = <0x30 0x01>;
-
-                goodix,gpio_irq = <0xbe 0x30 0x00>;
+				goodix,gpio_irq = <0xbe 0x30 0x00>;
 				goodix,gpio_reset = <0xbe 0x8c 0x00>;
-                goodix,gpio_pwr = <0xbe 0x86 0x00>;
-
-                clock-names = "iface_clk", "core_clk";
-                clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-                <&clock_gcc clk_gcc_blsp1_qup1_spi_apps_clk>;
-
-                pinctrl-names = "goodixfp_spi_active",
-                        "goodixfp_reset_reset",
-                        "goodixfp_reset_active",
-                        "goodixfp_irq_active";
-
-                pinctrl-0 = <&goodix_spi_active>;
-                pinctrl-1 = <&goodix_reset_reset>;
-                pinctrl-2 = <&goodix_reset_active>;
-                pinctrl-3 = <&goodix_irq_active>;
-        };
-
-	fpc1020 {
-                compatible = "fpc,fpc1020";
-                spi-max-frequency = <1000000>;
-                input-device-name = "fpc1020";
-                interrupt-parent = <&tlmm>;
-                interrupts = <9 0x0>;
-
-                fpc,gpio_rst    = <&tlmm 140 0>;
-                fpc,gpio_irq      = <&tlmm 48 0>;
-
-                clock-names = "iface_clk", "core_clk";
-                clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-                <&clock_gcc clk_gcc_blsp1_qup1_spi_apps_clk>;
-
-                pinctrl-names = "fpc1020_spi_active",
-                        "fpc1020_reset_reset",
-                        "fpc1020_reset_active",
-                        "fpc1020_irq_active";
-
-                pinctrl-0 = <&fpc_spi_active>;
-                pinctrl-1 = <&fpc_reset_reset>;
-                pinctrl-2 = <&fpc_reset_active>;
-                pinctrl-3 = <&fpc_irq_active>;
-        };
+				goodix,gpio_pwr = <0xbe 0x86 0x00>;
+				spi-max-frequency = <0x7a1200>;
+			};
+		};
 
 	i2c@78b7000 {
                 focaltech@38 {
@@ -383,66 +407,23 @@
                         imagis,irq-gpio = <&tlmm 65 0x2008>;
                         imagis,i2c-pull-up;
                 };
-
-		goodix_ts@14 {
-			compatible = "goodix,gt9xx";
-			reg = <0x14>;
-			interrupt-parent = <&tlmm>;
-			interrupts = <65 0x0>;
-			pinctrl-names = "pmx_ts_active","pmx_ts_suspend",
-			"pmx_ts_release";
-			pinctrl-0 = <&ts_int_active &ts_reset_active>;
-			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
-			pinctrl-2 = <&ts_release>;
-			vdd_ana-supply = <&pm8953_l10>;
-			vcc_i2c-supply = <&pm8953_l6>;
-			goodix,rst-gpio = <&tlmm 64 0x0>;
-			goodix,irq-gpio = <&tlmm 65 0x2008>;
-			goodix,cfg-group0 = [45 38 04 80 07 0A 35 41 01 0A
-					26 0B 5A 32 05 05 00 00 00 00
-					00 00 05 14 14 26 14 8C 2E 0E
-					4A 4C F4 0A F4 0A 00 BA 33 11
-					00 00 00 00 00 05 03 28 78 96
-					3A 1E 5A 8F 90 03 00 00 00 04
-					CE 21 00 B0 29 28 98 34 00 87
-					41 60 7B 51 00 7B 18 38 60 00
-					F0 55 40 AA A0 27 00 04 53 00
-					00 00 00 00 00 02 00 00 00 00
-					00 00 00 00 00 00 3C 00 00 00
-					00 28 02 04 06 08 0A 0C 0E 10
-					12 14 16 18 1A 1C 00 00 00 00
-					00 00 00 00 00 00 00 00 00 00
-					00 00 00 02 04 06 08 0A 0C 0F
-					10 12 13 14 16 18 1C 1D 1E 1F
-					20 21 22 24 26 28 29 2A 00 00
-					00 00 00 00 00 00 00 00 00 00
-					00 00 00 00 23 01];
-			goodix,cfg-group1 = [49 38 04 80 07 0A 3D 49 01 48
-					50 0F 50 41 03 65 00 00 00 00
-					00 00 0F 16 1A 23 14 87 27 DD
-					50 52 E7 07 E7 07 00 42 33 91
-					0A 00 00 00 00 83 C4 14 14 C8
-					02 3C 64 8F D0 03 05 1E 00 04
-					93 3F 00 8A 46 00 82 4D 00 7C
-					55 00 76 5F 00 76 18 38 60 00
-					F7 55 40 99 99 17 00 00 D1 00
-					00 00 00 00 00 02 00 00 05 28
-					00 00 00 00 00 28 64 00 00 00
-					00 50 0C 0B 0A 09 08 07 06 05
-					04 03 02 01 00 0D 0E 0F 10 11
-					12 13 14 15 16 17 18 19 1A FF
-					FF FF 29 28 24 22 20 1F 1E 0A
-					08 06 05 04 02 00 FF FF FF 00
-					00 00 00 00 00 00 00 00 28 32
-					3C 10 23 28 0F 00 00 00 00 00
-					00 00 0F 4B 00 00 00 00 00 00
-					1E 50 00 00 00 05 00 00 00 00
-					01 14 78 1A 19 3C 28 00 00 00
-					00 00 00 00 00 00 00 00 00 00
-					00 00 00 00 00 00 83 01];
+                
+			goodix_ts@5d {
+				compatible = "goodix,gt9xx";
+				reg = <0x5d>;
+				interrupt-parent = <0xbe>;
+				interrupts = <0x41 0x2008>;
+				vdd_ana-supply = <0xe2>;
+				vcc_i2c-supply = <0xe3>;
+				goodix,rst-gpio = <0xbe 0x40 0x00>;
+				goodix,irq-gpio = <0xbe 0x41 0x2008>;
+				pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
+				pinctrl-0 = <0xe4 0xe5>;
+				pinctrl-1 = <0xe6 0xe7>;
+				pinctrl-2 = <0xe8>;
+				goodix,cfg-group0 = <0x46380480 0x70a3d00 0x1c52808 0x50320305 0x4022 0x617 0x191e1487 0x27cc1f21 0x43067c06 0x19b3311 0x00 0x00 0x431c 0x5a858084 0x41e0804 0x801f0065 0x28005232 0x433f00 0x37500037 0x00 0x00 0x90 0x1000000 0xff6f 0x330028 0x00 0xa4600 0x28 0x11121314 0x15161710 0xf0e0d0c 0xb0a0908 0x7060504 0x3020100 0xffffffff 0xffff0a08 0x6050402 0x1e1f20 0x22242829 0xffffff78 0x11000000 0x88701200 0x00 0x1e5a0f66 0x55000020 0x2201155 0x00 0x00 0x03 0x32000501 0xac800 0x00 0x00 0x00 0x00 0x00 0x2301>;
+			};
 		};
-        };
-        
         
 
 	i2c@78b6000 { /* BLSP1 QUP3 */
@@ -487,9 +468,11 @@
                 };
         };
         
-        i2c_8: i2c@7af8000 {
-                cs35l35@40 {
-				status = "ok";
+    i2c_8: i2c@7af8000 {
+        #address-cells = <0x01>;
+        #size-cells = <0x00>;
+            
+                cs35l35: cs35l35@40 {
 				compatible = "cirrus,cs35l35";
 				reg = <0x40>;
 				reset-gpios = <0xbe 0x5b 0x01>;
@@ -555,6 +538,10 @@
 
 &pm8953_diangu_analog {
 	status = "ok";
+};
+
+&cs35l35 {
+    status = "ok";
 };
 
 &ext_codec {

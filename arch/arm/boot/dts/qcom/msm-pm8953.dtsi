@@ -83,6 +83,7 @@
 			mpp@a100 {
 				reg = <0xa100 0x100>;
 				qcom,pin-num = <2>;
+                status = "disabled";
 			};
 
 			mpp@a200 {
@@ -94,8 +95,83 @@
 			mpp@a300 {
 				reg = <0xa300 0x100>;
 				qcom,pin-num = <4>;
+                status = "disabled";
 			};
-		};
+        };
+            qcom,qpnp-smbcharger {
+					spmi-dev-container;
+					compatible = "qcom,qpnp-smbcharger";
+					#address-cells = <0x01>;
+					#size-cells = <0x01>;
+					qcom,iterm-ma = <0x64>;
+					qcom,float-voltage-mv = <0x1130>;
+					qcom,resume-delta-mv = <0x64>;
+					qcom,chg-inhibit-fg;
+					qcom,rparasitic-uohm = <0x186a0>;
+					qcom,bms-psy-name = "bms";
+					qcom,thermal-mitigation = <0xbb8 0x9c4 0x7d0 0x5dc 0x3e8 0x1f4 0x00>;
+					qcom,parallel-usb-min-current-ma = <0x578>;
+					qcom,parallel-usb-9v-min-current-ma = <0x384>;
+					qcom,parallel-allowed-lowering-ma = <0x1f4>;
+					qcom,pmic-revid = <0x125>;
+					qcom,force-aicl-rerun;
+					qcom,aicl-rerun-period-s = <0xb4>;
+					qcom,vchg_sns-vadc = <0x126>;
+					qcom,vchg-adc-channel-id = <0x03>;
+					qcom,vusbin-adc-channel-id = <0x00>;
+					qcom,override-usb-current = <0x01>;
+					qcom,usbchg_temp-vadc = <0x121>;
+					qcom,board_temp-vadc = <0x121>;
+					qcom,usbchg_temp-channel-id = <0x11>;
+					qcom,board_temp-channel-id = <0x13>;
+					qcom,parallel-en-gpio = <0x127 0x02 0x00>;
+					qcom,charging-timeout-mins = <0x300>;
+					qcom,precharging-timeout-mins = <0x30>;
+					qcom,battery-data = <0x128>;
+					status = "okay";
+
+					qcom,chgr@1000 {
+						reg = <0x1000 0x100>;
+						interrupts = <0x02 0x10 0x00 0x02 0x10 0x01 0x02 0x10 0x02 0x02 0x10 0x03 0x02 0x10 0x04 0x02 0x10 0x05 0x02 0x10 0x06 0x02 0x10 0x07>;
+						interrupt-names = "chg-error", "chg-inhibit", "chg-prechg-sft", "chg-complete-chg-sft", "chg-p2f-thr", "chg-rechg-thr", "chg-taper-thr", "chg-tcc-thr";
+					};
+
+					qcom,otg@1100 {
+						reg = <0x1100 0x100>;
+						interrupts = <0x02 0x11 0x00 0x02 0x11 0x01 0x02 0x11 0x03>;
+						interrupt-names = "otg-fail", "otg-oc", "usbid-change";
+					};
+
+					qcom,bat-if@1200 {
+						reg = <0x1200 0x100>;
+						interrupts = <0x02 0x12 0x00 0x02 0x12 0x01 0x02 0x12 0x02 0x02 0x12 0x03 0x02 0x12 0x04 0x02 0x12 0x05 0x02 0x12 0x06 0x02 0x12 0x07>;
+						interrupt-names = "batt-hot", "batt-warm", "batt-cold", "batt-cool", "batt-ov", "batt-low", "batt-missing", "batt-term-missing";
+					};
+
+					qcom,usb-chgpth@1300 {
+						reg = <0x1300 0x100>;
+						interrupts = <0x02 0x13 0x00 0x02 0x13 0x01 0x02 0x13 0x02 0x02 0x13 0x05>;
+						interrupt-names = "usbin-uv", "usbin-ov", "usbin-src-det", "aicl-done";
+					};
+
+					qcom,dc-chgpth@1400 {
+						reg = <0x1400 0x100>;
+						interrupts = <0x02 0x14 0x00 0x02 0x14 0x01>;
+						interrupt-names = "dcin-uv", "dcin-ov";
+					};
+
+					qcom,chgr-misc@1600 {
+						reg = <0x1600 0x100>;
+						interrupts = <0x02 0x16 0x00 0x02 0x16 0x01 0x02 0x16 0x02 0x02 0x16 0x03 0x02 0x16 0x04 0x02 0x16 0x05>;
+						interrupt-names = "power-ok", "temp-shutdown", "wdog-timeout", "flash-fail", "otst2", "otst3";
+					};
+
+					qcom,smbcharger-boost-otg {
+						regulator-name = "smbcharger_charger_otg";
+						linux,phandle = <0x136>;
+						phandle = <0x136>;
+					};
+				};
 
 		pm8953_gpios: gpios {
 			spmi-dev-container;

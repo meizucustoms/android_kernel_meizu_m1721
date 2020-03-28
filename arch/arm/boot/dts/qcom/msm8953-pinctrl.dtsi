@@ -1130,12 +1130,12 @@
 					phandle = <0x180>;
 
 					mux {
-						pins = "cdc_mclk2";
+						pins = "gpio66";
 						function = "pri_mi2s";
 					};
 
 					config {
-						pins = "cdc_mclk2";
+						pins = "gpio66";
 						drive-strength = <0x02>;
 						bias-pull-down;
 					};
@@ -1146,12 +1146,12 @@
 					phandle = <0x181>;
 
 					mux {
-						pins = "cdc_mclk2";
+						pins = "gpio66";
 						function = "pri_mi2s";
 					};
 
 					config {
-						pins = "cdc_mclk2";
+						pins = "gpio66";
 						drive-strength = <0x08>;
 						bias-disable;
 					};
@@ -1500,8 +1500,8 @@
 			cs35l35_mclk {
 
 				cs35l35_mclk_on {
-					linux,phandle = <0x16f>;
-					phandle = <0x16f>;
+					linux,phandle = <0x175>;
+					phandle = <0x175>;
 
 					mux {
 						pins = "gpio25";
@@ -1516,8 +1516,8 @@
 				};
 
 				cs35l35_mclk_off {
-					linux,phandle = <0x141>;
-					phandle = <0x141>;
+					linux,phandle = <0x147>;
+					phandle = <0x147>;
 
 					mux {
 						pins = "gpio25";
@@ -1540,12 +1540,12 @@
 					phandle = <0x145>;
 
 					mux {
-						pins = "gpio86";
+						pins = "gpio91", "gpio93";
 						function = "pri_mi2s";
 					};
 
 					config {
-						pins = "gpio86";
+						pins = "gpio91", "gpio93";
 						drive-strength = <0x08>;
 					};
 				};
@@ -1555,12 +1555,12 @@
 					phandle = <0x13f>;
 
 					mux {
-						pins = "gpio86";
+						pins = "gpio91", "gpio93";
 						function = "pri_mi2s";
 					};
 
 					config {
-						pins = "gpio86";
+						pins = "gpio91", "gpio93";
 						drive-strength = <0x02>;
 						bias-pull-down;
 					};

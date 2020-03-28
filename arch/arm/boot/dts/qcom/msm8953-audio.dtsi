@@ -168,68 +168,79 @@
 &pm8953_1 {
 	pm8953_diangu_dig: 8953_wcd_codec@f000 {
 		compatible = "qcom,msm8x16_wcd_codec";
-		reg = <0xf000 0x100>;
-		interrupt-parent = <&spmi_bus>;
-		interrupts = <0x1 0xf0 0x0>,
-			     <0x1 0xf0 0x1>,
-			     <0x1 0xf0 0x2>,
-			     <0x1 0xf0 0x3>,
-			     <0x1 0xf0 0x4>,
-			     <0x1 0xf0 0x5>,
-			     <0x1 0xf0 0x6>,
-			     <0x1 0xf0 0x7>;
-		interrupt-names = "spk_cnp_int",
-				  "spk_clip_int",
-				  "spk_ocp_int",
-				  "ins_rem_det1",
-				  "but_rel_det",
-				  "but_press_det",
-				  "ins_rem_det",
-				  "mbhc_int";
+        reg = <0xf000 0x100>;
+        
+        interrupt-parent = <0x11d>;
+        interrupts =
+            <0x01 0xf0 0x00>,
+            <0x01 0xf0 0x01>,
+            <0x01 0xf0 0x02>,
+            <0x01 0xf0 0x03>,
+            <0x01 0xf0 0x04>,
+            <0x01 0xf0 0x05>,
+            <0x01 0xf0 0x06>,
+            <0x01 0xf0 0x07>;
+            
+        interrupt-names =
+            "spk_cnp_int",
+            "spk_clip_int",
+            "spk_ocp_int",
+            "ins_rem_det1",
+            "but_rel_det",
+            "but_press_det",
+            "ins_rem_det",
+            "mbhc_int";
 
-		cdc-vdda-cp-supply = <&pm8953_s4>;
-		qcom,cdc-vdda-cp-voltage = <1900000 2050000>;
-		qcom,cdc-vdda-cp-current = <500000>;
+        cdc-vdda-cp-supply = <&pm8953_s4>;
+        qcom,cdc-vdda-cp-voltage = <0x1cfde0 0x1f47d0>;
+        qcom,cdc-vdda-cp-current = <0x7a120>;
+        
+        cdc-vdd-io-supply = <&pm8953_l5>;
+        qcom,cdc-vdd-io-voltage = <0x1b7740 0x1b7740>;
+        qcom,cdc-vdd-io-current = <0x1388>;
+        
+        cdc-vdd-pa-supply = <&pm8953_s4>;
+        qcom,cdc-vdd-pa-voltage = <0x1cfde0 0x1f47d0>;
+        qcom,cdc-vdd-pa-current = <0x3f7a0>;
+        
+        cdc-vdd-mic-bias-supply = <&pm8953_l13>;
+        qcom,cdc-vdd-mic-bias-voltage = <0x2faf08 0x2faf08>;
+        qcom,cdc-vdd-mic-bias-current = <0x1388>;
 
-		cdc-vdd-io-supply = <&pm8953_l5>;
-		qcom,cdc-vdd-io-voltage = <1800000 1800000>;
-		qcom,cdc-vdd-io-current = <5000>;
+		qcom,cdc-mclk-clk-rate = <0x927c00>;
 
-		cdc-vdd-pa-supply = <&pm8953_s4>;
-		qcom,cdc-vdd-pa-voltage = <1900000 2050000>;
-		qcom,cdc-vdd-pa-current = <260000>;
-
-		cdc-vdd-mic-bias-supply = <&pm8953_l13>;
-		qcom,cdc-vdd-mic-bias-voltage = <3125000 3125000>;
-		qcom,cdc-vdd-mic-bias-current = <5000>;
-
-		qcom,cdc-mclk-clk-rate = <9600000>;
-
-		qcom,cdc-static-supplies =  "cdc-vdd-io",
-					   "cdc-vdd-pa",
-					   "cdc-vdda-cp";
+		qcom,cdc-static-supplies =
+            "cdc-vdd-io",
+            "cdc-vdd-pa",
+            "cdc-vdda-cp";
 
 		qcom,cdc-on-demand-supplies = "cdc-vdd-mic-bias";
-		qcom,dig-cdc-base-addr = <0xc0f0000>;
+        qcom,dig-cdc-base-addr = <0xc0f0000>;
 	};
 
 	pm8953_diangu_analog: 8953_wcd_codec@f100 {
 		compatible = "qcom,msm8x16_wcd_codec";
-		reg = <0xf100 0x100>;
-		interrupt-parent = <&spmi_bus>;
-		interrupts = <0x1 0xf1 0x0>,
-			     <0x1 0xf1 0x1>,
-			     <0x1 0xf1 0x2>,
-			     <0x1 0xf1 0x3>,
-			     <0x1 0xf1 0x4>,
-			     <0x1 0xf1 0x5>;
-		interrupt-names = "ear_ocp_int",
-				  "hphr_ocp_int",
-				  "hphl_ocp_det",
-				  "ear_cnp_int",
-				  "hphr_cnp_int",
-				  "hphl_cnp_int";
-		qcom,dig-cdc-base-addr = <0xc0f0000>;
+        reg = <0xf100 0x100>;
+        
+        interrupt-parent = <0x11d>;
+        
+        interrupts =
+            <0x01 0xf1 0x00>,
+            <0x01 0xf1 0x01>,
+            <0x01 0xf1 0x02>,
+            <0x01 0xf1 0x03>,
+            <0x01 0xf1 0x04>,
+            <0x01 0xf1 0x05>;
+        
+        interrupt-names =
+            "ear_ocp_int",
+            "hphr_ocp_int",
+            "hphl_ocp_det",
+            "ear_cnp_int",
+            "hphr_cnp_int",
+            "hphl_cnp_int";
+        
+        qcom,dig-cdc-base-addr = <0xc0f0000>;
 	};
 };
 

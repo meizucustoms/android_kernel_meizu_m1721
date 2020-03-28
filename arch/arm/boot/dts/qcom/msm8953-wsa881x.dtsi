@@ -49,6 +49,6 @@
 						linux,phandle = <0x17c>;
 						phandle = <0x17c>;
 					};
-				};
+        };
 	};
 };

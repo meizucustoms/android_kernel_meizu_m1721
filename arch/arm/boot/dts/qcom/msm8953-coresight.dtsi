@@ -33,37 +33,25 @@
 			 <&clock_gcc clk_qdss_a_clk>;
 		clock-names = "core_clk", "core_a_clk";
 	};
-
+    
 	tpiu: tpiu@6020000 {
 		compatible = "arm,coresight-tpiu";
-		reg = <0x6020000 0x1000>,
-		      <0x1100000 0xb0000>;
+        reg = <0x6020000 0x1000>,
+              <0x1100000 0xb0000>;
 		reg-names = "tpiu-base", "nidnt-base";
 
 		coresight-id = <1>;
-		coresight-name = "coresight-tpiu";
-		coresight-nr-inports = <1>;
+        coresight-name = "coresight-tpiu";
+        coresight-nr-inports = <1>;
 
-		pinctrl-names = "sdcard", "trace", "swduart",
-				"swdtrc", "jtag", "spmi";
-		/* NIDnT */
-		pinctrl-0 = <&qdsd_clk_sdcard &qdsd_cmd_sdcard
-			     &qdsd_data0_sdcard &qdsd_data1_sdcard
-			     &qdsd_data2_sdcard &qdsd_data3_sdcard>;
-		pinctrl-1 = <&qdsd_clk_trace &qdsd_cmd_trace
-			     &qdsd_data0_trace &qdsd_data1_trace
-			     &qdsd_data2_trace &qdsd_data3_trace>;
-		pinctrl-2 = <&qdsd_cmd_swduart &qdsd_data0_swduart
-			     &qdsd_data1_swduart &qdsd_data2_swduart
-			     &qdsd_data3_swduart>;
-		pinctrl-3 = <&qdsd_clk_swdtrc &qdsd_cmd_swdtrc
-			     &qdsd_data0_swdtrc &qdsd_data1_swdtrc
-			     &qdsd_data2_swdtrc &qdsd_data3_swdtrc>;
-		pinctrl-4 = <&qdsd_cmd_jtag &qdsd_data0_jtag
-			     &qdsd_data1_jtag &qdsd_data2_jtag
-			     &qdsd_data3_jtag>;
-		pinctrl-5 = <&qdsd_clk_spmi &qdsd_cmd_spmi
-			     &qdsd_data0_spmi &qdsd_data3_spmi>;
+		pinctrl-names = "sdcard", "trace", "swduart", "swdtrc", "jtag", "spmi";
+		/* use hex vars from stock */
+		pinctrl-0 = <0x4a 0x4b 0x4c 0x4d 0x4e 0x4f>;
+        pinctrl-1 = <0x50 0x51 0x52 0x53 0x54 0x55>;
+        pinctrl-2 = <0x56 0x57 0x58 0x59 0x5a>;
+        pinctrl-3 = <0x5b 0x5c 0x5d 0x5e 0x5f 0x60>;
+        pinctrl-4 = <0x61 0x62 0x63 0x64 0x65>;
+        pinctrl-5 = <0x66 0x67 0x68 0x69>;
 
 		qcom,nidnthw;
 		qcom,nidnt-swduart;
@@ -76,17 +64,18 @@
 		interrupts = <0 82 0>;
 		interrupt-names = "nidnt-irq";
 
-		vdd-supply = <&pm8953_l11>;
-		qcom,vdd-voltage-level = <2950000 2950000>;
-		qcom,vdd-current-level = <15000 400000>;
+		vdd-supply = <0x6a>;
+        qcom,vdd-voltage-level = <0x2d0370 0x2d0370>;
+        qcom,vdd-current-level = <0x3a98 0x61a80>;
 
-		vdd-io-supply = <&pm8953_l12>;
-		qcom,vdd-io-voltage-level = <2950000 2950000>;
-		qcom,vdd-io-current-level = <200 50000>;
+		vdd-io-supply = <0x6b>;
+        qcom,vdd-io-voltage-level = <0x2d0370 0x2d0370>;
+        qcom,vdd-io-current-level = <0xc8 0xc350>;
 
-		clocks = <&clock_gcc clk_qdss_clk>,
-			 <&clock_gcc clk_qdss_a_clk>;
+		clocks = <0x37 0x1492202a 0x37 0xdd121669>;
 		clock-names = "core_clk", "core_a_clk";
+        linux,phandle = <0x6d>;
+        phandle = <0x6d>;
 	};
 
 	replicator: replicator@6026000 {

@@ -69,6 +69,7 @@ static DEFINE_MUTEX(i2c_rw_access);
 * Output: get data in the 3rd buf
 * Return: fail <0
 ***********************************************************************/
+
 int fts_i2c_read(struct i2c_client *client, char *writebuf,
 		int writelen, char *readbuf, int readlen)
 {
