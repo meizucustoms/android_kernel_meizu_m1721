@@ -137,6 +137,8 @@
 		i2c2 = &i2c_2;
 		i2c3 = &i2c_3;
 		i2c5 = &i2c_5;
+        i2c6 = &i2c_6;
+		i2c8 = &i2c_8;
 		spi3 = &spi_3;
         spi1 = &spi_1;
 	};
@@ -854,6 +856,50 @@
 			<&dma_blsp2 5 32 0x20000020 0x20>;
 		dma-names = "tx", "rx";
 	};
+    
+    i2c_6: i2c@7af6000 {
+        compatible = "qcom,i2c-msm-v2";
+        #address-cells = <0x01>;
+        #size-cells = <0x00>;
+        reg-names = "qup_phys_addr";
+        reg = <0x7af6000 0x600>;
+        interrupt-names = "qup_irq";
+        interrupts = <0x00 0x12c 0x00>;
+        qcom,clk-freq-out = <0x61a80>;
+        qcom,clk-freq-in = <0x124f800>;
+        clock-names = "iface_clk","core_clk";
+        clocks = <0x37 0x8f283c1d 0x37 0x1bf9a57e>;
+        pinctrl-names = "i2c_active","i2c_sleep";
+        pinctrl-0 = <0xef>;
+        pinctrl-1 = <0xf0>;
+        qcom,noise-rjct-scl = <0x00>;
+        qcom,noise-rjct-sda = <0x00>;
+        qcom,master-id = <0x54>;
+        dmas = <0xe9 0x06 0x40 0x20000020 0x20 0xe9 0x07 0x20 0x20000020 0x20>;
+        dma-names = "tx","rx";
+    };
+
+    i2c_8: i2c@7af8000 {
+        compatible = "qcom,i2c-msm-v2";
+        #address-cells = <0x01>;
+        #size-cells = <0x00>;
+        reg-names = "qup_phys_addr";
+        reg = <0x7af8000 0x600>;
+        interrupt-names = "qup_irq";
+        interrupts = <0x00 0x12e 0x00>;
+        qcom,clk-freq-out = <0x61a80>;
+        qcom,clk-freq-in = <0x124f800>;
+        clock-names = "iface_clk","core_clk";
+        clocks = <0x37 0x8f283c1d 0x37 0xbd22539d>;
+        pinctrl-names = "i2c_active","i2c_sleep";
+        pinctrl-0 = <0xf1>;
+        pinctrl-1 = <0xf2>;
+        qcom,noise-rjct-scl = <0x00>;
+        qcom,noise-rjct-sda = <0x00>;
+        qcom,master-id = <0x54>;
+        dmas = <0xe9 0x0a 0x40 0x20000020 0x20 0xe9 0x0b 0x20 0x20000020 0x20>;
+        dma-names = "tx","rx";
+    };
 
 	slim_msm: slim@c140000{
 		cell-index = <1>;

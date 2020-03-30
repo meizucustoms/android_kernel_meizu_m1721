@@ -12,7 +12,7 @@
  */
 
 &mdss_mdp {
-	dsi_hx8399c_1080p_vid: qcom,mdss_dsi_hx8399c_tcl_1080p_video {
+	dsi_hx8399c_tcl_1080p_vid: qcom,mdss_dsi_hx8399c_tcl_1080p_video {
 				qcom,mdss-dsi-panel-name = "hx8399c tcl 1080p video mode dsi panel";
 				qcom,mdss-dsi-panel-controller = <425>;
 				qcom,mdss-dsi-panel-type = "dsi_video_mode";
