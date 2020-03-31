@@ -32,7 +32,7 @@
 #define CYCLES_PER_MICRO_SEC_DEFAULT 4915
 #define CCI_MAX_DELAY 1000000
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 #define CCI_TIMEOUT msecs_to_jiffies(800)
 #else
 #define CCI_TIMEOUT msecs_to_jiffies(500)

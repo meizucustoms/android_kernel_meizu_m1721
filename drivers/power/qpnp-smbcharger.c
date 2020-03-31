@@ -418,7 +418,7 @@ enum wake_reason {
 #define	HVDCP_PULSING_VOTER		"HVDCP_PULSING_VOTER"
 
 /* fg cc workaround */
-#if defined(CONFIG_MACH_XIAOMI_C6)
+#if defined(CONFIG_MACH_MEIZU_M1721)
 #define NO_CHARGE_COUNTER
 #endif
 
@@ -4912,7 +4912,7 @@ static int smbchg_restricted_charging(struct smbchg_chip *chip, bool enable)
 	return rc;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 extern void ist30xx_set_ta_mode(bool mode);
 extern void tpd_usb_plugin(bool mode);
 extern void gtp_usb_plugin(bool mode);
@@ -4923,7 +4923,7 @@ static void handle_usb_removal(struct smbchg_chip *chip)
 	struct power_supply *parallel_psy = get_parallel_psy(chip);
 	int rc;
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	if (set_usb_charge_mode_par == 1)
 		ist30xx_set_ta_mode(0);
 	else if (set_usb_charge_mode_par == 2)
@@ -5002,7 +5002,7 @@ static bool is_usbin_uv_high(struct smbchg_chip *chip)
 }
 
 #define HVDCP_NOTIFY_MS		2500
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 static int rerun_apsd(struct smbchg_chip *chip);
 #endif
 static void handle_usb_insertion(struct smbchg_chip *chip)
@@ -5011,7 +5011,7 @@ static void handle_usb_insertion(struct smbchg_chip *chip)
 	int rc;
 	char *usb_type_name = "null";
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	if (set_usb_charge_mode_par == 1)
 		ist30xx_set_ta_mode(1);
 	else if (set_usb_charge_mode_par == 2)
@@ -5023,7 +5023,7 @@ static void handle_usb_insertion(struct smbchg_chip *chip)
 	pr_smb(PR_STATUS, "triggered\n");
 	/* usb inserted */
 	read_usb_type(chip, &usb_type_name, &usb_supply_type);
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	if (usb_supply_type == POWER_SUPPLY_TYPE_USB_CDP) {
 		rc = rerun_apsd(chip);
 		read_usb_type(chip, &usb_type_name, &usb_supply_type);
@@ -6123,7 +6123,7 @@ static void smbchg_external_power_changed(struct power_supply *psy)
 
 	read_usb_type(chip, &usb_type_name, &usb_supply_type);
 
-#ifndef CONFIG_MACH_XIAOMI_C6
+#ifndef CONFIG_MACH_MEIZU_M1721
 	if (!rc && usb_supply_type == POWER_SUPPLY_TYPE_USB &&
 			prop.intval != POWER_SUPPLY_TYPE_USB &&
 			is_usb_present(chip)) {
@@ -6173,7 +6173,7 @@ static void smbchg_external_power_changed(struct power_supply *psy)
 	if (rc < 0)
 		pr_err("Couldn't update USB PSY ICL vote rc=%d\n", rc);
 
-#ifndef CONFIG_MACH_XIAOMI_C6
+#ifndef CONFIG_MACH_MEIZU_M1721
 skip_current_for_non_sdp:
 #endif
 	smbchg_vfloat_adjust_check(chip);
@@ -6370,7 +6370,7 @@ static int smbchg_battery_get_property(struct power_supply *psy,
 		val->intval = get_prop_batt_health(chip);
 		break;
 	case POWER_SUPPLY_PROP_TECHNOLOGY:
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LIPO;
 #else
 		val->intval = POWER_SUPPLY_TECHNOLOGY_LION;
@@ -6587,7 +6587,7 @@ static irqreturn_t batt_warm_handler(int irq, void *_chip)
 {
 	struct smbchg_chip *chip = _chip;
 	u8 reg = 0;
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	int rc;
 
 	/* set the warm float voltage compensation,
@@ -6620,7 +6620,7 @@ static irqreturn_t batt_cool_handler(int irq, void *_chip)
 {
 	struct smbchg_chip *chip = _chip;
 	u8 reg = 0;
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	int rc;
 
 	/* set the cool float voltage compensation,
@@ -7697,7 +7697,7 @@ static int smbchg_hw_init(struct smbchg_chip *chip)
 			dev_err(chip->dev, "Couldn't set OTG OC config rc = %d\n",
 				rc);
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 		rc = smbchg_sec_masked_write(chip, chip->otg_base + OTG_CFG,
 					     0x0c, 0x8);
 		if (rc < 0) {
@@ -8703,7 +8703,7 @@ static int smbchg_probe(struct spmi_device *spmi)
 		goto votables_cleanup;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	chip->hvdcp_not_supported = true;
 #endif
 

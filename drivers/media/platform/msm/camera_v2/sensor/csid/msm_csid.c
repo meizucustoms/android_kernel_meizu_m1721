@@ -62,7 +62,7 @@
 #define FALSE  0
 
 #define MAX_LANE_COUNT 4
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 #define CSID_TIMEOUT msecs_to_jiffies(500)
 #else
 #define CSID_TIMEOUT msecs_to_jiffies(100)

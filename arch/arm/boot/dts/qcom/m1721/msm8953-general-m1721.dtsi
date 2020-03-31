@@ -472,9 +472,9 @@
 
 &qusb_phy {
 	qcom,qusb-phy-init-seq = <0xF8 0x80
-					0x53 0x84 /* changed by xiaomi */
-					0x93 0x88 /* changed by xiaomi */
-					0xCf 0x8C /* changed by xiaomi */
+					0x53 0x84
+					0x93 0x88
+					0xCf 0x8C
 					0x14 0x9C
 					0x30 0x08
 					0x79 0x0C
@@ -495,10 +495,6 @@
 
 &cs35l35 {
     status = "ok";
-};
-
-&ext_codec {
-	status = "ok";
 };
 
 &ext_codec {

@@ -20,7 +20,7 @@
 #include <media/rc-core.h>
 #include "rc-core-priv.h"
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 #define LIRCBUF_SIZE 1024
 #else
 #define LIRCBUF_SIZE 256
@@ -330,7 +330,7 @@ static long ir_lirc_ioctl(struct file *filep, unsigned int cmd,
 static int ir_lirc_open(void *data)
 {
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	struct lirc_codec *lirc = data;
 	struct rc_dev *dev = lirc->dev;
 	int ret = 0;
@@ -351,7 +351,7 @@ static int ir_lirc_open(void *data)
 static void ir_lirc_close(void *data)
 {
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	struct lirc_codec *lirc = data;
 	struct rc_dev *dev = lirc->dev;
 
@@ -429,7 +429,7 @@ static int ir_lirc_register(struct rc_dev *dev)
 	drv->rbuf = rbuf;
 	drv->set_use_inc = &ir_lirc_open;
 	drv->set_use_dec = &ir_lirc_close;
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	drv->code_length = sizeof(int) * 8;
 #else
 	drv->code_length = sizeof(struct ir_raw_event) * 8;
@@ -450,7 +450,7 @@ static int ir_lirc_register(struct rc_dev *dev)
 	return 0;
 
 lirc_register_failed:
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	lirc_buffer_free(rbuf);
 #endif
 rbuf_init_failed:
@@ -467,7 +467,7 @@ static int ir_lirc_unregister(struct rc_dev *dev)
 
 	lirc_unregister_driver(lirc->drv->minor);
 	lirc_buffer_free(lirc->drv->rbuf);
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	kfree(lirc->drv->rbuf);
 #endif
 	kfree(lirc->drv);

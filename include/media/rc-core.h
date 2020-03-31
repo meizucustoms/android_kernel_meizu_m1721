@@ -156,7 +156,7 @@ struct rc_dev {
 	u32				max_timeout;
 	u32				rx_resolution;
 	u32				tx_resolution;
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	u32				open_count;
 #endif
 	int				(*change_protocol)(struct rc_dev *dev, u64 *rc_type);
@@ -250,7 +250,7 @@ static inline void init_ir_raw_event(struct ir_raw_event *ev)
 void ir_raw_event_handle(struct rc_dev *dev);
 int ir_raw_event_store(struct rc_dev *dev, struct ir_raw_event *ev);
 int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type);
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 int ir_raw_event_store_edge_with_adjust(struct rc_dev *dev,
 				enum raw_event_type type, s32 ns);
 #endif

@@ -2559,14 +2559,14 @@ void gtp_usb_plugin(bool mode)
 	GTP_ERROR("GTP send Charge cmd failed.");
 }
 
-static ssize_t gt9xx_mido_disable_keys_show(struct device *dev,
+static ssize_t gt9xx_m1721_disable_keys_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	const char c = disable_keys_function ? '1' : '0';
 	return sprintf(buf, "%c\n", c);
 }
 
-static ssize_t gt9xx_mido_disable_keys_store(struct device *dev,
+static ssize_t gt9xx_m1721_disable_keys_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	int i;
@@ -2580,17 +2580,17 @@ static ssize_t gt9xx_mido_disable_keys_store(struct device *dev,
 	}
 }
 
-static DEVICE_ATTR(disable_keys, S_IWUSR | S_IRUSR, gt9xx_mido_disable_keys_show,
-		   gt9xx_mido_disable_keys_store);
+static DEVICE_ATTR(disable_keys, S_IWUSR | S_IRUSR, gt9xx_m1721_disable_keys_show,
+		   gt9xx_m1721_disable_keys_store);
 
-static ssize_t gt9xx_mido_enable_dt2w_show(struct device *dev,
+static ssize_t gt9xx_m1721_enable_dt2w_show(struct device *dev,
         struct device_attribute *attr, char *buf)
 {
         const char c = gtp_gesture_func_on  ? '1' : '0';
         return sprintf(buf, "%c\n", c);
 }
 
-static ssize_t gt9xx_mido_enable_dt2w_store(struct device *dev,
+static ssize_t gt9xx_m1721_enable_dt2w_store(struct device *dev,
         struct device_attribute *attr, const char *buf, size_t count)
 {
         int i;
@@ -2605,20 +2605,20 @@ static ssize_t gt9xx_mido_enable_dt2w_store(struct device *dev,
 }
 
 
-static DEVICE_ATTR(enable_dt2w, S_IWUSR | S_IRUSR, gt9xx_mido_enable_dt2w_show,
-                   gt9xx_mido_enable_dt2w_store);
+static DEVICE_ATTR(enable_dt2w, S_IWUSR | S_IRUSR, gt9xx_m1721_enable_dt2w_show,
+                   gt9xx_m1721_enable_dt2w_store);
 
-static struct attribute *gt9xx_mido_attrs[] = {
+static struct attribute *gt9xx_m1721_attrs[] = {
     &dev_attr_disable_keys.attr,
     &dev_attr_enable_dt2w.attr,
 	NULL
 };
 
-static const struct attribute_group gt9xx_mido_attr_group = {
-       .attrs = gt9xx_mido_attrs,
+static const struct attribute_group gt9xx_m1721_attr_group = {
+       .attrs = gt9xx_m1721_attrs,
 };
 
-static int gt9xx_mido_proc_init(struct kernfs_node *sysfs_node_parent)
+static int gt9xx_m1721_proc_init(struct kernfs_node *sysfs_node_parent)
 {
        int ret = 0;
        char *buf, *path = NULL;
@@ -2816,13 +2816,13 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 		GTP_INFO("create_glove_proc %s success", GT91XX_Glove_PROC_FILE);
 	}
 
-        ret = sysfs_create_group(&client->dev.kobj, &gt9xx_mido_attr_group);
+        ret = sysfs_create_group(&client->dev.kobj, &gt9xx_m1721_attr_group);
         if (ret) {
 	        dev_err(&client->dev, "Failure %d creating sysfs group\n",
 		        ret);
-                sysfs_remove_group(&client->dev.kobj, &gt9xx_mido_attr_group);
+                sysfs_remove_group(&client->dev.kobj, &gt9xx_m1721_attr_group);
         }
-	gt9xx_mido_proc_init(client->dev.kobj.sd);
+	gt9xx_m1721_proc_init(client->dev.kobj.sd);
 
 
 #if GTP_ESD_PROTECT

@@ -3974,7 +3974,7 @@ INIT_WORK(&data->work_vr, ft5435_change_vr_switch);
 	while (retry--) {
 		err = ft5435_i2c_read(client, &reg_addr, 1, &reg_value, 1);
 		if (!(err < 0)) {
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 			set_usb_charge_mode_par = 2;
 #endif
 			dev_info(&client->dev, "Device ID = 0x%x\n", reg_value);

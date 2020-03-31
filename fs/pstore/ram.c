@@ -44,7 +44,7 @@ module_param(record_size, ulong, 0400);
 MODULE_PARM_DESC(record_size,
 		"size of each dump done on oops/panic");
 
-#if defined(CONFIG_MACH_XIAOMI_C6) || defined(CONFIG_MACH_XIAOMI_D2)
+#if defined(CONFIG_MACH_MEIZU_M1721) 
 static ulong ramoops_console_size = 512*1024UL;
 #else
 static ulong ramoops_console_size = MIN_MEM_SIZE;
@@ -56,7 +56,7 @@ static ulong ramoops_ftrace_size = MIN_MEM_SIZE;
 module_param_named(ftrace_size, ramoops_ftrace_size, ulong, 0400);
 MODULE_PARM_DESC(ftrace_size, "size of ftrace log");
 
-#if defined(CONFIG_MACH_XIAOMI_C6) || defined(CONFIG_MACH_XIAOMI_D2)
+#if defined(CONFIG_MACH_MEIZU_M1721) 
 static ulong ramoops_pmsg_size = 32*1024UL;
 #else
 static ulong ramoops_pmsg_size = MIN_MEM_SIZE;
@@ -64,7 +64,7 @@ static ulong ramoops_pmsg_size = MIN_MEM_SIZE;
 module_param_named(pmsg_size, ramoops_pmsg_size, ulong, 0400);
 MODULE_PARM_DESC(pmsg_size, "size of user space message log");
 
-#if defined(CONFIG_MACH_XIAOMI_C6) || defined(CONFIG_MACH_XIAOMI_D2)
+#if defined(CONFIG_MACH_MEIZU_M1721) 
 static ulong mem_address = 0x9ff00000;
 #else
 static ulong mem_address;
@@ -73,7 +73,7 @@ module_param(mem_address, ulong, 0400);
 MODULE_PARM_DESC(mem_address,
 		"start of reserved RAM used to store oops/panic logs");
 
-#if defined(CONFIG_MACH_XIAOMI_C6) || defined(CONFIG_MACH_XIAOMI_D2)
+#if defined(CONFIG_MACH_MEIZU_M1721) 
 static ulong mem_size = 0x100000;
 #else
 static ulong mem_size;

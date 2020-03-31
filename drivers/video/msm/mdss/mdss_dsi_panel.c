@@ -1939,7 +1939,7 @@ static void mdss_dsi_parse_esd_params(struct device_node *np,
 				pr_err("TE-ESD not valid for video mode\n");
 				goto error;
 			}
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 		} else if (!strcmp(string, "TE_check_NT35596")) {
 			ctrl->status_mode = ESD_TE_NT35596;
 #endif

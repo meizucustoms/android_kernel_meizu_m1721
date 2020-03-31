@@ -889,7 +889,7 @@ static long msm_isp_ioctl_unlocked(struct v4l2_subdev *sd,
 		rc = msm_isp_cfg_axi_stream(vfe_dev, arg);
 		mutex_unlock(&vfe_dev->core_mutex);
 		break;
-#ifndef CONFIG_MACH_XIAOMI_C6
+#ifndef CONFIG_MACH_MEIZU_M1721
 	case VIDIOC_MSM_ISP_CFG_HW_STATE:
 		mutex_lock(&vfe_dev->core_mutex);
 		rc = msm_isp_update_stream_bandwidth(vfe_dev,
@@ -1429,7 +1429,7 @@ static int msm_isp_send_hw_cmd(struct vfe_device *vfe_dev,
 		vfe_dev->vfe_ub_policy = *cfg_data;
 		break;
 	}
-#ifndef CONFIG_MACH_XIAOMI_C6
+#ifndef CONFIG_MACH_MEIZU_M1721
 	case GET_VFE_HW_LIMIT: {
 		uint32_t *hw_limit = NULL;
 

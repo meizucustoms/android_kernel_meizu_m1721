@@ -44,7 +44,7 @@ config SND_SOC_ALL_CODECS
 	select SND_SOC_ALC5632 if I2C
 	select SND_SOC_CQ0093VC if MFD_DAVINCI_VOICECODEC
 	select SND_SOC_CS35L32 if I2C
-	select SND_SOC_CS35L35
+	select SND_SOC_CS35L35 if I2C
 	select SND_SOC_CS42L51_I2C if I2C
 	select SND_SOC_CS42L52 if I2C && INPUT
 	select SND_SOC_CS42L56 if I2C && INPUT
@@ -885,4 +885,8 @@ config SND_SOC_MSM_HDMI_CODEC_RX
 config SND_SOC_MSM_HDMI_DBA_CODEC_RX
 	bool "HDMI DBA Audio Playback"
 	depends on MSM_DBA
+	
+config SND_CS35L35_MEIZU
+	bool "CS35L35 Use I2C8"
+	default n
 endmenu

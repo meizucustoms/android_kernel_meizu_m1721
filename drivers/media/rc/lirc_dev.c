@@ -314,7 +314,7 @@ int lirc_register_driver(struct lirc_driver *d)
 	/* some safety check 8-) */
 	d->name[sizeof(d->name)-1] = '\0';
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	bytes_in_key = (d->code_length + 7)/8;
 #else
 	bytes_in_key = BITS_TO_LONGS(d->code_length) +

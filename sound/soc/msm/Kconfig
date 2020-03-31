@@ -202,7 +202,6 @@ config SND_SOC_MSM8X16
 	select SND_SOC_MSM8X16_WCD
 	select SND_SOC_WSA881X_ANALOG
 	select SND_SOC_WSA881X
-	select SND_SOC_CS35L35
 	select MFD_CORE
 	select QTI_PP
 	select DTS_SRS_TM
@@ -213,6 +212,7 @@ config SND_SOC_MSM8X16
 	select SND_SOC_MSM_HDMI_DBA_CODEC_RX
 	select SND_HWDEP
         select DTS_EAGLE
+    select SND_SOC_CS35L35
 	help
 	 To add support for SoC audio on MSM8996.
 	 This will enable sound soc drivers which
@@ -311,9 +311,9 @@ config SND_CS35L35_QUAT_I2S
 	bool "CS35L35 Use Quaternary I2S"
 	default n
 
-config SND_CS35L35_OSR_CLK
-	bool "CS35L35 Use OSR CLK"
-	default n
+config SND_CS35L35_QUIN_I2S
+	bool "CS35L35 Use Quinary I2S"
+	default y
 
 config SND_QUIN_MI2S_FOR_MODS
 	bool "Use Quin MI2S for mods audio"

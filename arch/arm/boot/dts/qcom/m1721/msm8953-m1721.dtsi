@@ -11,9 +11,9 @@
  * GNU General Public License for more details.
  */
 
-#include "msm-audio-mido.dtsi"
-#include "msm8953-general-mido.dtsi"
-#include "msm8953-display-mido.dtsi"
-#include "msm8953-camera-sensor-qrd-mido.dtsi"
-#include "msm8953-pinctrl-mido.dtsi"
-#include "msm8953-memory-mido.dtsi"
+#include "msm-audio-m1721.dtsi"
+#include "msm8953-general-m1721.dtsi"
+#include "msm8953-display-m1721.dtsi"
+#include "msm8953-camera-sensor-qrd-m1721.dtsi"
+#include "msm8953-pinctrl-m1721.dtsi"
+#include "msm8953-memory-m1721.dtsi"
