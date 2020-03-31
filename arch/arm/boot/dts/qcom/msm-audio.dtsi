@@ -318,11 +318,11 @@
 			    "csr_gp_io_lpaif_pri_pcm_pri_mode_muxsel",
 			    "csr_gp_io_mux_quin_ctl";
 
-		qcom,msm-ext-pa = "primary";
-		qcom,msm-mclk-freq = <9600000>;
-		qcom,msm-mbhc-hphl-swh = <0>;
-		qcom,msm-mbhc-gnd-swh = <0>;
-		qcom,msm-hs-micbias-type = "external";
+		qcom,msm-ext-pa = "quaternary";
+		qcom,msm-mclk-freq = <0x927c00>;
+        qcom,msm-mbhc-hphl-swh = <0x01>;
+        qcom,msm-mbhc-gnd-swh = <0x01>;
+		qcom,msm-hs-micbias-type = "internal";
 		qcom,msm-micbias1-ext-cap;
 		qcom,audio-routing =
 			"RX_BIAS", "MCLK",
@@ -361,30 +361,30 @@
 			"quin_pri_i2s_act",
 			"quin_us_eu_gpio_act",
 			"quin_us_eu_gpio_pri_i2s_act";
-		pinctrl-0 = <&cdc_pdm_lines_sus
-				&cdc_pdm_lines_2_sus &cross_conn_det_sus
-				&pri_tlmm_lines_sus &pri_tlmm_ws_sus>;
-		pinctrl-1 = <&cdc_pdm_lines_act
-				&cdc_pdm_lines_2_act &cross_conn_det_sus
-				&pri_tlmm_lines_sus &pri_tlmm_ws_sus>;
-		pinctrl-2 = <&cdc_pdm_lines_sus
-				&cdc_pdm_lines_2_sus &cross_conn_det_act
-				&pri_tlmm_lines_sus &pri_tlmm_ws_sus>;
-		pinctrl-3 = <&cdc_pdm_lines_act
-				&cdc_pdm_lines_2_act &cross_conn_det_act
-				&pri_tlmm_lines_sus &pri_tlmm_ws_sus>;
-		pinctrl-4 = <&cdc_pdm_lines_sus
-				&cdc_pdm_lines_2_sus &cross_conn_det_sus
-				&pri_tlmm_lines_act &pri_tlmm_ws_act>;
-		pinctrl-5 = <&cdc_pdm_lines_act
-				&cdc_pdm_lines_2_act &cross_conn_det_sus
-				&pri_tlmm_lines_act &pri_tlmm_ws_act>;
-		pinctrl-6 = <&cdc_pdm_lines_sus
-				&cdc_pdm_lines_2_sus &cross_conn_det_act
-				&pri_tlmm_lines_act &pri_tlmm_ws_act>;
-		pinctrl-7 = <&cdc_pdm_lines_act
-				&cdc_pdm_lines_2_act &cross_conn_det_act
-				&pri_tlmm_lines_act &pri_tlmm_ws_act>;
+            
+		pinctrl-0 = <&cdc_pdm_lines_sus &sec_tlmm_lines_sus &cdc_pdm_lines_2_sus
+        &cross_conn_det_sus &pri_tlmm_lines_sus &pri_tlmm_ws_sus &cs35l35_mclk_off>;
+        
+        pinctrl-1 = <&cdc_pdm_lines_act &sec_tlmm_lines_sus &cdc_pdm_lines_2_act
+        &cross_conn_det_sus &pri_tlmm_lines_sus &pri_tlmm_ws_sus &cs35l35_mclk_off>;
+        
+        pinctrl-2 = <&cdc_pdm_lines_sus &sec_tlmm_lines_sus &cdc_pdm_lines_2_sus
+        &cross_conn_det_act &pri_tlmm_lines_sus &pri_tlmm_ws_sus &cs35l35_mclk_off>;
+        
+        pinctrl-3 = <&cdc_pdm_lines_act &sec_tlmm_lines_sus &cdc_pdm_lines_2_act
+        &cross_conn_det_act &pri_tlmm_lines_sus &pri_tlmm_ws_sus &cs35l35_mclk_off>;
+        
+        pinctrl-4 = <&cdc_pdm_lines_sus &sec_tlmm_lines_sus &cdc_pdm_lines_2_sus
+        &cross_conn_det_sus &pri_tlmm_lines_act &pri_tlmm_ws_act &cs35l35_mclk_off>;
+        
+        pinctrl-5 = <&cdc_pdm_lines_act &sec_tlmm_lines_sus &cdc_pdm_lines_2_act
+        &cross_conn_det_sus &pri_tlmm_lines_act &pri_tlmm_ws_act &cs35l35_mclk_off>;
+        
+        pinctrl-6 = <&cdc_pdm_lines_sus &sec_tlmm_lines_sus &cdc_pdm_lines_2_sus
+        &cross_conn_det_act &pri_tlmm_lines_act &pri_tlmm_ws_act &cs35l35_mclk_off>;
+        
+        pinctrl-7 = <&cdc_pdm_lines_act &sec_tlmm_lines_sus &cdc_pdm_lines_2_act
+        &cross_conn_det_act &pri_tlmm_lines_act &pri_tlmm_ws_act &cs35l35_mclk_off>;
 
 		asoc-platform = <&pcm0>, <&pcm1>, <&pcm2>, <&voip>, <&voice>,
 				<&loopback>, <&compress>, <&hostless>,

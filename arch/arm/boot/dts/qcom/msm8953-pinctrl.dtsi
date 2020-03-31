@@ -1497,9 +1497,9 @@
 				};
 			};
 
-			cs35l35_mclk {
+			cs35l35_mclk: cs35l35_mclk {
 
-				cs35l35_mclk_on {
+				cs35l35_mclk_on: cs35l35_mclk_on {
 					linux,phandle = <0x175>;
 					phandle = <0x175>;
 
@@ -1515,7 +1515,7 @@
 					};
 				};
 
-				cs35l35_mclk_off {
+				cs35l35_mclk_off: cs35l35_mclk_off {
 					linux,phandle = <0x147>;
 					phandle = <0x147>;
 

@@ -498,6 +498,10 @@
 };
 
 &ext_codec {
+	status = "ok";
+};
+
+&ext_codec {
 	status = "disabled";
 };
 
