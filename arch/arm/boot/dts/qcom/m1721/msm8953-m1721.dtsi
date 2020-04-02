@@ -11,7 +11,7 @@
  * GNU General Public License for more details.
  */
 
-#include "msm-audio-m1721.dtsi"
+#include "cs35l35-m1721.dtsi"
 #include "msm8953-general-m1721.dtsi"
 #include "msm8953-display-m1721.dtsi"
 #include "msm8953-camera-sensor-qrd-m1721.dtsi"

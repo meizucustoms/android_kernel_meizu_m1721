@@ -1540,12 +1540,12 @@
 					phandle = <0x145>;
 
 					mux {
-						pins = "gpio91", "gpio93";
+						pins = "gpio86";
 						function = "pri_mi2s";
 					};
 
 					config {
-						pins = "gpio91", "gpio93";
+						pins = "gpio86";
 						drive-strength = <0x08>;
 					};
 				};
@@ -1555,12 +1555,12 @@
 					phandle = <0x13f>;
 
 					mux {
-						pins = "gpio91", "gpio93";
+						pins = "gpio86";
 						function = "pri_mi2s";
 					};
 
 					config {
-						pins = "gpio91", "gpio93";
+						pins = "gpio86";
 						drive-strength = <0x02>;
 						bias-pull-down;
 					};

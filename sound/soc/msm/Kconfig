@@ -302,18 +302,6 @@ config SND_SOC_MDM9640
 	 interfaces with DSP, also it will enable
 	 the machine drivers and the corresponding
 	 DAI-links.
-	 
-config SND_CS35L35_I2C2
-	bool "CS35L35 Use I2C2"
-	default n
-
-config SND_CS35L35_QUAT_I2S
-	bool "CS35L35 Use Quaternary I2S"
-	default n
-
-config SND_CS35L35_QUIN_I2S
-	bool "CS35L35 Use Quinary I2S"
-	default y
 
 config SND_QUIN_MI2S_FOR_MODS
 	bool "Use Quin MI2S for mods audio"

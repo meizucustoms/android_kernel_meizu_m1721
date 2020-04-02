@@ -423,48 +423,7 @@
             };
         };
     };
-        
-    i2c@7af8000 {
-                cs35l35: cs35l35@40 {
-				compatible = "cirrus,cs35l35";
-				reg = <0x40>;
-				reset-gpios = <&tlmm 0x5b 0x01>;
-				irq-gpio = <&tlmm 0x5a 0x01>;
-				interrupt-parent = <&tlmm>;
-				interrupts = <0x5a 0x08>;
-				debounce = <0x5a 0x64>;
-				pinctrl-names = "cs35l35_irq_default";
-				pinctrl-0 = <&cs35l35_int_default>;
-				cirrus,audio-channel = <0x00>;
-				cirrus,sp-drv-strength = <0x00>;
-				cirrus,boost-ctl = <0x7f>;
-				cirrus,boost-ipk = <0x19>;
-
-				cirrus,classh-internal-algo {
-					cirrus,classh-bst-overide;
-					cirrus,classh-bst-max-limit = <0x01>;
-					cirrus,classh-mem-depth = <0x01>;
-					cirrus,classh-release-rate = <0x03>;
-					cirrus,classh-headroom = <0x08>;
-					cirrus,classh-wk-fet-disable = <0x00>;
-					cirrus,classh-wk-fet-delay = <0x04>;
-					cirrus,classh-wk-fet-thld = <0x01>;
-					cirrus,classh-vpch-auto = <0x01>;
-					cirrus,classh-vpch-rate = <0x02>;
-					cirrus,classh-vpch-man = <0x05>;
-				};
-
-				cirrus,monitor-signal-format {
-					cirrus,imon = [03 00 01];
-					cirrus,vmon = [03 00 00];
-					cirrus,vpmon = [00 04 00];
-					cirrus,vbstmon = [00 04 01];
-					cirrus,vpbrstat = [00 04 00];
-					cirrus,zerofill = [00 00 00];
-				};
-			};
-		};
-    };
+};
 
 &usb3 {
 	qcom,detect-dpdm-floating;
