@@ -11,11 +11,19 @@
  * GNU General Public License for more details.
  */
 
+/* cs35l35 codec */
+
 &int_codec {
 	status = "ok";
 	/* already defined in msm8953-audio.dtsi */
-	qcom,msm-hs-micbias-type = "internal";
+	qcom,msm-ext-pa = "quaternary";
+    qcom,msm-hs-micbias-type = "internal";
+    qcom,msm-mclk-freq = <0x927c00>;
+    qcom,msm-mbhc-hphl-swh = <1>;
+    qcom,msm-mbhc-gnd-swh = <1>;
 	qcom,spkr-sd-n-gpio = <&tlmm 96 0>;
+    qcom,cdc-us-euro-gpios = <&tlmm 63 0>;
+    qcom,msm-micbias1-ext-cap;
 	qcom,audio-routing =
         "RX_BIAS", "MCLK",
         "SPK_RX_BIAS", "MCLK",
@@ -28,48 +36,117 @@
         "AMIC3", "MIC BIAS External",
         "WSA_SPK OUT", "VDD_WSA_SWITCH",
         "SpkrMono WSA_IN", "WSA_SPK OUT";
+    msm-vdd-wsa-switch-supply = <&pm8953_l5>;
+    qcom,msm-vdd-wsa-switch-voltage = <0x1b7740>;
+    qcom,msm-vdd-wsa-switch-current = <0x2710>;
 	/delete-property/asoc-wsa-codec-names;
 	/delete-property/asoc-wsa-codec-prefixes;
 };
+
+/* cs35l35 dts */
+
 &soc {
     i2c@7af8000 {
-            cs35l35: cs35l35@40 {
+        cs35l35: cs35l35@40 {
             compatible = "cirrus,cs35l35";
             reg = <0x40>;
-            reset-gpios = <&tlmm 0x5b 0x01>;
-            irq-gpio = <&tlmm 0x5a 0x01>;
+            reset-gpios = <&tlmm 91 1>;
+            irq-gpios = <&tlmm 90 1>;
+            amp-gain-zc;
             interrupt-parent = <&tlmm>;
-            interrupts = <0x5a 0x08>;
-            debounce = <0x5a 0x64>;
-            pinctrl-names = "cs35l35_irq_default";
-            pinctrl-0 = <&cs35l35_int_default>;
-            cirrus,audio-channel = <0x00>;
-            cirrus,sp-drv-strength = <0x00>;
-            cirrus,boost-ctl = <0x7f>;
-            cirrus,boost-ipk = <0x19>;
 
-            cirrus,classh-internal-algo {
-                cirrus,classh-bst-overide;
-                cirrus,classh-bst-max-limit = <0x01>;
-                cirrus,classh-mem-depth = <0x01>;
-                cirrus,classh-release-rate = <0x03>;
-                cirrus,classh-headroom = <0x08>;
-                cirrus,classh-wk-fet-disable = <0x00>;
-                cirrus,classh-wk-fet-delay = <0x04>;
-                cirrus,classh-wk-fet-thld = <0x01>;
-                cirrus,classh-vpch-auto = <0x01>;
-                cirrus,classh-vpch-rate = <0x02>;
-                cirrus,classh-vpch-man = <0x05>;
+            VA-supply = <&dummy_vreg>;
+            VP-supply = <&dummy_vreg>;
+            pinctrl-names = "default";
+            pinctrl-0 = <&cs35l35_irq_default &cs35l35_reset_default>;
+        };
+    };
+};
+
+/* cs35l35 pinctrl */
+
+&soc {
+    &tlmm {
+        cs35l35_reset_default: cs35l35_default {
+
+            mux {
+                pins = "gpio91";
+                function = "gpio";
             };
 
-            cirrus,monitor-signal-format {
-                cirrus,imon = [03 00 01];
-                cirrus,vmon = [03 00 00];
-                cirrus,vpmon = [00 04 00];
-                cirrus,vbstmon = [00 04 01];
-                cirrus,vpbrstat = [00 04 00];
-                cirrus,zerofill = [00 00 00];
+            config {
+                pins = "gpio91";
+                output-high;
+                bias-pull-up;
+                drive-strength = <2>; /* 2 mA */
+            };
+        };
+
+        cs35l35_int_default: cs35l35_int_default {
+
+            mux {
+                pins = "gpio90";
+                function = "gpio";
+            };
+
+            config {
+                pins = "gpio90";
+                bias-pull-up;
+                drive-strength = <2>; /* 2 mA */
+                input-enable;
+            };
+        };
+		
+		cs35l35_irq_default: cs35l35_irq_default {
+			
+			mux {
+				pins = "gpio90";
+				function = "gpio";
+			};
+
+			config {
+				pins = "gpio90";
+				bias-pull-up;
+				drive-strength = <2>; /* 2 mA */
+			};
+		};
+        
+        cs35l35_mclk: cs35l35_mclk {
+
+            cs35l35_mclk_on: cs35l35_mclk_on {
+                linux,phandle = <0x175>;
+                phandle = <0x175>;
+
+                mux {
+                    pins = "gpio25";
+                    function = "sec_mi2s_mclk_a";
+                };
+
+                config {
+                    pins = "gpio25";
+                    drive-strength = <0x08>;
+                    output-high;
+                };
+            };
+
+            cs35l35_mclk_off: cs35l35_mclk_off {
+                linux,phandle = <0x147>;
+                phandle = <0x147>;
+
+                mux {
+                    pins = "gpio25";
+                    function = "sec_mi2s_mclk_a";
+                };
+
+                config {
+                    pins = "gpio25";
+                    drive-strength = <0x02>;
+                    output-low;
+                    bias-pull-down;
+                };
             };
         };
     };
 };
+
+/* cs35l35 pinctrl */

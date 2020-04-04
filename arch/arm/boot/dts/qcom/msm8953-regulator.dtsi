@@ -925,4 +925,11 @@
 		enable-active-high;
 		gpio = <&pm8953_gpios 5 0>;
 	};
+    
+    dummy_vreg: dummy_vreg {
+		compatible = "regulator-fixed";
+		status = "ok";
+		regulator-name = "dummy_vreg";
+		regulator-always-on;
+	};
 };
