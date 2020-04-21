@@ -29,6 +29,15 @@
 			linux,code = <115>;
 			debounce-interval = <15>;
 		};
+        
+        home {
+            label = "home";
+            gpios = <&tlmm 141 0x1>;
+            linux,input-type = <1>;
+            linux,code = <102>;
+            debounce-interval = <15>;
+            gpio-key,wakeup;
+        };
 	};
 
 	i2c@78b7000 { /* BLSP1 QUP3 */
