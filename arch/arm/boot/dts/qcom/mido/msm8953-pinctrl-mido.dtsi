@@ -1,0 +1,147 @@
+/*
+ * Copyright (c) 2017, The Linux Foundation. All rights reserved.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License version 2 and
+ * only version 2 as published by the Free Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
+&soc {
+	tlmm: pinctrl@1000000 {
+        
+		i2c_8 {
+            i2c_8_active: i2c_8_active {
+                linux,phandle = <0xf3>;
+                phandle = <0xf3>;
+
+                mux {
+                    pins = "gpio98", "gpio99";
+                    function = "blsp_i2c8";
+                };
+
+                config {
+                    pins = "gpio98", "gpio99";
+                    drive-strength = <0x2>;
+                    bias-disable;
+                };
+            };
+
+            i2c_8_sleep: i2c_8_sleep {
+                linux,phandle = <0xf4>;
+                phandle = <0xf4>;
+
+                mux {
+                    pins = "gpio98", "gpio99";
+                    function = "gpio";
+                };
+
+                config {
+                    pins = "gpio98", "gpio99";
+                    drive-strength = <0x2>;
+                    bias-disable;
+                };
+            };
+        };
+        
+        i2c_6 {
+            i2c_6_active: i2c_6_active {
+                linux,phandle = <0xf1>;
+                phandle = <0xf1>;
+
+                mux {
+                    pins = "gpio22", "gpio23";
+                    function = "blsp_i2c6";
+                };
+
+                config {
+                    pins = "gpio22", "gpio23";
+                    drive-strength = <0x6>;
+                    bias-disable;
+                };
+            };
+
+            i2c_6_sleep: i2c_6_sleep {
+                linux,phandle = <0xf2>;
+                phandle = <0xf2>;
+
+                mux {
+                    pins = "gpio22", "gpio23";
+                    function = "blsp_i2c6";
+                };
+
+                config {
+                    pins = "gpio22", "gpio23";
+                    drive-strength = <0x6>;
+                    bias-disable;
+                };
+            };
+        };
+        
+        cs35l35_reset_default: cs35l35_default {
+            
+            mux {
+                pins = "gpio91";
+                function = "gpio";
+            };
+
+            config {
+                pins = "gpio91";
+                output-high;
+                bias-pull-up;
+                drive-strength = <2>;
+            };
+        };
+
+        cs35l35_int_default: cs35l35_int_default {
+            
+            mux {
+                pins = "gpio90";
+                function = "gpio";
+            };
+
+            config {
+                pins = "gpio90";
+                bias-pull-up;
+                drive-strength = <2>;
+                input-enable;
+            };
+        };
+        cs35l35_mclk {
+
+            cs35l35_mclk_on: cs35l35_mclk_on {
+
+                mux {
+                    pins = "gpio25";
+                    function = "sec_mi2s_mclk_a";
+                };
+
+                config {
+                    pins = "gpio25";
+                    drive-strength = <8>;
+                    output-high;
+                };
+            };
+
+            cs35l35_mclk_off: cs35l35_mclk_off {
+
+                mux {
+                    pins = "gpio25";
+                    function = "sec_mi2s_mclk_a";
+                };
+
+                config {
+                    pins = "gpio25";
+                    drive-strength = <2>;
+                    output-low;
+                    bias-pull-down;
+                };
+            };
+        };
+	};
+};
+
