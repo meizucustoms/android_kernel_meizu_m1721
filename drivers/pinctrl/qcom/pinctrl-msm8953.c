@@ -1004,7 +1004,7 @@ static const char * const sec_mi2s_mclk_b_groups[] = {
 	"gpio66",
 };
 static const char * const pri_mi2s_groups[] = {
-	"gpio66", "gpio88", "gpio91", "gpio93", "gpio94", "gpio95",
+	"gpio66", "gpio88", "gpio91", "gpio93", "gpio94", "gpio95", "gpio86",
 };
 static const char * const codec_reset_groups[] = {
 	"gpio67",
@@ -1131,7 +1131,7 @@ static const char * const pri_mi2s_ws_groups[] = {
 	"gpio92",
 };
 static const char * const wsa_io_groups[] = {
-	"gpio94", "gpio95",
+	"gpio94", "gpio95", "gpio86", "gpio89",
 };
 static const char * const wsa_en_groups[] = {
 	"gpio96",
@@ -1567,11 +1567,11 @@ static const struct msm_pingroup msm8953_groups[] = {
 	PINGROUP(83, wcss_bt, mss_lte, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(84, wcss_bt, NA, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(85, pbs0, cri_trng0, NA, NA, NA, NA, NA, NA, NA),
-	PINGROUP(86, pbs1, cri_trng1, qdss_tracedata_b, NA, NA, NA, NA, NA, NA),
+	PINGROUP(86, pbs1, cri_trng1, qdss_tracedata_b, wsa_io, NA, NA, NA, NA, NA),
 	PINGROUP(87, pbs2, cri_trng, qdss_tracedata_b, gcc_tlmm, NA, NA, NA,
 		 NA, NA),
 	PINGROUP(88, pri_mi2s, NA, NA, NA, qdss_tracedata_b, NA, NA, NA, NA),
-	PINGROUP(89, dmic0_clk, blsp7_spi, NA, NA, NA, NA, NA, NA, NA),
+	PINGROUP(89, dmic0_clk, blsp7_spi, wsa_io, NA, NA, NA, NA, NA, NA),
 	PINGROUP(90, dmic0_data, blsp7_spi, NA, NA, NA, NA, NA, NA, NA),
 	PINGROUP(91, pri_mi2s, NA, NA, NA, qdss_cti_trig_in_a1, NA, NA, NA, NA),
 	PINGROUP(92, pri_mi2s_ws, NA, NA, NA, qdss_tracedata_b, NA, NA, NA, NA),

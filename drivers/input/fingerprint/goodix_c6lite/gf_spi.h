@@ -15,10 +15,6 @@ enum FP_MODE {
 #define SUPPORT_NAV_EVENT
 #if defined(SUPPORT_NAV_EVENT)
 
-
-
-
-
 #define GF_NAV_INPUT_DOUBLE_CLICK	KEY_VOLUMEUP
 #define GF_NAV_INPUT_LONG_PRESS		KEY_SEARCH
 #define GF_NAV_INPUT_HEAVY		KEY_CHAT
@@ -147,6 +143,8 @@ struct gf_dev {
 	struct notifier_block notifier;
 	char device_available;
 	char fb_black;
+	char wait_finger_down;
+	struct work_struct work;
 
 };
 

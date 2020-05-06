@@ -13,5 +13,10 @@ config MACH_XIAOMI_MIDO
 	select MACH_XIAOMI_MSM8953
 	help
 	  Support for Redmi Note 4 SD Mido
+	  
+config DTS_MEIZUSHKA
+    bool "Meizu Flyme DTS"
+    help
+      Use Meizu Stock Flyme DTS
 
 endmenu

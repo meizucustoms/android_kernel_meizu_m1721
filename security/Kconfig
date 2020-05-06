@@ -131,6 +131,14 @@ config LSM_MMAP_MIN_ADDR
 	  this low address space will need the permission specific to the
 	  systems running LSM.
 
+config SECURITY_ANDROID_GID_CAPABILITIES
+	bool "Grant certain capabilities when a user in in certain group"
+	default n
+	help
+	  This option grants the certain capabilities such as CAP_NET_RAW or
+	  CAP_NET_ADMIN when user is in net_raw or net_admin group (gid 3004 and
+	  gid 3005 respectively).
+	  
 source security/selinux/Kconfig
 source security/smack/Kconfig
 source security/tomoyo/Kconfig

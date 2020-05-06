@@ -15,5 +15,4 @@
 #include "msm8953-general-mido.dtsi"
 #include "msm8953-display-mido.dtsi"
 #include "msm8953-camera-sensor-qrd-mido.dtsi"
-#include "msm8953-pinctrl-mido.dtsi"
 #include "msm8953-memory-mido.dtsi"

@@ -17,10 +17,10 @@ int flag = 0;
 
 
 struct gf_uk_channel{
-		int channel_id;
-		int reserved;
-		char buf[3*1024];
-		int len;
+	int channel_id;
+	int reserved;
+	char buf[3*1024];
+	int len;
 };
 
 
@@ -53,9 +53,7 @@ void sendnlmsg(char *message)
 
 		printk("send msg from kernel to usespace failed ret 0x%x \n", ret);
 	}
-
 }
-
 
 void nl_data_ready(struct sk_buff *__skb)
 {
@@ -71,18 +69,10 @@ void nl_data_ready(struct sk_buff *__skb)
 
 		if (pid)
 			printk("Message pid %d received:%s\n", pid, str) ;
-
-
-
-
-
-
-
 		kfree_skb(skb);
 	}
 
 }
-
 
 int netlink_init(void)
 {

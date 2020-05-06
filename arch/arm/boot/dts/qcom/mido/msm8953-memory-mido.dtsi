@@ -15,6 +15,10 @@
     reg = <0x0 0x84A00000 0x0 0x1E00000>;
 };
 
+&sdhc_2 {
+    cd-gpios = <&tlmm 133 0>;
+};
+
 / {
 	reserved-memory {
 		pstore_reserve_mem: pstore_reserve_mem_region@0 {
