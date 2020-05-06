@@ -73,7 +73,6 @@ int ist30xx_key_x[] = KEY_COORD_X;
 #endif
 
 struct ist30xx_data *ts_data;
-extern int set_usb_charge_mode_par;
 int ist30xx_log_level = IST30XX_LOG_LEVEL;
 
 static bool disable_keys_function = false;
@@ -2175,7 +2174,6 @@ static int ist30xx_probe(struct i2c_client *client,
 				&data->chip_id);
 		data->chip_id &= 0xFFFF;
 		if (unlikely(ret == 0)) {
-			set_usb_charge_mode_par = 1;
 			if ((data->chip_id == IST30XX_CHIP_ID) ||
 					(data->chip_id == IST30XXC_DEFAULT_CHIP_ID) ||
 					(data->chip_id == IST3048C_DEFAULT_CHIP_ID)) {
