@@ -1,0 +1,40 @@
+# Meizu configuration options
+
+config MACH_MEIZU_MSM8953
+	bool "Meizu MSM8953"
+	depends on ARCH_MSM8953
+	help
+	  Support for MSM8953 Meizu variants
+
+menu "Meizu board selection"
+
+config MACH_MEIZU_M1721
+	bool "M1721 board"
+	select MACH_MEIZU_MSM8953
+	help
+	  Support for Meizu M6 Note m1721
+	  
+config DTS_FLYME
+    bool "Meizu Flyme DTS"
+    help
+      Use Meizu Stock Flyme DTS
+
+endmenu
+
+menu "Meizu proprietary selection"
+
+config MEIZU_SPEAKER_CALIBRATION
+	bool "TXJ Speaker Calibration"
+	help
+	  Enable kernel TXJ driver to support OS-level library for speaker
+	  
+endmenu
+
+menu "MeizuSucks selection"
+
+config MEIZUSUCKS_WELCOME
+	bool "Print MeizuSucks kernel version on boot"
+	help
+	  Print info about your MeizuSucks project kernel on boot and shutdown
+	  
+endmenu

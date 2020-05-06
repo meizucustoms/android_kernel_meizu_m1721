@@ -496,6 +496,22 @@ static inline void q_reg_clr_set(u8 *reg, int shift, int mask, int value)
 	*reg |= (value << shift) & mask;
 }
 
+static bool is_mpp_cs(struct qpnp_pin_spec *q_spec)
+{
+	u8 mode;
+
+	if (!q_spec)
+		return false;
+
+	mode = q_reg_get(&q_spec->regs[Q_REG_I_MODE_CTL],
+			 Q_REG_MODE_SEL_SHIFT, Q_REG_MODE_SEL_MASK);
+
+	if (mode == QPNP_PIN_MODE_SINK)
+		return true;
+
+	return false;
+}
+
 /*
  * Calculate the minimum number of registers that must be read / written
  * in order to satisfy the full feature set of the given pin.
@@ -859,6 +875,31 @@ static int qpnp_pin_get(struct gpio_chip *gpio_chip, unsigned offset)
 	return 0;
 }
 
+static int qpnp_pin_cs_en(struct qpnp_pin_chip *q_chip,
+			  struct qpnp_pin_spec *q_spec, int value)
+{
+	int rc;
+	u8 shift, mask, *reg;
+	u16 address;
+
+	if (!q_chip || !q_spec)
+		return -EINVAL;
+
+	shift = Q_REG_MASTER_EN_SHIFT;
+	mask = Q_REG_MASTER_EN_MASK;
+	reg = &q_spec->regs[Q_REG_I_EN_CTL];
+	address = Q_REG_ADDR(q_spec, Q_REG_EN_CTL);
+
+	q_reg_clr_set(reg, shift, mask, !!value);
+
+	rc = spmi_ext_register_writel(q_chip->spmi->ctrl, q_spec->slave,
+						address, reg, 1);
+	if (rc)
+		dev_err(&q_chip->spmi->dev, "%s: spmi write failed\n",
+								__func__);
+	return rc;
+}
+
 static int __qpnp_pin_set(struct qpnp_pin_chip *q_chip,
 			   struct qpnp_pin_spec *q_spec, int value)
 {
@@ -888,6 +929,9 @@ static int __qpnp_pin_set(struct qpnp_pin_chip *q_chip,
 	if (rc)
 		dev_err(&q_chip->spmi->dev, "%s: spmi write failed\n",
 								__func__);
+	if (is_mpp_cs(q_spec))
+		qpnp_pin_cs_en(q_chip, q_spec, value);
+
 	return rc;
 }
 
@@ -916,6 +960,10 @@ static int qpnp_pin_set_mode(struct qpnp_pin_chip *q_chip,
 
 	if (!q_chip || !q_spec)
 		return -EINVAL;
+
+	if (is_mpp_cs(q_spec)) {
+		return 0;
+	}
 
 	if (qpnp_pin_check_config(Q_PIN_CFG_MODE, q_spec, mode)) {
 		pr_err("invalid mode specification %d\n", mode);

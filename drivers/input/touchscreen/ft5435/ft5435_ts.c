@@ -235,7 +235,6 @@ enum proximity_sensor_vendor {
 	TOTAL,
 };
 
-extern int set_usb_charge_mode_par;
 extern int TX_NUM;
 extern int RX_NUM;
 extern int SCab_1;
@@ -3955,7 +3954,6 @@ INIT_WORK(&data->work_vr, ft5435_change_vr_switch);
 	while (retry--) {
 		err = ft5435_i2c_read(client, &reg_addr, 1, &reg_value, 1);
 		if (!(err < 0)) {
-			set_usb_charge_mode_par = 2;
 			dev_info(&client->dev, "Device ID = 0x%x\n", reg_value);
 			break;
 		}

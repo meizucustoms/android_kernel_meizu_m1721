@@ -44,6 +44,7 @@
 #include "msm-ds2-dap-config.h"
 #include "q6voice.h"
 #include "sound/q6lsm.h"
+#include "msm-cirrus-playback.h"
 
 static int get_cal_path(int path_type);
 
@@ -9519,6 +9520,10 @@ static int msm_routing_probe(struct snd_soc_platform *platform)
 
 	snd_soc_add_platform_controls(platform, msm_source_tracking_controls,
 				      ARRAY_SIZE(msm_source_tracking_controls));
+    
+#ifdef CONFIG_CIRRUS_PLAYBACK
+	msm_crus_pb_add_controls(platform);
+#endif
 	return 0;
 }
 
