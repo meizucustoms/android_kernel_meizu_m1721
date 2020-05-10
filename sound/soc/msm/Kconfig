@@ -269,4 +269,16 @@ config SND_SOC_MDM9640
 	 the machine drivers and the corresponding
 	 DAI-links.
 
+config SND_CS35L35_QUAT_I2S
+	bool "CS35L35 Use Quaternary I2S"
+	default n
+	
+config SND_CS35L35_QUIN_I2S
+	bool "CS35L35 Use Quinary I2S"
+	default n
+
+config SND_CS35L35_OSR_CLK
+	bool "CS35L35 Use OSR CLK"
+	default n
+
 endmenu
