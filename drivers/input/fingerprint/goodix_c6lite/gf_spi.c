@@ -78,9 +78,9 @@
 #define GF_NAV_LEFT_KEY  KEY_GESTURE_NAV_LEFT
 #define GF_NAV_RIGHT_KEY  KEY_GESTURE_NAV_RIGHT
 
-#define GF_CLICK_KEY  114
+#define GF_CLICK_KEY  158
 #define GF_DOUBLE_CLICK_KEY  115
-#define GF_LONG_PRESS_KEY  217
+#define GF_LONG_PRESS_KEY  194
 
 struct gf_key_map key_map[] = { { "POWER", KEY_POWER }, { "HOME", KEY_HOME }, {
 		"MENU", KEY_MENU }, { "BACK", KEY_BACK }, { "UP", KEY_UP }, { "DOWN",

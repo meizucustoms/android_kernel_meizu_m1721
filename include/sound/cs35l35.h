@@ -95,6 +95,8 @@ struct cs35l35_platform_data {
 	int adv_channel;
 	/* Shared Boost for stereo */
 	bool shared_bst;
+    /* Specifies this amp is using an external boost supply */
+	bool ext_bst;
 	/* ClassH Algorithm */
 	struct classh_cfg classh_algo;
 	/* Monitor Config */

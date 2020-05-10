@@ -6648,8 +6648,6 @@
 				status = "ok";
 				compatible = "cirrus,cs35l35";
 				reg = <0x40>;
-				VA-supply = <&dummy_vreg>;
-				VP-supply = <&dummy_vreg>;
 				reset-gpios = <0xbe 0x5b 0x1>;
 				irq-gpio = <0xbe 0x5a 0x1>;
 				interrupt-parent = <0xbe>;
@@ -6657,13 +6655,10 @@
 				debounce = <0x5a 0x64>;
 				pinctrl-names = "cs35l35_irq_default";
 				pinctrl-0 = <0xf5>;
-
-				cirrus,boost-ctl = <9000>;
-				cirrus,boost-ipk = <25>;
-				
-				cirrus,stereo-config;
 				cirrus,audio-channel = <0x0>;
 				cirrus,sp-drv-strength = <0x0>;
+				cirrus,boost-ctl = <0x7f>;
+				cirrus,boost-ipk = <0x19>;
 
 				cirrus,classh-internal-algo {
 					cirrus,classh-bst-overide;

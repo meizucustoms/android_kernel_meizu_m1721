@@ -1,0 +1,2 @@
+obj-$(CONFIG_MEIZU_SPEAKER_CALIBRATION) += spk_proinfo/ 
+obj-$(CONFIG_MEIZUSUCKS_WELCOME) += msucks.o

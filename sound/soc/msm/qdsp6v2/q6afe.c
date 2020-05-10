@@ -27,6 +27,9 @@
 #include <sound/audio_cal_utils.h>
 #include <sound/adsp_err.h>
 #include <linux/qdsp6v2/apr_tal.h>
+#if defined(CONFIG_CIRRUS_PLAYBACK)
+#include "msm-cirrus-playback.h"
+#endif
 
 #define WAKELOCK_TIMEOUT	5000
 enum {
@@ -306,6 +309,12 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 	afe_callback_debug_print(data);
 	if (data->opcode == AFE_PORT_CMDRSP_GET_PARAM_V2) {
 		u8 *payload = data->payload;
+        
+#if defined(CONFIG_CIRRUS_PLAYBACK)
+			if (!crus_afe_callback(data->payload,
+					       data->payload_size))
+				return 0;
+#endif
 
 		if (rtac_make_afe_callback(data->payload, data->payload_size))
 			return 0;
@@ -666,6 +675,16 @@ static int afe_apr_send_pkt(void *data, wait_queue_head_t *wait)
 	pr_debug("%s: leave %d\n", __func__, ret);
 	return ret;
 }
+
+#ifdef CONFIG_CIRRUS_PLAYBACK
+extern int afe_apr_send_pkt_crus(void *data, int index, int set)
+{
+    if (!set)
+        return afe_apr_send_pkt(data, 0);
+    else
+        return afe_apr_send_pkt(data, &this_afe.wait[index]);
+}
+#endif
 
 static int afe_send_cal_block(u16 port_id, struct cal_block_data *cal_block)
 {

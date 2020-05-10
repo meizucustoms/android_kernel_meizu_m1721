@@ -1,0 +1,1 @@
+obj-$(CONFIG_MEIZU_SPEAKER_CALIBRATION) += spk_proinfo.o
