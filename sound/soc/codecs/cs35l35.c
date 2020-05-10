@@ -1,8 +1,7 @@
 /*
  * cs35l35.c -- CS35L35 ALSA SoC audio driver
  *
- * Copyright (C) 2016 Cirrus Logic, Inc.
- * Copyright (C) 2020 MeizuCustoms enthusiasts
+ * Copyright 2016 Cirrus Logic, Inc.
  *
  * Author: Brian Austin <brian.austin@cirrus.com>
  *

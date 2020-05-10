@@ -50,6 +50,10 @@ static int i2c_msm_xfer_wait_for_completion(struct i2c_msm_ctrl *ctrl,
 static int  i2c_msm_pm_resume(struct device *dev);
 static void i2c_msm_pm_suspend(struct device *dev);
 static void i2c_msm_clk_path_init(struct i2c_msm_ctrl *ctrl);
+static void i2c_msm_pinctrl_recovery(struct i2c_msm_ctrl *ctrl,
+				bool state);
+static void i2c_msm_pm_pinctrl_state(struct i2c_msm_ctrl *ctrl,
+				bool runtime_active);
 
 /* string table for enum i2c_msm_xfer_mode_id */
 const char * const i2c_msm_mode_str_tbl[] = {
@@ -419,7 +423,7 @@ static struct i2c_msm_clk_div_fld i2c_msm_clk_div_map[] = {
  * Format the value to be configured into the clock divider register. This
  * register is configured every time core is moved from reset to run state.
  */
-static int i2c_msm_set_mstr_clk_ctl(struct i2c_msm_ctrl *ctrl, int fs_div,
+int i2c_msm_set_mstr_clk_ctl(struct i2c_msm_ctrl *ctrl, int fs_div,
 			int ht_div, int noise_rjct_scl, int noise_rjct_sda)
 {
 	int ret = 0;
@@ -1903,6 +1907,23 @@ static void i2c_msm_qup_init(struct i2c_msm_ctrl *ctrl)
 }
 
 /*
+ * qup_i2c_try_recover_gpio: reconfigure to GPIO and issue 1-clk pulse
+ */
+static void qup_i2c_try_recover_gpio(struct i2c_msm_ctrl *ctrl)
+{
+
+	/* call i2c_msm_qup_init() to set core in idle state */
+	i2c_msm_qup_init(ctrl);
+	udelay(5);
+	i2c_msm_pinctrl_recovery(ctrl, true);
+	udelay(20);
+	i2c_msm_pinctrl_recovery(ctrl, false);
+	udelay(20);
+	i2c_msm_pm_pinctrl_state(ctrl, true);
+	udelay(20);
+}
+
+/*
  * qup_i2c_try_recover_bus_busy: issue QUP bus clear command
  */
 static int qup_i2c_try_recover_bus_busy(struct i2c_msm_ctrl *ctrl)
@@ -1943,7 +1964,7 @@ static int qup_i2c_try_recover_bus_busy(struct i2c_msm_ctrl *ctrl)
 static int qup_i2c_recover_bus_busy(struct i2c_msm_ctrl *ctrl)
 {
 	u32 bus_clr, bus_active, status;
-	int retry = 0;
+	int retry = 0, count;
 	dev_info(ctrl->dev, "Executing bus recovery procedure (9 clk pulse)\n");
 
 	do {
@@ -1955,6 +1976,29 @@ static int qup_i2c_recover_bus_busy(struct i2c_msm_ctrl *ctrl)
 		if (++retry >= I2C_QUP_MAX_BUS_RECOVERY_RETRY)
 			break;
 	} while (bus_clr || bus_active);
+
+	if (ctrl->rsrcs.extended_recovery) {
+		/* Only panic on extended-recovery enabled bus */
+		if (ctrl->rsrcs.recovery_count >
+			I2C_QUP_RECOVER_FAILED_PANIC) {
+			pr_info("BUG: Bus recovery failed trigger panic\n");
+			BUG();
+		}
+
+		count = ctrl->rsrcs.recovery_count %
+					I2C_QUP_MAX_BUS_RECOVERY_RETRY;
+		if (!count) {
+			qup_i2c_try_recover_gpio(ctrl);
+			status = readl_relaxed(ctrl->rsrcs.base +
+						QUP_I2C_STATUS);
+			bus_active = status & I2C_STATUS_BUS_ACTIVE;
+			dev_info(ctrl->dev, "Extended Bus recovery #%d %s\n",
+					ctrl->rsrcs.recovery_count,
+					(bus_active) ? "fail" : "success");
+		}
+
+		ctrl->rsrcs.recovery_count++;
+	}
 
 	dev_info(ctrl->dev, "Bus recovery %s after %d retries\n",
 		(bus_clr || bus_active) ? "fail" : "success", retry);
@@ -2445,6 +2489,8 @@ static int i2c_msm_rsrcs_process_dt(struct i2c_msm_ctrl *ctrl,
 							DT_OPT,  DT_U32,  0},
 	{"qcom,fs-clk-div",		&fs_clk_div,
 							DT_OPT,  DT_U32,  0},
+	{"mmi,extended-recovery",	&(ctrl->rsrcs.extended_recovery),
+							DT_OPT,  DT_BOOL, 0},
 	{NULL,  NULL,					0,       0,       0},
 	};
 
@@ -2558,7 +2604,7 @@ static int i2c_msm_rsrcs_gpio_pinctrl_init(struct i2c_msm_ctrl *ctrl)
 {
 	ctrl->rsrcs.pinctrl = devm_pinctrl_get(ctrl->dev);
 	if (IS_ERR_OR_NULL(ctrl->rsrcs.pinctrl)) {
-		dev_err(ctrl->dev, "error devm_pinctrl_get() failed err:%ld\n",
+		dev_warn(ctrl->dev, "devm_pinctrl_get() failed err:%ld\n",
 				PTR_ERR(ctrl->rsrcs.pinctrl));
 		return PTR_ERR(ctrl->rsrcs.pinctrl);
 	}
@@ -2569,6 +2615,15 @@ static int i2c_msm_rsrcs_gpio_pinctrl_init(struct i2c_msm_ctrl *ctrl)
 	ctrl->rsrcs.gpio_state_suspend =
 		i2c_msm_rsrcs_gpio_get_state(ctrl, I2C_MSM_PINCTRL_SUSPEND);
 
+	if (ctrl->rsrcs.extended_recovery) {
+		ctrl->rsrcs.gpio_state_out =
+			i2c_msm_rsrcs_gpio_get_state(ctrl,
+						I2C_MSM_PINCTRL_OUT);
+
+		ctrl->rsrcs.gpio_state_in =
+			i2c_msm_rsrcs_gpio_get_state(ctrl,
+						I2C_MSM_PINCTRL_IN);
+	}
 	return 0;
 }
 
@@ -2592,13 +2647,31 @@ static void i2c_msm_pm_pinctrl_state(struct i2c_msm_ctrl *ctrl,
 			dev_err(ctrl->dev,
 			"error pinctrl_select_state(%s) err:%d\n",
 			pins_state_name, ret);
-	} else {
-		dev_err(ctrl->dev,
-			"error pinctrl state-name:'%s' is not configured\n",
-			pins_state_name);
 	}
 }
 
+static void i2c_msm_pinctrl_recovery(struct i2c_msm_ctrl *ctrl,
+				bool state)
+{
+	struct pinctrl_state *pins_state;
+	const char           *pins_state_name;
+
+	if (state) {
+		pins_state      = ctrl->rsrcs.gpio_state_out;
+		pins_state_name = I2C_MSM_PINCTRL_OUT;
+	} else {
+		pins_state      = ctrl->rsrcs.gpio_state_in;
+		pins_state_name = I2C_MSM_PINCTRL_IN;
+	}
+
+	if (!IS_ERR_OR_NULL(pins_state)) {
+		int ret = pinctrl_select_state(ctrl->rsrcs.pinctrl, pins_state);
+		if (ret)
+			dev_err(ctrl->dev,
+			"error pinctrl_select_state(%s) err:%d\n",
+			pins_state_name, ret);
+	}
+}
 /*
  * i2c_msm_rsrcs_clk_init: get clocks and set rate
  *
@@ -2748,7 +2821,7 @@ static int i2c_msm_pm_sys_resume_noirq(struct device *dev)
 static void i2c_msm_pm_rt_init(struct device *dev)
 {
 	pm_runtime_set_suspended(dev);
-	pm_runtime_set_autosuspend_delay(dev, (MSEC_PER_SEC >> 2));
+	pm_runtime_set_autosuspend_delay(dev, MSEC_PER_SEC);
 	pm_runtime_use_autosuspend(dev);
 	pm_runtime_enable(dev);
 }
@@ -2886,11 +2959,7 @@ static int i2c_msm_probe(struct platform_device *pdev)
 
 	i2c_msm_pm_clk_disable_unprepare(ctrl);
 	i2c_msm_clk_path_unvote(ctrl);
-
-	ret = i2c_msm_rsrcs_gpio_pinctrl_init(ctrl);
-	if (ret)
-		goto err_no_pinctrl;
-
+	i2c_msm_rsrcs_gpio_pinctrl_init(ctrl);
 	i2c_msm_pm_rt_init(ctrl->dev);
 
 	ret = i2c_msm_rsrcs_irq_init(pdev, ctrl);
@@ -2911,7 +2980,6 @@ reg_err:
 	i2c_msm_rsrcs_irq_teardown(ctrl);
 irq_err:
 	i2x_msm_blk_free_cache(ctrl);
-err_no_pinctrl:
 	i2c_msm_rsrcs_clk_teardown(ctrl);
 clk_err:
 	i2c_msm_rsrcs_mem_teardown(ctrl);
@@ -2924,6 +2992,7 @@ mem_err:
 static int i2c_msm_remove(struct platform_device *pdev)
 {
 	struct i2c_msm_ctrl *ctrl = platform_get_drvdata(pdev);
+	int ret;
 
 	/* Grab mutex to ensure ongoing transaction is over */
 	mutex_lock(&ctrl->xfer.mtx);
@@ -2937,6 +3006,29 @@ static int i2c_msm_remove(struct platform_device *pdev)
 	i2c_msm_dma_teardown(ctrl);
 	i2c_msm_dbgfs_teardown(ctrl);
 	i2c_msm_rsrcs_irq_teardown(ctrl);
+
+	/* vote for clock to allow reset of core */
+	i2c_msm_clk_path_vote(ctrl);
+
+	ret = i2c_msm_pm_clk_prepare_enable(ctrl);
+	if (ret) {
+		dev_err(ctrl->dev, "error in enabling clocks:%d\n", ret);
+		goto clk_err;
+	}
+
+	/*
+	 * Reset the core before teardown. This solves an issue where other
+	 * drivers could not use the hardware.
+	 */
+	ret = i2c_msm_qup_sw_reset(ctrl);
+	if (ret)
+		dev_err(ctrl->dev, "error error on qup software reset\n");
+
+	i2c_msm_pm_clk_disable_unprepare(ctrl);
+
+clk_err:
+	i2c_msm_clk_path_unvote(ctrl);
+
 	i2c_msm_rsrcs_clk_teardown(ctrl);
 	i2c_msm_rsrcs_mem_teardown(ctrl);
 	i2x_msm_blk_free_cache(ctrl);
@@ -2965,7 +3057,7 @@ static int i2c_msm_init(void)
 {
 	return platform_driver_register(&i2c_msm_driver);
 }
-arch_initcall(i2c_msm_init);
+arch_initcall_sync(i2c_msm_init);
 
 static void i2c_msm_exit(void)
 {

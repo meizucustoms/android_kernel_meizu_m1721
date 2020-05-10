@@ -739,7 +739,17 @@ static int ir_open(struct input_dev *idev)
 {
 	struct rc_dev *rdev = input_get_drvdata(idev);
 
-	return rc_open(rdev);
+
+	int rc = 0;
+
+	mutex_lock(&rdev->lock);
+	if (!rdev->open_count++)
+		rc = rdev->open(rdev);
+	if (rc < 0)
+		rdev->open_count--;
+	mutex_unlock(&rdev->lock);
+
+	return rc;
 }
 
 void rc_close(struct rc_dev *rdev)
@@ -759,7 +769,13 @@ static void ir_close(struct input_dev *idev)
 {
 	struct rc_dev *rdev = input_get_drvdata(idev);
 
-	rc_close(rdev);
+
+	 if (rdev) {
+		mutex_lock(&rdev->lock);
+		if (!--rdev->open_count)
+			rdev->close(rdev);
+		mutex_unlock(&rdev->lock);
+	}
 }
 
 /* class for /sys/class/rc */

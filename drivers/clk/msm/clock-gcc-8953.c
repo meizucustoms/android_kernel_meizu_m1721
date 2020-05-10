@@ -1,6 +1,5 @@
 /*
  * Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
- * Copyright (c) 2020, MeizuCustoms enthusiasts
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -697,6 +696,7 @@ static struct rcg_clk apc1_droop_detector_clk_src = {
 };
 
 static struct clk_freq_tbl ftbl_blsp_i2c_apps_clk_src[] = {
+	F(  19200000,              xo,    1,    0,     0),
 	F(  25000000, gpll0_main_div2,   16,    0,     0),
 	F(  50000000,           gpll0,   16,    0,     0),
 	F_END
