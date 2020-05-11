@@ -25,7 +25,9 @@
 		"MIC BIAS External", "Secondary Mic",
 		"AMIC1", "MIC BIAS External",
 		"AMIC2", "MIC BIAS Internal2",
-		"AMIC3", "MIC BIAS External";
+		"AMIC3", "MIC BIAS External",
+		"WSA_SPK OUT", "VDD_WSA_SWITCH",
+		"SpkrMono WSA_IN", "WSA_SPK OUT";
 	/delete-property/asoc-wsa-codec-names;
 	/delete-property/asoc-wsa-codec-prefixes;
 	/delete-property/msm-vdd-wsa-switch-supply;
