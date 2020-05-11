@@ -65,6 +65,7 @@ static inline void desc_set_label(struct gpio_desc *d, const char *label)
  */
 struct gpio_desc *gpio_to_desc(unsigned gpio)
 {
+
 	if (WARN(!gpio_is_valid(gpio), "invalid GPIO %d\n", gpio))
 		return NULL;
 	else

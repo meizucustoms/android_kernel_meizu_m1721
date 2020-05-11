@@ -1726,6 +1726,9 @@ static int cs35l35_dai_init(struct snd_soc_pcm_runtime *rtd)
 	int ret;
 	struct snd_soc_dai *codec_dai = rtd->codec_dai;
 	struct snd_soc_codec *codec = codec_dai->codec;
+	struct snd_soc_dapm_context *dapm = &codec->dapm;
+	
+	pr_debug("%s: welcome!\n", __func__);
 
 	ret = snd_soc_codec_set_sysclk(codec, 0, 0,
 						Q6AFE_LPASS_OSR_CLK_12_P288_MHZ,
@@ -1739,11 +1742,15 @@ static int cs35l35_dai_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret < 0)
 		pr_err("%s: set dai_sysclk failed, err:%d\n",
 			__func__, ret);
-#ifdef CONFIG_SND_SOC_OPALUM
-	ret = ospl2xx_init(rtd);
-	if (ret != 0)
-		pr_err("%s Cannot set Opalum controls %d\n", __func__, ret);
-#endif
+	pr_debug("%s: setting dapm parameters...\n", __func__);
+	snd_soc_dapm_ignore_suspend(dapm, "AMP Playback");
+	snd_soc_dapm_ignore_suspend(dapm, "AMP Capture");
+	snd_soc_dapm_ignore_suspend(dapm, "SDIN");
+    snd_soc_dapm_ignore_suspend(dapm, "SDOUT");
+    snd_soc_dapm_ignore_suspend(dapm, "SPK");
+    pr_debug("%s: syncing dapm...\n", __func__);
+	snd_soc_dapm_sync(dapm);
+	pr_debug("%s: done! exit code: %d\n", __func__, ret);
 	return ret;
 }
 
@@ -2731,8 +2738,6 @@ static struct snd_soc_card bear_card = {
 	/* snd_soc_card_msm8952 */
 	.name		= "msm8952-snd-card",
 	.dai_link	= msm8952_dai,
-	/* cs35l35 probe */
-	.late_probe	= cs35l35_late_probe,
 	.num_links	= ARRAY_SIZE(msm8952_dai),
 };
 
