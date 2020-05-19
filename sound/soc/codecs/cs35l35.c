@@ -257,7 +257,7 @@ static const struct snd_kcontrol_new cs35l35_pdm_en_mux[] = {
 	SOC_DAPM_ENUM("PDM MUX", pdm_en_enum),
 };
 
-static int cs35l35_reset_and_sync(struct cs35l35_private *priv, bool pdm)
+/*static int cs35l35_reset_and_sync(struct cs35l35_private *priv, bool pdm)
 {
 	int ret = 0;
 
@@ -411,34 +411,42 @@ static int cs35l35_pdm_event(struct snd_soc_dapm_widget *w,
 		return -EINVAL;
 	}
 	return 0;
+}*/
+
+static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,struct snd_kcontrol *kcontrol,int event)
+
+{
+	  struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	  struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec); 
+	  
+	  if (event == SND_SOC_DAPM_PRE_PMU) {
+		regmap_update_bits(cs35l35->regmap,10,4,0);
+		regmap_update_bits(cs35l35->regmap,6,2,0);
+		regmap_update_bits(cs35l35->regmap,6,1,0);
+	  } else if (event == SND_SOC_DAPM_POST_PMD) {
+		regmap_update_bits(cs35l35->regmap,6,2,2);
+		regmap_update_bits(cs35l35->regmap,6,1,1);
+		regmap_update_bits(cs35l35->regmap,0x15,2,0);
+		msleep(100);
+		regmap_update_bits(cs35l35->regmap,10,4,4);
+		regmap_update_bits(cs35l35->regmap,0x15,2,2);
+	  } else {
+		pr_err("%s Invalid Event %d\n", __func__, event);
+		return -EINVAL;
+	  }
+	  
+	  return 0;
 }
 
 static const struct snd_soc_dapm_widget cs35l35_dapm_widgets[] = {
-	SND_SOC_DAPM_AIF_IN("SDIN", NULL, 0, CS35L35_PWRCTL3, 1, 1),
+	SND_SOC_DAPM_AIF_IN_E("SDIN", NULL, 0, CS35L35_PWRCTL3, 1, 1, cs35l35_sdin_event, 9),
 	SND_SOC_DAPM_AIF_OUT("SDOUT", NULL, 0, CS35L35_PWRCTL3, 2, 1),
 
-	SND_SOC_DAPM_SUPPLY_S("EXTCLK", 1, SND_SOC_NOPM, 0, 0,
-		cs35l35_mclk_event, SND_SOC_DAPM_PRE_PMU |
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-
-	SND_SOC_DAPM_SUPPLY_S("PDMCLK", 2, SND_SOC_NOPM, 0, 0,
-		cs35l35_pdm_event, SND_SOC_DAPM_PRE_PMU |
-			SND_SOC_DAPM_POST_PMU | SND_SOC_DAPM_PRE_PMD),
-
-	SND_SOC_DAPM_SUPPLY("MSTRCLK", CS35L35_CLK_CTL1, 2, 1,
-		NULL, 0),
-
 	SND_SOC_DAPM_OUTPUT("SPK"),
-
 	SND_SOC_DAPM_INPUT("VP"),
 	SND_SOC_DAPM_INPUT("VBST"),
 	SND_SOC_DAPM_INPUT("ISENSE"),
 	SND_SOC_DAPM_INPUT("VSENSE"),
-
-	SND_SOC_DAPM_PGA("MCLK Select", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_PGA("PDM Select", SND_SOC_NOPM, 0, 0, NULL, 0),
-	SND_SOC_DAPM_MUX("CLKSEL MUX", SND_SOC_NOPM, 0, 0, cs35l35_clksel_mux),
-	SND_SOC_DAPM_MUX("PDM Mux", SND_SOC_NOPM, 0, 0, cs35l35_pdm_en_mux),
 
 	SND_SOC_DAPM_ADC("VMON ADC", NULL, CS35L35_PWRCTL2, 7, 1),
 	SND_SOC_DAPM_ADC("IMON ADC", NULL, CS35L35_PWRCTL2, 6, 1),
@@ -450,40 +458,21 @@ static const struct snd_soc_dapm_widget cs35l35_dapm_widgets[] = {
 		cs35l35_main_amp_event, SND_SOC_DAPM_PRE_PMU |
 				SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU |
 				SND_SOC_DAPM_PRE_PMD),
-
-	SND_SOC_DAPM_OUT_DRV("RECT FET", CS35L35_PWRCTL2, 1, 0, NULL, 0),
-	SND_SOC_DAPM_OUT_DRV("BOOST", CS35L35_PWRCTL2, 2, 1, NULL, 0),
 };
-
 static const struct snd_soc_dapm_route cs35l35_audio_map[] = {
-	{"VPMON ADC", NULL, "VP"},
-	{"VBSTMON ADC", NULL, "VBST"},
 	{"IMON ADC", NULL, "ISENSE"},
 	{"VMON ADC", NULL, "VSENSE"},
 	{"SDOUT", NULL, "IMON ADC"},
 	{"SDOUT", NULL, "VMON ADC"},
-	{"SDOUT", NULL, "VBSTMON ADC"},
-	{"SDOUT", NULL, "VPMON ADC"},
-	{"AMP Capture", NULL, "SDOUT"},
 
 	{"SDIN", NULL, "AMP Playback"},
 	{"CLASS H", NULL, "SDIN"},
-	{"BOOST", NULL, "CLASS H"},
-	{"MCLK Select", NULL, "BOOST"},
-	{"Main AMP", NULL, "MCLK Select"},
+	{"Main AMP", NULL, "CLASS H"},
 
-	{"PDM Mux", "On", "PDM Playback"},
-	{"RECT FET", NULL, "PDM Mux"},
-	{"PDM Select", NULL, "RECT FET"},
-	{"CLKSEL MUX", "PDM", "PDM Select"},
-	{"Main AMP", NULL, "CLKSEL MUX"},
-
-	{"SPK", NULL, "Main AMP"},
-
-	{"MCLK Select", NULL, "EXTCLK"},
-	{"PDM Select", NULL, "PDMCLK"},
-	{"MCLK Select", NULL, "MSTRCLK"},
-	{"PDM Select", NULL, "MSTRCLK"},
+	{"VMON ADC", NULL, "Main AMP"},
+	{"IMON ADC", NULL, "Main AMP"},
+	{"SPK", NULL, "SDOUT"},
+	{"AMP Capture", NULL, "SPK"},
 };
 
 static int cs35l35_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
@@ -1299,7 +1288,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 	pdata->bst_pdn_fet_on = of_property_read_bool(np, "cirrus,boost-pdn-fet-on");
 
 	
-	if (of_property_read_u32(np, "cirrus,boost-ctl", &val32) >= 0) {
+	if (of_property_read_u32(np, "cirrus,boost-ctl-millivolt", &val32) >= 0) {
 		if (val32 - 0xa28 < 0x1901) {
 			pdata->bst_vctl = (val32 - 0xa28 / 100) + 1;    
 		} else {
@@ -1307,7 +1296,7 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 		}		
 	}
 
-	if (of_property_read_u32(np, "cirrus,boost-ipk", &val32) >= 0) {
+	if (of_property_read_u32(np, "cirrus,boost-peak-milliamp", &val32) >= 0) {
 		if (0xaf0 < val32 - 0x690) {
 			pdata->bst_ipk = (val32 - 0x690) / 0x6e;    
 		} else {
