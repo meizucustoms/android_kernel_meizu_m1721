@@ -459,20 +459,19 @@ static const struct snd_soc_dapm_widget cs35l35_dapm_widgets[] = {
 				SND_SOC_DAPM_POST_PMD | SND_SOC_DAPM_POST_PMU |
 				SND_SOC_DAPM_PRE_PMD),
 };
-static const struct snd_soc_dapm_route cs35l35_audio_map[] = {
-	{"IMON ADC", NULL, "ISENSE"},
-	{"VMON ADC", NULL, "VSENSE"},
-	{"SDOUT", NULL, "IMON ADC"},
-	{"SDOUT", NULL, "VMON ADC"},
 
-	{"SDIN", NULL, "AMP Playback"},
-	{"CLASS H", NULL, "SDIN"},
-	{"Main AMP", NULL, "CLASS H"},
-
-	{"VMON ADC", NULL, "Main AMP"},
-	{"IMON ADC", NULL, "Main AMP"},
-	{"SPK", NULL, "SDOUT"},
-	{"AMP Capture", NULL, "SPK"},
+static struct snd_soc_dapm_route cs35l35_audio_map[11] = {
+    {"IMON ADC", NULL, "ISENSE"   }, 
+    {"VMON ADC", NULL, "VSENSE"   },
+    {"SDOUT", NULL, "IMON ADC"    },
+    {"SDOUT", NULL, "VMON ADC"    },
+    {"SDIN", NULL, "AMP Playback" },
+    {"CLASS H", NULL, "SDIN"      },
+    {"Main AMP", NULL, "CLASS H"  },
+    {"VMON ADC", NULL, "Main AMP" },
+    {"IMON ADC", NULL, "Main AMP" },
+    {"SPK", NULL, "SDOUT" 		  },
+    {"AMP Capture", NULL, "SPK"   },
 };
 
 static int cs35l35_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
