@@ -259,7 +259,7 @@
 #define CS35L35_FORMATS (SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE | \
 			SNDRV_PCM_FMTBIT_S24_LE)
 
-struct  cs35l35_private {
+struct cs35l35_private {
 	struct snd_soc_codec *codec;
 	struct cs35l35_platform_data pdata;
 	struct regmap *regmap;
@@ -280,6 +280,13 @@ struct  cs35l35_private {
 	/* GPIO for INT */
 	struct gpio_desc *irq_gpio;
 	struct completion pdn_done;
+};
+
+struct cs35l35_work_data {
+    struct workqueue_struct *workqueue;
+    struct work_struct work_s;
+    struct cs35l35_private *cs35l35;
+    int irq;
 };
 
 static const char * const cs35l35_supplies[] = {

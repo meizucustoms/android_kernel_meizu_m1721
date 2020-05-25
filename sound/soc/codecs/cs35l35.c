@@ -1162,12 +1162,10 @@ static struct regmap_config cs35l35_regmap = {
 
 static void cs35l35_eint_work_callback(struct work_struct *work)
 {
-    //struct cs35l35_work_data *work_data = 
-    //    container_of(work, struct cs35l35_work_data, work_s);
+    struct cs35l35_work_data *work_data = 
+       container_of(work, struct cs35l35_work_data, work_s);
 
-	//struct cs35l35_private *cs35l35 = work_data->cs35l35;
-    
-    struct cs35l35_private *cs35l35 = *(cs35l35_private **)((long long int)((void *)work) + 0x20);
+	struct cs35l35_private *cs35l35 = work_data->cs35l35;
 	struct snd_soc_codec *codec = cs35l35->codec;
 	
 	unsigned int sticky1, sticky2, sticky3, sticky4;
@@ -1189,13 +1187,13 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 	/* Check to see if unmasked bits are active */
 	if (!(sticky1 & ~mask1) && !(sticky2 & ~mask2) && !(sticky3 & ~mask3)
 			&& !(sticky4 & ~mask4))
-		return 1;
+		return;
     
 	if (sticky2 & CS35L35_PDN_DONE)
 		complete(&cs35l35->pdn_done);
 
 	/* read the current values */
-	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_1, ¤t1);
+    regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_1, &current1);
 
 	/* handle the interrupts */
 	if (sticky1 & CS35L35_CAL_ERR) {
@@ -1297,10 +1295,10 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 	if (sticky4 & CS35L35_IMON_OVFL)
 		dev_dbg(codec->dev, "Error: IMON overflow\n");
 
-	return 0;
+	return;
 }
 
-static irqreturn_t cs35l35_eint_func(int irq, cs35l35_work_data *data)
+static irqreturn_t cs35l35_eint_func(int irq, struct cs35l35_work_data *data)
 {
     printk("%s@%d ++\n", __func__, __LINE__);
     
@@ -1486,6 +1484,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
     struct device_node *np;
     struct device *dev = &i2c_client->dev;
     struct pinctrl_state *irq_pin_state;
+    struct pinctrl *p;
 	int i;
 	int ret;
 	unsigned int devid = 0;
@@ -1495,6 +1494,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
     u32 debounceInfo[2];
     u32 interruptInfo[2];
     u32 debounce;
+    enum of_gpio_flags flags;
     
     debounceInfo[0] = 0;
     debounceInfo[1] = 0;
