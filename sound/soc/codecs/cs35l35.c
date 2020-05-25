@@ -165,6 +165,8 @@ static int cs35l35_main_amp_event(struct snd_soc_dapm_widget *w,
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg[4];
 	int i;
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
@@ -418,6 +420,8 @@ static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,struct snd_kcontrol 
 {
 	  struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
 	  struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec); 
+      
+      printk("%s@%d ++\n", __func__, __LINE__);
 	  
 	  if (event == SND_SOC_DAPM_PRE_PMU) {
 		regmap_update_bits(cs35l35->regmap,10,4,0);
@@ -478,6 +482,8 @@ static int cs35l35_set_dai_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBM_CFM:
@@ -512,6 +518,8 @@ static int cs35l35_set_pdm_dai_fmt(struct snd_soc_dai *codec_dai,
 {
 	struct snd_soc_codec *codec = codec_dai->codec;
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
 	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
 	case SND_SOC_DAIFMT_CBS_CFS:
@@ -586,6 +594,8 @@ static struct cs35l35_sysclk_config cs35l35_clk_ctl[] = {
 static int cs35l35_get_clk_config(int sysclk, int srate)
 {
 	int i;
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
 	for (i = 0; i < ARRAY_SIZE(cs35l35_clk_ctl); i++) {
 		if (cs35l35_clk_ctl[i].sysclk == sysclk &&
@@ -601,13 +611,15 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
-	struct classh_cfg *classh = &cs35l35->pdata.classh_algo;
+	//struct classh_cfg *classh = &cs35l35->pdata.classh_algo;
 	int srate = params_rate(params);
 	u8 sp_sclks;
 	int audin_format;
-	int errata_chk;
+	//int errata_chk;
 
 	int clk_ctl = cs35l35_get_clk_config(cs35l35->sysclk, srate);
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 	if (clk_ctl < 0) {
 		dev_err(codec->dev, "Invalid CLK:Rate %d:%d\n",
 			cs35l35->sysclk, srate);
@@ -623,7 +635,7 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 	 * the Class H algorithm does not enable weak-drive operation for
 	 * nonzero values of CH_WKFET_DELAY if SP_RATE = 01 or 10
 	 *
-	 */
+	 
 	errata_chk = clk_ctl & CS35L35_SP_RATE_MASK;
 
 	if (classh->classh_wk_fet_disable == 0x00 &&
@@ -631,7 +643,7 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 			regmap_update_bits(cs35l35->regmap,
 				CS35L35_CLASS_H_FET_DRIVE_CTL,
 				CS35L35_CH_WKFET_DEL_MASK,
-				0);
+				0);*/
 
 /*
  * You can pull more Monitor data from the SDOUT pin than going to SDIN
@@ -715,6 +727,8 @@ static int cs35l35_pcm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
 	cs35l35->pdm_mode = false;
 
@@ -727,6 +741,8 @@ static int cs35l35_pdm_hw_params(struct snd_pcm_substream *substream,
 {
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
 	cs35l35->pdm_mode = true;
 
@@ -747,6 +763,8 @@ static int cs35l35_pcm_startup(struct snd_pcm_substream *substream,
 {
 	/* the runtime pointer is NULL on compress playback, this cause kernel panic
 	 */
+    printk("%s@%d ++\n", __func__, __LINE__);
+    
 	if (substream->runtime)
 		snd_pcm_hw_constraint_list(substream->runtime, 0,
 					SNDRV_PCM_HW_PARAM_RATE, &cs35l35_constraints);
@@ -777,6 +795,8 @@ static int cs35l35_dai_set_sysclk(struct snd_soc_dai *dai,
 	struct snd_soc_codec *codec = dai->codec;
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
 
+    printk("%s@%d ++\n", __func__, __LINE__);
+    
 	/* Need the SCLK Frequency */
 	cs35l35->sclk = freq;
 
@@ -837,6 +857,8 @@ static int cs35l35_codec_set_sysclk(struct snd_soc_codec *codec,
 {
 	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
 	int clksrc;
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
 	switch (clk_id) {
 	case 0:
@@ -884,6 +906,8 @@ static int cs35l35_codec_probe(struct snd_soc_codec *codec)
 	struct classh_cfg *classh = &cs35l35->pdata.classh_algo;
 	struct monitor_cfg *monitor_config = &cs35l35->pdata.mon_cfg;
 	int ret;
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
 	/* Set Platform Data */
 	if (cs35l35->pdata.bst_vctl)
@@ -1136,13 +1160,22 @@ static struct regmap_config cs35l35_regmap = {
 	.use_single_rw = true,
 };
 
-static irqreturn_t cs35l35_irq(int irq, void *data)
+static void cs35l35_eint_work_callback(struct work_struct *work)
 {
-	struct cs35l35_private *cs35l35 = data;
+    //struct cs35l35_work_data *work_data = 
+    //    container_of(work, struct cs35l35_work_data, work_s);
+
+	//struct cs35l35_private *cs35l35 = work_data->cs35l35;
+    
+    struct cs35l35_private *cs35l35 = *(cs35l35_private **)((long long int)((void *)work) + 0x20);
+	struct snd_soc_codec *codec = cs35l35->codec;
+	
 	unsigned int sticky1, sticky2, sticky3, sticky4;
 	unsigned int mask1, mask2, mask3, mask4, current1;
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
-	/* ack the irq by reading all status registers */
+/* ack the irq by reading all status registers */
 	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_4, &sticky4);
 	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_3, &sticky3);
 	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_2, &sticky2);
@@ -1156,21 +1189,21 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	/* Check to see if unmasked bits are active */
 	if (!(sticky1 & ~mask1) && !(sticky2 & ~mask2) && !(sticky3 & ~mask3)
 			&& !(sticky4 & ~mask4))
-		return IRQ_NONE;
-
+		return 1;
+    
 	if (sticky2 & CS35L35_PDN_DONE)
 		complete(&cs35l35->pdn_done);
 
 	/* read the current values */
-	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_1, &current1);
+	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_1, ¤t1);
 
 	/* handle the interrupts */
 	if (sticky1 & CS35L35_CAL_ERR) {
-		pr_err("%s: Calibration Error\n", __func__);
+		dev_crit(codec->dev, "Calibration Error\n");
 
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_CAL_ERR)) {
-			pr_debug("%s: Cal error release\n", __func__);
+			pr_debug("%s : Cal error release\n", __func__);
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_CAL_ERR_RLS, 0);
@@ -1185,9 +1218,10 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky1 & CS35L35_AMP_SHORT) {
+		dev_crit(codec->dev, "AMP Short Error\n");
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_AMP_SHORT)) {
-			pr_debug("%s: Amp short error release\n", __func__);
+			dev_dbg(codec->dev, "Amp short error release\n");
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_SHORT_RLS, 0);
@@ -1202,12 +1236,11 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky1 & CS35L35_OTW) {
-		pr_err("%s: Over temperature warning\n", __func__);
+		dev_warn(codec->dev, "Over temperature warning\n");
 
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_OTW)) {
-			pr_debug("%s: Over temperature warning release\n",
-				 __func__);
+			dev_dbg(codec->dev, "Over temperature warn release\n");
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_OTW_RLS, 0);
@@ -1222,12 +1255,10 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky1 & CS35L35_OTE) {
-		pr_info("%s: Over temperature error\n", __func__);
-
+		dev_crit(codec->dev, "Over temperature error\n");
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_OTE)) {
-			pr_debug("%s: Over temperature error release\n",
-				 __func__);
+			dev_dbg(codec->dev, "Over temperature error release\n");
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_OTE_RLS, 0);
@@ -1242,7 +1273,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky3 & CS35L35_BST_HIGH) {
-		pr_info("%s: VBST error: powering off!\n", __func__);
+		dev_crit(codec->dev, "VBST error: powering off!\n");
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
 			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
@@ -1250,7 +1281,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky3 & CS35L35_LBST_SHORT) {
-		pr_info("%s: LBST error: powering off!\n", __func__);
+		dev_crit(codec->dev, "LBST error: powering off!\n");
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
 			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
@@ -1258,17 +1289,25 @@ static irqreturn_t cs35l35_irq(int irq, void *data)
 	}
 
 	if (sticky2 & CS35L35_VPBR_ERR)
-		pr_err("%s: Error: Reactive Brownout\n", __func__);
+		dev_dbg(codec->dev, "Error: Reactive Brownout\n");
 
 	if (sticky4 & CS35L35_VMON_OVFL)
-		pr_err("%s: Error: VMON overflow\n", __func__);
+		dev_dbg(codec->dev, "Error: VMON overflow\n");
 
 	if (sticky4 & CS35L35_IMON_OVFL)
-		pr_err("%s: Error: IMON overflow\n", __func__);
+		dev_dbg(codec->dev, "Error: IMON overflow\n");
 
-	return IRQ_HANDLED;
+	return 0;
 }
 
+static irqreturn_t cs35l35_eint_func(int irq, cs35l35_work_data *data)
+{
+    printk("%s@%d ++\n", __func__, __LINE__);
+    
+    data->irq = irq;
+    queue_work_on(8, data->workqueue, &data->work_s);
+    return 1;
+}
 
 static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 				struct cs35l35_platform_data *pdata)
@@ -1280,6 +1319,8 @@ static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 	unsigned int val32 = 0;
 	u8 monitor_array[3];
 	int ret = 0;
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
 	if (!np)
 		return 0;
@@ -1438,10 +1479,29 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	struct cs35l35_private *cs35l35;
 	struct cs35l35_platform_data *pdata =
 		dev_get_platdata(&i2c_client->dev);
+    struct list_head *work_s;
+    struct cs35l35_work_data *cs35l35_work;
+    struct workqueue_struct *workqueue_key;
+    struct gpio_desc *desc;
+    struct device_node *np;
+    struct device *dev = &i2c_client->dev;
+    struct pinctrl_state *irq_pin_state;
 	int i;
 	int ret;
 	unsigned int devid = 0;
 	unsigned int reg;
+    unsigned int val = 0;
+    unsigned long long int dataVar;
+    u32 debounceInfo[2];
+    u32 interruptInfo[2];
+    u32 debounce;
+    
+    debounceInfo[0] = 0;
+    debounceInfo[1] = 0;
+    interruptInfo[0] = 0;
+    interruptInfo[1] = 0;
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
 	cs35l35 = devm_kzalloc(&i2c_client->dev,
 			       sizeof(struct cs35l35_private),
@@ -1492,21 +1552,65 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		}
 		cs35l35->pdata = *pdata;
 	}
-
+    
 	ret = regulator_bulk_enable(cs35l35->num_supplies,
 					cs35l35->supplies);
-	if (ret != 0) {
+	if (ret == 0) {
+        printk("%s@%d - reset start\n", __func__, __LINE__);
+        p = devm_pinctrl_get(dev);
+        
+        // Trying to get reset pin anyway
+        if (p != 0) {
+            irq_pin_state = pinctrl_lookup_state(p,"cs35l35_irq_default");
+        }
+        pinctrl_select_state(p, irq_pin_state);
+        val = of_get_named_gpio_flags(np, "reset-gpios", 0, &flags);
+        cs35l35->reset_gpio = val;
+        
+        // Reset pin check and request
+        if (val < 0) {
+            dev_err(dev,"%s: error! spk_pa_reset_gpio is :%d\n", __func__, val);
+        } else {
+            ret = gpio_request_one(val, 0, "spk_reset");
+            
+            if (ret != 0) {
+                printk("%s: request spk_pa_gpio fail! error %d\n", __func__, ret);
+            }
+        }
+        
+        // open device node for codec
+        dataVar = 0xffffffff;
+        desc = gpio_to_desc(cs35l35->reset_gpio);
+        gpiod_direction_output_raw(desc, 1);
+        np = (i2c_client->dev).of_node;
+        
+        if (np != 0) {
+            of_property_read_u32_array(np, "debounce", debounceInfo, 2);
+            of_property_read_u32_array(np, "interrupts", interruptInfo, 2);
+            
+            debounce = debounceInfo[1];
+            desc = gpio_to_desc(debounceInfo[0]);
+            gpiod_set_debounce(desc, debounce);
+            
+            workqueue_key = __alloc_workqueue_key("%s", 0x2000a, 1, 0, 0, cs35l35_eint);
+            cs35l35_work->workqueue = workqueue_key;
+            cs35l35_work->work_s.data.counter = 0xfffffffe0;
+            work_s = &cs35l35_work->work_s.entry;
+            cs35l35_work->work_s.entry.next = work_s;
+            cs35l35_work->work_s.entry.prev = work_s;
+            cs35l35_work->work_s.func = cs35l35_eint_work_callback;
+            
+            val = irq_of_parse_and_map(np, 0);
+            dataVar = val;
+            
+            printk("%s@%d - reset successful!\n", __func__, __LINE__);
+        }
+    } else {
 		dev_err(&i2c_client->dev,
 			"Failed to enable core supplies: %d\n",
 			ret);
 		return ret;
 	}
-
-	/* returning NULL can be an option if in stereo mode */
-	cs35l35->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
-"reset", GPIOD_OUT_LOW);
-	if (IS_ERR(cs35l35->reset_gpio))
-		return PTR_ERR(cs35l35->reset_gpio);
 
 	ret = regmap_register_patch(cs35l35->regmap, cs35l35_errata_patch,
 		ARRAY_SIZE(cs35l35_errata_patch));
@@ -1515,21 +1619,11 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	cs35l35->irq_gpio = devm_gpiod_get_optional(&i2c_client->dev,
-		"irq", GPIOD_IN);
-	if (IS_ERR(cs35l35->irq_gpio))
-		return PTR_ERR(cs35l35->irq_gpio);
-
-	ret = devm_request_threaded_irq(&i2c_client->dev,
-					gpiod_to_irq(cs35l35->irq_gpio),
-					NULL, cs35l35_irq,
-					IRQF_ONESHOT | IRQF_TRIGGER_LOW,
-					"cs35l35", cs35l35);
-	/* CS35L35 needs INT for PDN_DONE */
-	if (ret != 0) {
-		dev_err(&i2c_client->dev, "Failed to request IRQ: %d\n", ret);
-		goto err;
-	}
+	val = request_threaded_irq(np, cs35l35_eint_func, 0, 0, "cirrus-cs35l35-eint", cs35l35_work);
+    if (val != 0) {
+        dev_err(dev,"%s: irq %d, Unable to request_irq (ret = %d)", __func__, dataVar, val);
+    }
+    
 	/* initialize codec */
 	ret = regmap_read(cs35l35->regmap, CS35L35_DEVID_AB, &reg);
 

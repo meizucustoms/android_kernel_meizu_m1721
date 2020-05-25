@@ -2739,26 +2739,23 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
     struct snd_soc_dapm_context *dapm;
     struct snd_soc_dai_link *dai_link;
     
-    int i;
+    int i = 0;
     
-    i = 0;
-    pr_debug("%s: start cs35l35 late probe\n",
-                    __func__);
+    printk("%s@%d ++\n", __func__, __LINE__);
     while (true) {
         if (card->num_rtd <= i) {
-        return 0;
+            return 0;
         }
+        
         dai_link = card->rtd[i].dai_link;
         
         if (dai_link && dai_link->codec_name && strcmp(dai_link->codec_name,"cs35l35.8-0040")==0 )
-        break;
-        ++i;
+            break;
+            ++i;
     }
-    pr_debug("%s: found codec cs35l35\n",
-                    __func__);
+    printk("%s@%d ++ found cs35l35\n", __func__, __LINE__);
     codec = card->rtd[i].codec;
-    pr_debug("%s: start setting up dapm ignore suspends for cs35l35...\n",
-                    __func__);
+    printk("%s@%d ++ snd_soc_dapm_ignore_suspend(dapm,'AMP Playback');\n", __func__, __LINE__);
     dapm = &codec->dapm;
     snd_soc_dapm_ignore_suspend(dapm,"AMP Playback");
     snd_soc_dapm_ignore_suspend(dapm,"AMP Capture");
@@ -2766,8 +2763,7 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
     snd_soc_dapm_ignore_suspend(dapm,"SDOUT");
     snd_soc_dapm_ignore_suspend(dapm,"SPK");
     snd_soc_dapm_sync(dapm);
-    pr_debug("%s: done setting up dapm ignore suspends for cs35l35!\n",
-                    __func__);
+    printk("%s@%d ++ done\n", __func__, __LINE__);
     return 0;
 }
 
