@@ -258,28 +258,24 @@
 
 #define CS35L35_FORMATS (SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S16_LE | \
 			SNDRV_PCM_FMTBIT_S24_LE)
-
+/*
+ *
+ * MEIZU's cs35l35_private struct
+ *
+ */
 struct cs35l35_private {
-	struct snd_soc_codec *codec;
-	struct cs35l35_platform_data pdata;
-	struct regmap *regmap;
-	struct regulator_bulk_data supplies[2];
-	int num_supplies;
-	int sysclk;
-	int sclk;
-	int mclk_pll;
-	int mclk_div;
-	int mclk_sp_base;
-	bool tdm_mode;
-	bool pdm_mode;
-	bool i2s_enabled;
-	bool slave_mode;
-	bool pdm_mclk_switch;
-	/* GPIO for /RST */
-	struct gpio_desc *reset_gpio;
-	/* GPIO for INT */
-	struct gpio_desc *irq_gpio;
-	struct completion pdn_done;
+    struct snd_soc_codec * codec;
+    struct cs35l35_platform_data pdata;
+    struct regmap * regmap;
+    struct regulator_bulk_data supplies[2];
+    int num_supplies;
+    int sysclk;
+    int sclk;
+    bool pdm_mode;
+    bool i2s_mode;
+    bool slave_mode;
+    int reset_gpio;
+    struct completion pdn_done;
 };
 
 struct cs35l35_work_data {

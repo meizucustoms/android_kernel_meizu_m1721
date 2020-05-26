@@ -6648,7 +6648,7 @@
 				status = "ok";
 				compatible = "cirrus,cs35l35";
 				reg = <0x40>;
-				reset-gpios = <0xbe 0x5b 0x1>;
+				reset-gpio = <0xbe 0x5b 0x1>;
 				irq-gpio = <0xbe 0x5a 0x1>;
 				interrupt-parent = <0xbe>;
 				interrupts = <0x5a 0x8>;
