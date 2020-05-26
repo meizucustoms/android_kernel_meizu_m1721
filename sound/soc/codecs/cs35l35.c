@@ -1566,7 +1566,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
         printk("%s@%d\n", __func__, __LINE__);
         pinctrl_select_state(p, cs35l35_reset);
         printk("%s@%d\n", __func__, __LINE__);
-        val = of_get_named_gpio_flags(np, "reset-gpio", 0, 0);
+        val = of_get_named_gpio_flags(np, "reset-gpios", 0, 0);
         printk("%s@%d\n", __func__, __LINE__);
         
         cs35l35->reset_gpio = val;
