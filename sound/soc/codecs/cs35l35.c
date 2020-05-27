@@ -1487,10 +1487,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	int i;
 	int ret = 0;
 	unsigned int devid = 0;
-	unsigned int reg;
+	unsigned int reg, pin;
     unsigned int val = 0;
-	unsigned int irq_num;
-    int dataVar;
     u32 debounceInfo[2];
     u32 interruptInfo[2];
     u32 debounce;
@@ -1499,6 +1497,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
     debounceInfo[1] = 0;
     interruptInfo[0] = 0;
     interruptInfo[1] = 0;
+    
+    np = (struct device_node *)&reset_devices;
     
     printk("%s@%d ++\n", __func__, __LINE__);
 
@@ -1509,6 +1509,10 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		dev_err(&i2c_client->dev, "could not allocate codec\n");
 		return -ENOMEM;
 	}
+	
+	cs35l35_work = devm_kmalloc(dev,0x38,0x80d0);
+    cs35l35_work->cs35l35 = cs35l35;
+    i2c_client->dev.driver_data = cs35l35;
 
 	i2c_set_clientdata(i2c_client, cs35l35);
 	cs35l35->regmap = devm_regmap_init_i2c(i2c_client, &cs35l35_regmap);
@@ -1532,62 +1536,56 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	if (pdata) {
-		cs35l35->pdata = *pdata;
-	} else {
-		pdata = devm_kzalloc(&i2c_client->dev,
-				     sizeof(struct cs35l35_platform_data),
-				GFP_KERNEL);
-		if (!pdata) {
-			dev_err(&i2c_client->dev,
-				"could not allocate pdata\n");
-			return -ENOMEM;
-		}
-		if (i2c_client->dev.of_node) {
-			ret = cs35l35_handle_of_data(i2c_client, pdata);
-			if (ret != 0)
-				return ret;
-
-		}
-		cs35l35->pdata = *pdata;
+	pdata = devm_kzalloc(&i2c_client->dev,
+			     sizeof(struct cs35l35_platform_data),
+			GFP_KERNEL);
+	if (!pdata) {
+		dev_err(&i2c_client->dev,
+			"could not allocate pdata\n");
+		return -ENOMEM;
 	}
+	if (np) {
+		ret = cs35l35_handle_of_data(i2c_client, pdata);
+		if (ret != 0)
+			return ret;
+	}
+	cs35l35->pdata = *pdata;
+    
+    np = devm_kmalloc(dev,0x6c,0x80d0);
     
 	ret = regulator_bulk_enable(cs35l35->num_supplies,
 					cs35l35->supplies);
 	if (ret == 0) {
         printk("%s@%d - reset start\n", __func__, __LINE__);
+        
+        // initialize pinctrl reset pin
         p = devm_pinctrl_get(dev);
-        
-        // Trying to get reset pin anyway
         if (p != 0) {
-            printk("%s@%d\n", __func__, __LINE__);
-            cs35l35_reset = pinctrl_lookup_state(p,"cs35l35_irq_default");
+            cs35l35_reset = pinctrl_lookup_state(p, "cs35l35_irq_default");
         }
-        printk("%s@%d\n", __func__, __LINE__);
         pinctrl_select_state(p, cs35l35_reset);
-        printk("%s@%d\n", __func__, __LINE__);
-        val = of_get_named_gpio_flags(np, "reset-gpios", 0, 0);
-        printk("%s@%d\n", __func__, __LINE__);
         
+        // Set reset gpio
+        val = of_get_named_gpio_flags(i2c_client->dev.of_node, "reset-gpios", 0, 0);
         cs35l35->reset_gpio = val;
         
         // Reset pin check and request
         printk("%s@%d\n", __func__, __LINE__);
         if (val < 0 || val == -2) {
-            dev_err(dev, "%s: error! spk_pa_reset_gpio is :%d\n", __func__, val);
-            return val;
+            dev_err(dev, "%s: error! spk_pa__reset_gpio is :%d\n", __func__, val);
+            goto err;
         } else {
             ret = gpio_request_one(val, 0, "spk_reset");
             printk("%s@%d\n", __func__, __LINE__);
             
             if (ret != 0) {
                 dev_err(dev,"%s: request spk_pa_gpio fail! error :%d\n", __func__, ret);
-                return ret;
+                goto err;
             }
         }
         
         // open device node for codec
-        dataVar = 0xffffffff;
+        pin = 0xffffffff;
         desc = gpio_to_desc(cs35l35->reset_gpio);
         gpiod_direction_output_raw(desc, 1);
         np = i2c_client->dev.of_node;
@@ -1599,10 +1597,11 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
             printk("%s@%d\n", __func__, __LINE__);
             
             debounce = debounceInfo[1];
+            // wtf // cs35l35_reset = (struct device_node *)(uint)debounceInfo[1];
             desc = gpio_to_desc(debounceInfo[0]);
             gpiod_set_debounce(desc, debounce);
             
-            workqueue_key = __alloc_workqueue_key("%s", 0x2000a, 1, NULL, NULL, "cs35l35_eint");
+            workqueue_key = __alloc_workqueue_key("%s", 0x2000a, 1, 0, 0, "cs35l35_eint");
             cs35l35_work->workqueue = workqueue_key;
             cs35l35_work->work_s.data.counter = 0xfffffffe0;
             work_s = &cs35l35_work->work_s.entry;
@@ -1610,8 +1609,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
             cs35l35_work->work_s.entry.prev = work_s;
             cs35l35_work->work_s.func = cs35l35_eint_work_callback;
             
-            irq_num = irq_of_parse_and_map(np, 0);
-            dataVar = val;
+            val = irq_of_parse_and_map(np, 0);
+            pin = val;
             
             printk("%s@%d - reset successful!\n", __func__, __LINE__);
         }
@@ -1629,9 +1628,10 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	val = request_threaded_irq(irq_num, cs35l35_eint_func, 0, 0, "cirrus-cs35l35-eint", cs35l35_work);
+	val = request_threaded_irq(pin, cs35l35_eint_func, 0, 0, "cirrus-cs35l35-eint", cs35l35_work);
     if (val != 0) {
-        dev_err(dev,"%s: irq %d, Unable to request_irq (ret = %d)", __func__, dataVar, val);
+        dev_err(dev,"%s: irq %d, Unable to request_irq (ret = %d)", __func__, pin, val);
+        return val;
     }
     
 	/* initialize codec */
