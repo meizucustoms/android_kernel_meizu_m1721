@@ -1,4 +1,7 @@
-        Linux kernel release 3.x <http://kernel.org/>
+![MeizuSucks Kernel Logo](https://raw.githubusercontent.com/meizucustoms/android_kernel_meizu_m1721/cm-14.1/msp-msuckskernel.png)
+
+## README
+Linux kernel release 3.x <http://kernel.org/>
 
 These are the release notes for Linux version 3.  Read them carefully,
 as they tell you what this is all about, explain how to install the
