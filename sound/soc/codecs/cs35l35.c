@@ -158,135 +158,48 @@ static bool cs35l35_precious_register(struct device *dev, unsigned int reg)
 	}
 }
 
-static void cs35l35_reset(struct cs35l35_private *cs35l35)
-{
-	gpiod_set_value_cansleep(cs35l35->reset_gpio, 0);
-	usleep_range(2000, 2100);
-	gpiod_set_value_cansleep(cs35l35->reset_gpio, 1);
-	usleep_range(1000, 1100);
-}
-
-static int cs35l35_wait_for_pdn(struct cs35l35_private *cs35l35)
-{
-    struct snd_soc_codec *codec = cs35l35->codec;
-	int ret;
-
-	if (cs35l35->pdata.ext_bst) {
-		usleep_range(5000, 5500);
-		return 0;
-	}
-
-	reinit_completion(&cs35l35->pdn_done);
-
-	ret = wait_for_completion_timeout(&cs35l35->pdn_done,
-					  msecs_to_jiffies(100));
-	if (ret == 0) {
-		dev_err(codec->dev, "PDN_DONE did not complete\n");
-		return -ETIMEDOUT;
-	}
-
-	return 0;
-}
-
-static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,
-		struct snd_kcontrol *kcontrol, int event)
-{
-	struct snd_soc_component *codec = snd_soc_dapm_to_codec(w->dapm);
-	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
-	int ret = 0;
-
-	switch (event) {
-	case SND_SOC_DAPM_PRE_PMU:
-		regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL1,
-					CS35L35_MCLK_DIS_MASK,
-					0 << CS35L35_MCLK_DIS_SHIFT);
-		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
-					CS35L35_DISCHG_FILT_MASK,
-					0 << CS35L35_DISCHG_FILT_SHIFT);
-		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
-					CS35L35_PDN_ALL_MASK, 0);
-		break;
-	case SND_SOC_DAPM_POST_PMD:
-		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
-					CS35L35_DISCHG_FILT_MASK,
-					1 << CS35L35_DISCHG_FILT_SHIFT);
-		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
-					  CS35L35_PDN_ALL_MASK, 1);
-
-		/* Already muted, so disable volume ramp for faster shutdown */
-		regmap_update_bits(cs35l35->regmap, CS35L35_AMP_DIG_VOL_CTL,
-				   CS35L35_AMP_DIGSFT_MASK, 0);
-
-		ret = cs35l35_wait_for_pdn(cs35l35);
-
-		regmap_update_bits(cs35l35->regmap, CS35L35_CLK_CTL1,
-					CS35L35_MCLK_DIS_MASK,
-					1 << CS35L35_MCLK_DIS_SHIFT);
-
-		regmap_update_bits(cs35l35->regmap, CS35L35_AMP_DIG_VOL_CTL,
-				   CS35L35_AMP_DIGSFT_MASK,
-				   1 << CS35L35_AMP_DIGSFT_SHIFT);
-		break;
-	default:
-		dev_err(codec->dev, "Invalid event = 0x%x\n", event);
-		ret = -EINVAL;
-	}
-	return ret;
-}
-
 static int cs35l35_main_amp_event(struct snd_soc_dapm_widget *w,
 		struct snd_kcontrol *kcontrol, int event)
 {
-	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
-	struct cs35l35_private *cs35l35 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
 	unsigned int reg[4];
 	int i;
+    
+    printk("%s@%d ++\n", __func__, __LINE__);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		if (cs35l35->pdata.bst_pdn_fet_on)
-			regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
-				CS35L35_PDN_BST_MASK,
-				0 << CS35L35_PDN_BST_FETON_SHIFT);
-		else
-			regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
-				CS35L35_PDN_BST_MASK,
-				0 << CS35L35_PDN_BST_FETOFF_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_BST_CVTR_V_CTL,
+			CS35L35_BST_CTL_MASK, 0x41);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		usleep_range(5000, 5100);
-		/* If in PDM mode we must use VP for Voltage control */
+		/* If PDM mode we must use VP
+		 * for Voltage control
+		 */
 		if (cs35l35->pdm_mode)
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_BST_CVTR_V_CTL,
 					CS35L35_BST_CTL_MASK,
 					0 << CS35L35_BST_CTL_SHIFT);
-
-		regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
-			CS35L35_AMP_MUTE_MASK, 0);
-
 		for (i = 0; i < 2; i++)
 			regmap_bulk_read(cs35l35->regmap, CS35L35_INT_STATUS_1,
 					&reg, ARRAY_SIZE(reg));
 
+		regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
+			CS35L35_AMP_MUTE_MASK,
+			0 << CS35L35_AMP_MUTE_SHIFT);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
-				CS35L35_AMP_MUTE_MASK,
-				1 << CS35L35_AMP_MUTE_SHIFT);
-		if (cs35l35->pdata.bst_pdn_fet_on)
-			regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
-				CS35L35_PDN_BST_MASK,
-				1 << CS35L35_PDN_BST_FETON_SHIFT);
-		else
-			regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
-				CS35L35_PDN_BST_MASK,
-				1 << CS35L35_PDN_BST_FETOFF_SHIFT);
+			CS35L35_AMP_MUTE_MASK, 1 << CS35L35_AMP_MUTE_SHIFT);
+		regmap_update_bits(cs35l35->regmap, CS35L35_BST_CVTR_V_CTL,
+			CS35L35_BST_CTL_MASK, 0x00);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		usleep_range(5000, 5100);
-		/*
-		 * If PDM mode we should switch back to pdata value
+		/* If PDM mode we should switch back to pdata value
 		 * for Voltage control when we go down
 		 */
 		if (cs35l35->pdm_mode)
@@ -298,7 +211,7 @@ static int cs35l35_main_amp_event(struct snd_soc_dapm_widget *w,
 
 		break;
 	default:
-		dev_err(component->dev, "Invalid event = 0x%x\n", event);
+		pr_err("Invalid event = 0x%x\n", event);
 	}
 	return 0;
 }
@@ -345,6 +258,189 @@ static SOC_ENUM_SINGLE_DECL(pdm_en_enum, SND_SOC_NOPM, 0,
 static const struct snd_kcontrol_new cs35l35_pdm_en_mux[] = {
 	SOC_DAPM_ENUM("PDM MUX", pdm_en_enum),
 };
+
+/*static int cs35l35_reset_and_sync(struct cs35l35_private *priv, bool pdm)
+{
+	int ret = 0;
+
+	if (!priv->reset_gpio)
+		return 0;
+
+	gpiod_set_value_cansleep(priv->reset_gpio, 0);
+	usleep_range(2000, 2100);
+	regcache_cache_only(priv->regmap, true);
+	gpiod_set_value_cansleep(priv->reset_gpio, 1);
+	usleep_range(1000, 1100);
+	regcache_cache_only(priv->regmap, true);
+	regcache_mark_dirty(priv->regmap);
+
+	if (pdm) {
+		regmap_update_bits(priv->regmap, CS35L35_AMP_INP_DRV_CTL,
+			CS35L35_PDM_MODE_MASK, CS35L35_PDM_MODE_MASK);
+		ret = regmap_update_bits(priv->regmap,
+			CS35L35_CLK_CTL1,
+			CS35L35_CLK_SOURCE_MASK,
+			CS35L35_CLK_SOURCE_PDM);
+		if (ret != 0)
+			pr_err("%s regmap write failed %d\n",
+				__func__, ret);
+
+		ret = regmap_update_bits(priv->regmap,
+			CS35L35_CLK_CTL2, CS35L35_CLK_DIV_MASK, 0);
+		if (ret != 0)
+			pr_err("%s regmap write failed %d\n",
+				__func__, ret);
+
+	} else {
+		regmap_update_bits(priv->regmap, CS35L35_AMP_INP_DRV_CTL,
+			CS35L35_PDM_MODE_MASK, 0);
+		ret = regmap_update_bits(priv->regmap,
+			CS35L35_CLK_CTL1,
+			CS35L35_CLK_SOURCE_MASK,
+			0);
+		if (ret != 0)
+			pr_err("%s regmap write failed %d\n",
+				__func__, ret);
+		ret = regmap_update_bits(priv->regmap,
+			CS35L35_CLK_CTL2, CS35L35_CLK_DIV_MASK, 1);
+		if (ret != 0)
+			pr_err("%s regmap write failed %d\n",
+				__func__, ret);
+	}
+	regcache_cache_only(priv->regmap, false);
+	regcache_sync(priv->regmap);
+
+	return ret;
+}
+
+static int cs35l35_mclk_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
+	int ret = 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+					CS35L35_DISCHG_FILT_MASK, 0);
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+					CS35L35_PDN_ALL_MASK, 0);
+		break;
+	case SND_SOC_DAPM_PRE_PMU:
+		cs35l35->i2s_enabled = true;
+		regmap_update_bits(cs35l35->regmap, CS35L35_AMP_DIG_VOL_CTL,
+					2, 2);
+		if (cs35l35->pdm_mclk_switch) {
+			cs35l35->pdm_mclk_switch = false;
+			return cs35l35_reset_and_sync(cs35l35, false);
+		}
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		cs35l35->i2s_enabled = false;
+		if (cs35l35->pdm_mode) {
+			cs35l35->pdm_mclk_switch = true;
+			return cs35l35_reset_and_sync(cs35l35, true);
+		} else {
+			regmap_update_bits(cs35l35->regmap,
+				CS35L35_AMP_DIG_VOL_CTL, 2, 0);
+			regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+					  CS35L35_PDN_ALL_MASK, 1);
+			regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+					CS35L35_DISCHG_FILT_MASK,
+					1 << CS35L35_DISCHG_FILT_SHIFT);
+			usleep_range(4000, 4010);
+			ret = wait_for_completion_timeout(&cs35l35->pdn_done,
+							msecs_to_jiffies(100));
+			if (ret == 0) {
+				pr_err("TIMEOUT PDN_DONE did not complete\n");
+				ret = -ETIMEDOUT;
+			}
+		}
+		break;
+	default:
+		pr_err("%s Invalid Event %d\n", __func__, event);
+		return -EINVAL;
+	}
+	return ret;
+}
+
+static int cs35l35_pdm_event(struct snd_soc_dapm_widget *w,
+		struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec);
+	int ret;
+
+	if (cs35l35->i2s_enabled)
+		return 0;
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		regmap_update_bits(cs35l35->regmap, CS35L35_AMP_DIG_VOL_CTL,
+					2, 2);
+		if (!cs35l35->pdm_mclk_switch) {
+			cs35l35->pdm_mclk_switch = true;
+			return cs35l35_reset_and_sync(cs35l35, true);
+		}
+		regmap_update_bits(cs35l35->regmap,
+			CS35L35_CLK_CTL2, CS35L35_CLK_DIV_MASK, 0);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+					CS35L35_DISCHG_FILT_MASK, 0);
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+					CS35L35_PDN_ALL_MASK, 0);
+		break;
+	case SND_SOC_DAPM_PRE_PMD:
+		regmap_update_bits(cs35l35->regmap, CS35L35_AMP_DIG_VOL_CTL,
+					2, 0);
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+					  CS35L35_PDN_ALL_MASK, 1);
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+					CS35L35_DISCHG_FILT_MASK,
+					1 << CS35L35_DISCHG_FILT_SHIFT);
+		usleep_range(4000, 4010);
+		ret = wait_for_completion_timeout(&cs35l35->pdn_done,
+							msecs_to_jiffies(100));
+		if (ret == 0) {
+			pr_err("TIMEOUT PDN_DONE did not complete in 100ms\n");
+			ret = -ETIMEDOUT;
+		}
+		break;
+	default:
+		pr_err("%s Invalid Event %d\n", __func__, event);
+		return -EINVAL;
+	}
+	return 0;
+}*/
+
+static int cs35l35_sdin_event(struct snd_soc_dapm_widget *w,struct snd_kcontrol *kcontrol,int event)
+
+{
+	  struct snd_soc_codec *codec = snd_soc_dapm_to_codec(w->dapm);
+	  struct cs35l35_private *cs35l35 = snd_soc_codec_get_drvdata(codec); 
+      
+      printk("%s@%d ++\n", __func__, __LINE__);
+	  
+	  if (event == SND_SOC_DAPM_PRE_PMU) {
+		regmap_update_bits(cs35l35->regmap,10,4,0);
+		regmap_update_bits(cs35l35->regmap,6,2,0);
+		regmap_update_bits(cs35l35->regmap,6,1,0);
+	  } else if (event == SND_SOC_DAPM_POST_PMD) {
+		regmap_update_bits(cs35l35->regmap,6,2,2);
+		regmap_update_bits(cs35l35->regmap,6,1,1);
+		regmap_update_bits(cs35l35->regmap,0x15,2,0);
+		msleep(100);
+		regmap_update_bits(cs35l35->regmap,10,4,4);
+		regmap_update_bits(cs35l35->regmap,0x15,2,2);
+	  } else {
+		pr_err("%s Invalid Event %d\n", __func__, event);
+		return -EINVAL;
+	  }
+	  
+	  return 0;
+}
 
 static const struct snd_soc_dapm_widget cs35l35_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN_E("SDIN", NULL, 0, CS35L35_PWRCTL3, 1, 1, cs35l35_sdin_event, 9),
@@ -1063,12 +1159,9 @@ static struct regmap_config cs35l35_regmap = {
 	.use_single_rw = true,
 };
 
-static void cs35l35_eint_work_callback(struct work_struct *work)
+static irqreturn_t cs35l35_irq(int irq, void *data)
 {
-    struct cs35l35_work_data *work_data = 
-       container_of(work, struct cs35l35_work_data, work_s);
-
-	struct cs35l35_private *cs35l35 = work_data->cs35l35;
+	struct cs35l35_private *cs35l35 = data;
 	struct snd_soc_codec *codec = cs35l35->codec;
 	
 	unsigned int sticky1, sticky2, sticky3, sticky4;
@@ -1090,7 +1183,7 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 	/* Check to see if unmasked bits are active */
 	if (!(sticky1 & ~mask1) && !(sticky2 & ~mask2) && !(sticky3 & ~mask3)
 			&& !(sticky4 & ~mask4))
-		return;
+		return IRQ_NONE;
     
 	if (sticky2 & CS35L35_PDN_DONE)
 		complete(&cs35l35->pdn_done);
@@ -1198,16 +1291,7 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 	if (sticky4 & CS35L35_IMON_OVFL)
 		dev_dbg(codec->dev, "Error: IMON overflow\n");
 
-	return;
-}
-
-static irqreturn_t cs35l35_eint_func(int irq, void *data)
-{
-    struct cs35l35_work_data *xdata = data;
-    printk("cs35l35_eint_func@%d ++\n", __LINE__);
-    xdata->irq = irq;
-    queue_work_on(8, xdata->workqueue, &xdata->work_s);
-    return 1;
+	return IRQ_HANDLED;
 }
 
 static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
@@ -1378,12 +1462,10 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 			      const struct i2c_device_id *id)
 {
 	struct cs35l35_private *cs35l35;
-	struct cs35l35_platform_data *pdata;
-    struct list_head *work_s;
-    struct cs35l35_work_data *cs35l35_work;
-    struct workqueue_struct *workqueue_key;
+	struct cs35l35_platform_data *pdata =
+		dev_get_platdata(&i2c_client->dev);
     struct gpio_desc *desc;
-	struct device_node *np = i2c_client->dev.of_node;
+    struct device_node *np = i2c_client->dev.of_node;
     struct device *dev = &i2c_client->dev;
     struct pinctrl_state *cs35l35_reset;
     struct pinctrl *p;
@@ -1401,7 +1483,6 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
     interruptInfo[0] = 0;
     interruptInfo[1] = 0;
     
- 
     printk("%s@%d ++\n", __func__, __LINE__);
 
 	cs35l35 = devm_kzalloc(&i2c_client->dev,
@@ -1412,10 +1493,6 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		return -ENOMEM;
 	}
 	
-	cs35l35_work = devm_kzalloc(&i2c_client->dev,
-			       sizeof(struct cs35l35_work_data),
-			       GFP_KERNEL);
-    cs35l35_work->cs35l35 = cs35l35;
     i2c_client->dev.driver_data = cs35l35;
 
 	i2c_set_clientdata(i2c_client, cs35l35);
@@ -1492,29 +1569,19 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
         gpiod_direction_output_raw(desc, 1);
         of_property_read_u32_array(np, "debounce", debounceInfo, 2);
         of_property_read_u32_array(np, "interrupts", interruptInfo, 2);
-            
+        
         printk("%s@%d\n", __func__, __LINE__);
-            
+        
         debounce = debounceInfo[1];
-            // wtf // cs35l35_reset = (struct device_node *)(uint)debounceInfo[1];
         desc = gpio_to_desc(debounceInfo[0]);
         gpiod_set_debounce(desc, debounce);
-            
-        workqueue_key = __alloc_workqueue_key("%s", 0x2000a, 1, 0, 0, "cs35l35_eint");
-        cs35l35_work->workqueue = workqueue_key;
-        cs35l35_work->work_s.data.counter = 0xfffffffe0;
-        work_s = &cs35l35_work->work_s.entry;
-        cs35l35_work->work_s.entry.next = work_s;
-        cs35l35_work->work_s.entry.prev = work_s;
-        cs35l35_work->work_s.func = cs35l35_eint_work_callback;
-            
         pin = irq_of_parse_and_map(np, 0);
         
         // HACK
         pin = 90;
         
-		printk("DEBUG: cs35l35 on 8-0040: %s: irq_of_parse_and_map on line %d = %d (HACK)\n", __func__, __LINE__, pin);
-            
+        printk("DEBUG: cs35l35 on 8-0040: %s: irq_of_parse_and_map on line %d = %d (HACK)\n", __func__, __LINE__, pin);
+        
         printk("%s@%d - reset successful!\n", __func__, __LINE__);
     } else {
 		dev_err(&i2c_client->dev,
@@ -1532,15 +1599,20 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	
 	init_completion(&cs35l35->pdn_done);
 
-	val = request_threaded_irq(pin, cs35l35_eint_func, 0, 0, "cirrus-cs35l35-eint", cs35l35_work);
-    if (val != 0) {
-        dev_err(dev,"%s: irq %d, Unable to request_irq (ret = %d)", __func__, pin, val);
-        return val;
-    }
+    cs35l35->irq_gpio = devm_gpiod_get_optional(&i2c_client->dev,
+		"irq", GPIOD_IN);
+	if (IS_ERR(cs35l35->irq_gpio))
+		return PTR_ERR(cs35l35->irq_gpio);
     
-    // TODO: fix eint_func callback
-    cs35l35_work->irq = pin;
-    queue_work_on(8, cs35l35_work->workqueue, &cs35l35_work->work_s);
+	ret = devm_request_threaded_irq(&i2c_client->dev,
+					gpiod_to_irq(cs35l35->irq_gpio),
+					NULL, cs35l35_irq,
+					IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+					"cs35l35", cs35l35);
+	if (ret != 0) {
+		dev_err(&i2c_client->dev, "Failed to request IRQ: %d\n", ret);
+		goto err;
+	}
     
 	/* initialize codec */
 	ret = regmap_read(cs35l35->regmap, CS35L35_DEVID_AB, &reg);

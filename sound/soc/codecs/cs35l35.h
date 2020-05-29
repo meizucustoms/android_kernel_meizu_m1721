@@ -275,14 +275,8 @@ struct cs35l35_private {
     bool i2s_mode;
     bool slave_mode;
     int reset_gpio;
+	struct gpio_desc *irq_gpio;
     struct completion pdn_done;
-};
-
-struct cs35l35_work_data {
-    struct workqueue_struct *workqueue;
-    struct work_struct work_s;
-    struct cs35l35_private *cs35l35;
-    int irq;
 };
 
 static const char * const cs35l35_supplies[] = {
