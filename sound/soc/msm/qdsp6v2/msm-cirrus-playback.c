@@ -1,4 +1,5 @@
 /* Copyright (c) 2015, The Linux Foundation. All rights reserved.
+*  Copyright (c) 2020, MeizuCustoms team
 * This program is free software; you can redistribute it and/or modify
 * it under the terms of the GNU General Public License version 2 and
 * only version 2 as published by the Free Software Foundation.
@@ -22,361 +23,242 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 
+/* warning! need write-all permission so overriding check */ 
+#undef VERIFY_OCTAL_PERMISSIONS
+#define VERIFY_OCTAL_PERMISSIONS(perms) (perms)
+
 #include "msm-cirrus-playback.h"
 
-#define CRUS_TX_CONFIG "crus_sp_tx%d.bin"
-#define CRUS_RX_CONFIG "crus_sp_rx%d.bin"
+static struct device *crus_gb_device;
+static struct bus_type opsl_virt_bus;
 
-static struct device *crus_sp_device;
-static atomic_t crus_sp_misc_usage_count;
+static atomic_t crus_gb_misc_usage_count;
 
 static struct crus_single_data_t crus_enable;
+static struct crus_dual_data_t crus_current_temp;
+static struct crus_triple_data_t crus_set_cal_parametes;
+static struct crus_triple_data_t crus_temp_cal;
+static struct crus_dual_data_t crus_excursion;
+static unsigned int crus_pass;
 
-static struct crus_sp_ioctl_header crus_sp_hdr;
-static struct cirrus_cal_result_t crus_sp_cal_rslt;
-static int32_t *crus_sp_get_buffer;
-static atomic_t crus_sp_get_param_flag;
-struct mutex crus_sp_get_param_lock;
-struct mutex crus_sp_lock;
-static int cirrus_sp_en;
-static int cirrus_sp_prot_en;
-static int cirrus_sp_usecase;
+static struct crus_gb_ioctl_header crus_gb_hdr;
+static int32_t *crus_gb_get_buffer;
+static atomic_t crus_gb_get_param_flag;
+struct mutex crus_gb_lock;
+struct mutex crus_gb_get_param_lock;
+static int crus_gb_enable;
+static int music_config_loaded;
+static int voice_config_loaded;
+static int crus_config_set;
+static int crus_ext_config_set;
+static int crus_ambient;
+static int crus_count;
+static int crus_f0;
+static int crus_temp_acc;
 static int cirrus_fb_port_ctl;
-static int cirrus_fb_load_conf_sel;
-static int cirrus_fb_delta_sel;
-static int cirrus_ff_chan_swap_sel;
-static int cirrus_ff_chan_swap_dur;
-static bool cirrus_fail_detect_en;
 static int cirrus_fb_port = AFE_PORT_ID_QUATERNARY_TDM_TX;
 static int cirrus_ff_port = AFE_PORT_ID_QUATERNARY_TDM_RX;
-
-static int crus_sp_usecase_dt_count;
-static const char *crus_sp_usecase_dt_text[MAX_TUNING_CONFIGS];
-
-static void *crus_gen_afe_get_header(int length, int port, int module,
-				     int param)
-{
-	struct afe_custom_crus_get_config_t *config = NULL;
-	int size = sizeof(struct afe_custom_crus_get_config_t);
-	int index = afe_get_port_index(port);
-	uint16_t payload_size = sizeof(struct afe_port_param_data_v2) +
-				length;
-
-	/* Allocate memory for the message */
-	config = kzalloc(size, GFP_KERNEL);
-	if (!config)
-		return NULL;
-
-	/* Set header section */
-	config->hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
-					APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
-	config->hdr.pkt_size = size;
-	config->hdr.src_svc = APR_SVC_AFE;
-	config->hdr.src_domain = APR_DOMAIN_APPS;
-	config->hdr.src_port = 0;
-	config->hdr.dest_svc = APR_SVC_AFE;
-	config->hdr.dest_domain = APR_DOMAIN_ADSP;
-	config->hdr.dest_port = 0;
-	config->hdr.token = index;
-	config->hdr.opcode = AFE_PORT_CMD_GET_PARAM_V2;
-
-	/* Set param section */
-	config->param.port_id = (uint16_t) port;
-	config->param.payload_address_lsw = 0;
-	config->param.payload_address_msw = 0;
-	config->param.mem_map_handle = 0;
-	config->param.module_id = (uint32_t) module;
-	config->param.param_id = (uint32_t) param;
-	/* max data size of the param_ID/module_ID combination */
-	config->param.payload_size = payload_size;
-
-	/* Set data section */
-	config->data.module_id = (uint32_t) module;
-	config->data.param_id = (uint32_t) param;
-	config->data.reserved = 0; /* Must be set to 0 */
-	/* actual size of the data for the module_ID/param_ID pair */
-	config->data.param_size = length;
-
-	return (void *)config;
-}
-
-static void *crus_gen_afe_set_header(int length, int port, int module,
-				     int param)
-{
-	struct afe_custom_crus_set_config_t *config = NULL;
-	int size = sizeof(struct afe_custom_crus_set_config_t) + length;
-	int index = afe_get_port_index(port);
-	uint16_t payload_size = sizeof(struct afe_port_param_data_v2) +
-				length;
-
-	/* Allocate memory for the message */
-	config = kzalloc(size, GFP_KERNEL);
-	if (!config)
-		return NULL;
-
-	/* Set header section */
-	config->hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
-					APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
-	config->hdr.pkt_size = size;
-	config->hdr.src_svc = APR_SVC_AFE;
-	config->hdr.src_domain = APR_DOMAIN_APPS;
-	config->hdr.src_port = 0;
-	config->hdr.dest_svc = APR_SVC_AFE;
-	config->hdr.dest_domain = APR_DOMAIN_ADSP;
-	config->hdr.dest_port = 0;
-	config->hdr.token = index;
-	config->hdr.opcode = AFE_PORT_CMD_SET_PARAM_V2;
-
-	/* Set param section */
-	config->param.port_id = (uint16_t) port;
-	config->param.payload_address_lsw = 0;
-	config->param.payload_address_msw = 0;
-	config->param.mem_map_handle = 0;
-	/* max data size of the param_ID/module_ID combination */
-	config->param.payload_size = payload_size;
-
-	/* Set data section */
-	config->data.module_id = (uint32_t) module;
-	config->data.param_id = (uint32_t) param;
-	config->data.reserved = 0; /* Must be set to 0 */
-	/* actual size of the data for the module_ID/param_ID pair */
-	config->data.param_size = length;
-
-	return (void *)config;
-}
 
 static int crus_afe_get_param(int port, int module, int param, int length,
 			      void *data)
 {
-	struct afe_custom_crus_get_config_t *config = NULL;
-	int index = afe_get_port_index(port);
-	int ret = 0, count = 0;
-
-	pr_info("%s: port = %d module = %d param = 0x%x length = %d\n",
-		__func__, port, module, param, length);
-
-	config = (struct afe_custom_crus_get_config_t *)
-		 crus_gen_afe_get_header(length, port, module, param);
-	if (config == NULL) {
-		pr_err("%s: Memory allocation failed!\n", __func__);
-		return -ENOMEM;
-	}
-
-	pr_info("%s: Preparing to send apr packet\n", __func__);
-
-	mutex_lock(&crus_sp_get_param_lock);
-	atomic_set(&crus_sp_get_param_flag, 0);
-
-	crus_sp_get_buffer = kzalloc(config->param.payload_size + 16,
-				     GFP_KERNEL);
-
-	ret = afe_apr_send_pkt_crus(config, index, 0);
-	if (ret)
-		pr_err("%s: crus get_param for port %d failed with code %d\n",
-						__func__, port, ret);
-	else
-		pr_info("%s: crus get_param sent packet with param id 0x%08x to module 0x%08x.\n",
-			__func__, param, module);
-
-	/* Wait for afe callback to populate data */
-	while (!atomic_read(&crus_sp_get_param_flag)) {
-		usleep_range(800, 1200);
-		if (count++ >= 1000) {
-			pr_err("%s: AFE callback timeout\n", __func__);
-			atomic_set(&crus_sp_get_param_flag, 1);
-			return -EINVAL;
-		}
-	}
-
-	/* Copy from dynamic buffer to return buffer */
-	memcpy((u8 *)data, &crus_sp_get_buffer[4], length);
-
-	kfree(crus_sp_get_buffer);
-
-	mutex_unlock(&crus_sp_get_param_lock);
-
-	kfree(config);
-	return ret;
+    unsigned short payload_size = (short)(length & 0xffff) + 0xc;
+    int32_t *buf;
+    uint32_t index = afe_get_port_index(port);
+    unsigned int result = 0;
+    struct afe_custom_crus_get_config_t *config =
+        (struct afe_custom_crus_get_config_t *)kmem_cache_alloc_trace(kmalloc_caches[7], 0x80d0, 0x38);
+    
+    pr_info("CRUS CRUS_AFE_GET_PARAM: PAYLOAD_SIZE = %d; DATA_SIZE = %d PORT = %x\n",
+            payload_size, (length & 0xffff), port);
+    
+    if (config == 0) {
+        pr_err("CRUS %s:  Memory allocation failed!\n", __func__);
+        result = 1;
+    } else {
+        config->hdr.hdr_field = 0x250;
+        config->hdr.pkt_size = 0x38;
+        config->hdr.src_svc = '\x04';
+        config->hdr.dest_svc = '\x04';
+        config->hdr.dest_domain = '\x04';
+        config->hdr.opcode = 0x100f0;
+        config->param.port_id = port;
+        config->hdr.src_domain = '\x05';
+        config->param.payload_size = payload_size;
+        config->data.param_size = length;
+        config->hdr.src_port = 0;
+        config->hdr.dest_port = 0;
+        config->hdr.token = index;
+        config->param.payload_address_lsw = 0;
+        config->param.payload_address_msw = 0;
+        config->param.mem_map_handle = 0;
+        config->param.module_id = module;
+        config->param.param_id = param;
+        config->data.module_id = module;
+        config->data.param_id = param;
+        config->data.reserved = 0;
+        
+        pr_info("CRUS %s: Preparing to send apr packet\n", __func__);
+        mutex_lock(&crus_gb_get_param_lock);
+        atomic_set(&crus_gb_get_param_flag, 0);
+        crus_gb_get_buffer = kmalloc(config->param.payload_size + 0x10, 0x80d0);
+        
+        result = afe_apr_send_pkt_crus(config, index, 0);
+        if (result != 0) {
+            pr_err("CRUS %s: crus get_param for port %d failed with code %d\n", __func__, port, result);
+        }
+        
+        while (!atomic_read(&crus_gb_get_param_flag)) {
+            msleep(1);
+        }
+        
+        pr_info("CRUS CRUS_AFE_GET_PARAM: returned data = [4]: %d, [5]: %d\n",
+               crus_gb_get_buffer[4], crus_gb_get_buffer[5]);
+        buf = crus_gb_get_buffer;
+        memcpy(data, crus_gb_get_buffer + 4, length);
+        kfree(buf);
+        mutex_unlock(&crus_gb_get_param_lock);
+        kfree(config);
+    }
+    
+    return result;
 }
 
-static int crus_afe_set_param(int port, int module, int param, int length,
+static int crus_afe_set_param(int port, int module, int param, int data_size,
 			      void *data_ptr)
 {
 	struct afe_custom_crus_set_config_t *config = NULL;
-	int index = afe_get_port_index(port);
+	uint32_t index = afe_get_port_index(port);
 	int ret = 0;
+    unsigned int pkt_size = data_size + 0x30;
+    
+    pr_info("CRUS_AFE_SET_PARAM: PACKET_SIZE = %d; PAYLOAD_SIZE = %d, DATA_SIZE = %d\n",
+           pkt_size, (data_size + 0xc), data_size);
+    
+    config = kmalloc(pkt_size, 0x80d0);
+    if (config == 0) {
+        printk("CRUS %s: Memory allocation failed!\n", __func__);
+        ret = 1;
+    } else {
+        memcpy(config + 1, data_ptr, data_size);
+        config->data.param_size = data_size;
+        config->hdr.hdr_field = 0x250;
+        config->hdr.src_svc = '\x04';
+        config->hdr.dest_svc = '\x04';
+        config->hdr.dest_domain = '\x04';
+        config->hdr.opcode = 0x100ef;
+        config->hdr.src_domain = '\x05';
+        config->hdr.pkt_size = pkt_size;
+        config->hdr.src_port = 0;
+        config->hdr.dest_port = 0;
+        config->hdr.token = index;
+        config->param.port_id = port;
+        config->param.payload_size = data_size + 0xc;
+        config->param.payload_address_lsw = 0;
+        config->param.payload_address_msw = 0;
+        config->param.mem_map_handle = 0;
+        config->data.module_id = module;
+        config->data.param_id = param;
+        config->data.reserved = 0;
+        
+        pr_info("CRUS %s: Preparing to send apr packet.\n", __func__);
+        ret = afe_apr_send_pkt_crus(config, index, 1);
+        if (ret != 0) {
+            pr_err("%s: crus set_param for port %d failed with code %d\n", __func__, port, ret);
+        }
+        
+        kfree(config);
+    }
+    
+    return ret;
+}
 
-	pr_info("%s: port = %d module = %d param = 0x%x length = %d\n",
-		__func__, port, module, param, length);
-
-	config = crus_gen_afe_set_header(length, port, module, param);
-	if (config == NULL) {
-		pr_err("%s: Memory allocation failed!\n", __func__);
-		return -ENOMEM;
+static int crus_afe_send_config(const char *data, int32_t module)
+{
+	bool plDone;
+	uint32_t port;
+	int ret = 0, ffPort;
+	unsigned int curPort;
+	unsigned int param, size, send, val;
+	size_t chars_to_send;
+	struct afe_custom_crus_set_config_t *config;
+	
+	ffPort = cirrus_ff_port;
+	curPort = cirrus_fb_port;
+	chars_to_send = strlen(data);
+	send = chars_to_send + 1;
+	
+	pr_info("CRUS %s: called with module_id = %x, string length = %d\n",
+			__func__, module, send);
+	
+	switch (module) {
+	case 0xa1af00: 
+		param = 0xaf05;
+		port = afe_get_port_index(cirrus_ff_port);
+		curPort = ffPort;
+		break;
+		
+	case 0xa1bf00:
+		param = 0xbf08;
+		port = afe_get_port_index(cirrus_fb_port);
+		break;
+		
+	default:
+		pr_err("CRUS %s: Received invalid module parameter %d\n", __func__, module);
+		return -EFAULT;
 	}
-
-	memcpy((u8 *)config + sizeof(struct afe_custom_crus_set_config_t),
-	       (u8 *) data_ptr, length);
-
-	pr_debug("%s: Preparing to send apr packet.\n", __func__);
-
-	ret = afe_apr_send_pkt_crus(config, index, 1);
-	if (ret) {
-		pr_err("%s: crus set_param for port %d failed with code %d\n",
-						__func__, port, ret);
+	
+	size = send;
+	if (4000 < send) {
+		size = 4000;
+	}
+	
+	config = kmalloc((size + 0x48), 0x80d0);
+	if (config == 0) {
+		pr_err("CRUS %s: Memory allocation failed!\n", __func__);
+		ret = 1;
 	} else {
-		pr_debug("%s: crus set_param sent packet with param id 0x%08x to module 0x%08x.\n",
-			 __func__, param, module);
-	}
-
-	kfree(config);
-	return ret;
-}
-
-static int crus_afe_send_config(const char *data, int32_t length,
-				int32_t port, int32_t module)
-{
-	struct afe_custom_crus_set_config_t *config = NULL;
-	struct crus_external_config_t *payload = NULL;
-	int size = sizeof(struct crus_external_config_t);
-	int ret = 0;
-	int index = afe_get_port_index(port);
-	uint32_t param = 0;
-	int mem_size = 0;
-	int sent = 0;
-	int chars_to_send = 0;
-
-	pr_info("%s: called with module_id = %x, string length = %d\n",
-						__func__, module, length);
-
-	/* Destination settings for message */
-	if (port == cirrus_ff_port)
-		param = CRUS_PARAM_RX_SET_EXT_CONFIG;
-	else if (port == cirrus_fb_port)
-		param = CRUS_PARAM_TX_SET_EXT_CONFIG;
-	else {
-		pr_err("%s: Received invalid port parameter %d\n",
-		       __func__, module);
-		return -EINVAL;
-	}
-
-	if (length > APR_CHUNK_SIZE)
-		mem_size = APR_CHUNK_SIZE;
-	else
-		mem_size = length;
-
-	config = crus_gen_afe_set_header(size, port, module, param);
-	if (config == NULL) {
-		pr_err("%s: Memory allocation failed!\n", __func__);
-		return -ENOMEM;
-	}
-
-	payload = (struct crus_external_config_t *)((u8 *)config +
-			sizeof(struct afe_custom_crus_set_config_t));
-	payload->total_size = (uint32_t)length;
-	payload->reserved = 0;
-	payload->config = PAYLOAD_FOLLOWS_CONFIG;
-	    /* ^ This tells the algorithm to expect array */
-	    /*   immediately following the header */
-
-	/* Send config string in chunks of APR_CHUNK_SIZE bytes */
-	while (sent < length) {
-		chars_to_send = length - sent;
-		if (chars_to_send > APR_CHUNK_SIZE) {
-			chars_to_send = APR_CHUNK_SIZE;
-			payload->done = 0;
-		} else {
-			payload->done = 1;
+		config->hdr.hdr_field = 0x250;
+		config->hdr.src_svc = '\x04';
+		config->hdr.dest_svc = '\x04';
+		config->hdr.dest_domain = '\x04';
+		config->hdr.token = port;
+		config->hdr.opcode = 0x100ef;
+		config->param.payload_size = size + 0x24;
+		config->data.param_size = size + 0x18;
+		config->hdr.pkt_size = size + 0x48;
+		ffPort = 0;
+		config->hdr.src_domain = '\x05';
+		config->hdr.src_port = 0;
+		config->hdr.dest_port = 0;
+		config->param.port_id = curPort;
+		config->param.payload_address_lsw = 0;
+		config->param.payload_address_msw = 0;
+		config->param.mem_map_handle = 0;
+		config->data.module_id = module;
+		config->data.param_id = param | 0xa10000;
+		config->data.reserved = 0;
+		
+		while (ret = 0, ffPort < send) {
+			chars_to_send = send - ffPort;
+			
+			plDone = chars_to_send < 0xfa1;
+			if (!plDone)
+				chars_to_send = 4000;
+			
+			memcpy(&config->hdr.opcode, data + ffPort, chars_to_send);
+			pr_info("CRUS %s: Preparing to send apr packet.\n", __func__);
+			val = afe_apr_send_pkt_crus(config, port, 1);
+			if (val == 0) {
+				val = param | 0xa10000;
+				pr_info("CRUS %s: crus set_param sent packet with param id 0x%08x to module 0x%08x.\n", __func__, val, module);
+			} else {
+				pr_err("CRUS %s: crus set_param for port %d failed with code %d\n", __func__, curPort, val);
+			}
+			ffPort = ffPort + chars_to_send;
 		}
-
-		/* Configure per message parameter settings */
-		memcpy(payload->data, data + sent, chars_to_send);
-		payload->chunk_size = chars_to_send;
-
-		/* Send the actual message */
-		pr_debug("%s: Preparing to send apr packet.\n", __func__);
-		ret = afe_apr_send_pkt_crus(config, index, 1);
-
-		if (ret)
-			pr_err("%s: crus set_param for port %d failed with code %d\n",
-			       __func__, port, ret);
-		else
-			pr_debug("%s: crus set_param sent packet with param id 0x%08x to module 0x%08x.\n",
-				 __func__, param, module);
-
-		sent += chars_to_send;
+		kfree(config);
 	}
-
-	kfree(config);
-	return ret;
-}
-
-static int crus_afe_send_delta(const char *data, uint32_t length)
-{
-	struct afe_custom_crus_set_config_t *config = NULL;
-	struct crus_delta_config_t *payload = NULL;
-	int size = sizeof(struct crus_delta_config_t);
-	int port = cirrus_ff_port;
-	int param = CRUS_PARAM_RX_SET_DELTA_CONFIG;
-	int module = CIRRUS_SP;
-	int ret = 0;
-	int index = afe_get_port_index(port);
-	int mem_size = 0;
-	int sent = 0;
-	int chars_to_send = 0;
-
-	pr_info("%s: called with module_id = %x, string length = %d\n",
-						__func__, module, length);
-
-	if (length > APR_CHUNK_SIZE)
-		mem_size = APR_CHUNK_SIZE;
-	else
-		mem_size = length;
-
-	config = crus_gen_afe_set_header(size, port, module, param);
-	if (config == NULL) {
-		pr_err("%s: Memory allocation failed!\n", __func__);
-		return -ENOMEM;
-	}
-
-	payload = (struct crus_delta_config_t *)((u8 *)config +
-			sizeof(struct afe_custom_crus_set_config_t));
-	payload->total_size = length;
-	payload->index = 0;
-	payload->reserved = 0;
-	payload->config = PAYLOAD_FOLLOWS_CONFIG;
-	    /* ^ This tells the algorithm to expect array */
-	    /*   immediately following the header */
-
-	/* Send config string in chunks of APR_CHUNK_SIZE bytes */
-	while (sent < length) {
-		chars_to_send = length - sent;
-		if (chars_to_send > APR_CHUNK_SIZE) {
-			chars_to_send = APR_CHUNK_SIZE;
-			payload->done = 0;
-		} else {
-			payload->done = 1;
-		}
-
-		/* Configure per message parameter settings */
-		memcpy(payload->data, data + sent, chars_to_send);
-		payload->chunk_size = chars_to_send;
-
-		/* Send the actual message */
-		pr_debug("%s: Preparing to send apr packet.\n", __func__);
-		ret = afe_apr_send_pkt_crus(config, index, 1);
-
-		if (ret)
-			pr_err("%s: crus set_param for port %d failed with code %d\n",
-			       __func__, port, ret);
-		else
-			pr_debug("%s: crus set_param sent packet with param id 0x%08x to module 0x%08x.\n",
-				 __func__, param, module);
-
-		sent += chars_to_send;
-	}
-
-	kfree(config);
 	return ret;
 }
 
@@ -386,14 +268,13 @@ extern int crus_afe_callback(void *payload, int size)
 
 	pr_debug("Cirrus AFE CALLBACK: size = %d\n", size);
 
-	switch (payload32[1]) {
-	case CIRRUS_SP:
-		memcpy(crus_sp_get_buffer, payload32, size);
-		atomic_set(&crus_sp_get_param_flag, 1);
-		break;
-	default:
-		return -EINVAL;
-	}
+	if ((payload32[1] == 0xa1af00) || (payload32[1] == 0xa1bf00)) {
+		memcpy(crus_gb_get_buffer, payload32, size);
+		atomic_set(&crus_gb_get_param_flag, 1);
+        return 0;
+    } else {
+        return -EINVAL;
+    }
 
 	return 0;
 }
@@ -401,7 +282,7 @@ extern int crus_afe_callback(void *payload, int size)
 int msm_routing_cirrus_fbport_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	pr_debug("%s: cirrus_fb_port_ctl = %d", __func__, cirrus_fb_port_ctl);
+	pr_debug("CRUS %s: cirrus_fb_port_ctl = %d", __func__, cirrus_fb_port_ctl);
 	ucontrol->value.integer.value[0] = cirrus_fb_port_ctl;
 	return 0;
 }
@@ -413,369 +294,549 @@ int msm_routing_cirrus_fbport_put(struct snd_kcontrol *kcontrol,
 
 	switch (cirrus_fb_port_ctl) {
 	case 0:
-		cirrus_fb_port = AFE_PORT_ID_PRIMARY_MI2S_TX;
-		cirrus_ff_port = AFE_PORT_ID_PRIMARY_MI2S_RX;
+		cirrus_fb_port = 0x1001;
+		cirrus_ff_port = 0x1000;
 		break;
 	case 1:
-		cirrus_fb_port = AFE_PORT_ID_SECONDARY_MI2S_TX;
-		cirrus_ff_port = AFE_PORT_ID_SECONDARY_MI2S_RX;
+		cirrus_fb_port = 0x1003;
+		cirrus_ff_port = 0x1002;
 		break;
 	case 2:
-		cirrus_fb_port = AFE_PORT_ID_TERTIARY_MI2S_TX;
-		cirrus_ff_port = AFE_PORT_ID_TERTIARY_MI2S_RX;
+		cirrus_fb_port = 0x1005;
+		cirrus_ff_port = 0x1004;
 		break;
 	case 3:
-		cirrus_fb_port = AFE_PORT_ID_QUATERNARY_MI2S_TX;
-		cirrus_ff_port = AFE_PORT_ID_QUATERNARY_MI2S_RX;
+		cirrus_fb_port = 0x1007;
+		cirrus_ff_port = 0x1006;
 		break;
 	case 4:
-		cirrus_fb_port = AFE_PORT_ID_QUATERNARY_TDM_TX;
-		cirrus_ff_port = AFE_PORT_ID_QUATERNARY_TDM_RX;
+		cirrus_fb_port = 0x1003;
+		cirrus_ff_port = 0x1002;
 		break;
-	default:
-		/* Default port to QUATERNARY */
+	default:   
 		cirrus_fb_port_ctl = 4;
-		cirrus_fb_port = AFE_PORT_ID_QUATERNARY_TDM_TX;
-		cirrus_ff_port = AFE_PORT_ID_QUATERNARY_TDM_RX;
+		cirrus_fb_port = 0x1007;
+		cirrus_ff_port = 0x1006;
 		break;
 	}
 	return 0;
 }
 
-static int msm_routing_crus_sp_enable(struct snd_kcontrol *kcontrol,
+static ssize_t opsl_pass_show(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+    int ret;
+    
+	ret = crus_pass;
+    pr_info("CRUS opalum enter %s\n", __func__);
+    ret = sprintf(buf, "%d", ret);
+    return ret;
+}
+
+static ssize_t opsl_f0_show(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+	int ret;
+	
+	ret = crus_f0;
+	pr_info("opalum enter %s\n", __func__);
+	ret = sprintf(buf, "%d", ret);
+	return ret;
+}
+static ssize_t opsl_ambient_show(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+	int ret;
+	
+	ret = crus_ambient;
+	pr_info("opalum enter %s\n", __func__);
+	ret = sprintf(buf, "%d", ret);
+	return ret;
+}
+static ssize_t opsl_count_show(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+	int ret;
+	
+	ret = crus_count;
+	pr_info("opalum enter %s\n", __func__);
+	ret = sprintf(buf, "%d", ret);
+	return ret;
+}
+static ssize_t opsl_temp_acc_show(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+	int ret;
+	
+	ret = crus_temp_acc;
+	pr_info("opalum enter %s\n", __func__);
+	ret = sprintf(buf, "%d", ret);
+	return ret;
+}
+static ssize_t opsl_f0_store(struct device *dev,
+					struct device_attribute *attr, const char *buf,
+					size_t count)
+{
+	int val;
+	ssize_t ret;
+	int newVarData;
+	
+	val = kstrtoint(buf, 0, &newVarData);
+	ret = 0xffffffffffffffea;
+	if (val == 0) {
+		crus_f0 = newVarData;
+		pr_info("CRUS set f0 to %d\n", newVarData);
+		ret = count;
+	}
+	return ret;
+}
+static ssize_t opsl_ambient_store(struct device *dev,
+					struct device_attribute *attr, const char *buf,
+					size_t count)
+{
+	int val;
+	ssize_t ret;
+	int newVarData;
+	
+	val = kstrtoint(buf, 0, &newVarData);
+	ret = 0xffffffffffffffea;
+	if (val == 0) {
+		crus_ambient = newVarData;
+		pr_info("CRUS set f0 to %d\n", newVarData);
+		ret = count;
+	}
+	return ret;
+}
+static ssize_t opsl_count_store(struct device *dev,
+					struct device_attribute *attr, const char *buf,
+					size_t count)
+{
+	int val;
+	ssize_t ret;
+	int newVarData;
+	
+	val = kstrtoint(buf, 0, &newVarData);
+	ret = 0xffffffffffffffea;
+	if (val == 0) {
+		crus_count = newVarData;
+		pr_info("CRUS set f0 to %d\n", newVarData);
+		ret = count;
+	}
+	return ret;
+}
+static ssize_t opsl_temp_acc_store(struct device *dev,
+					struct device_attribute *attr, const char *buf,
+					size_t count)
+{
+	int val;
+	ssize_t ret;
+	int newVarData;
+	
+	val = kstrtoint(buf, 0, &newVarData);
+	ret = 0xffffffffffffffea;
+	if (val == 0) {
+		crus_temp_acc = newVarData;
+		pr_info("CRUS set f0 to %d\n", newVarData);
+		ret = count;
+	}
+	return ret;
+}
+
+static ssize_t opsl_cali_start(struct device *dev,
+					struct device_attribute *attr, char *buf)
+{
+	unsigned int val = 1;
+	int ret;
+	
+	msleep(2000);
+	pr_info("CRUS Opalum calibration starts ... after delay\n");
+	crus_afe_set_param(cirrus_fb_port, 0xa1bf00, 0xa1bf03, 4, &val);
+	crus_afe_set_param(cirrus_ff_port, 0xa1af00, 0xa1af03, 4, &val);
+	msleep(7000);
+	crus_afe_get_param(cirrus_fb_port, 0xa1bf00, 0xa1bf06, 0xc, &crus_temp_cal);
+	pr_info("CRUS_GB_CONFIG: temp cal complete: Temp-acc = %d, Count = %d, Ambient = %d\n",
+				crus_temp_cal.data1, crus_temp_cal.data2, crus_temp_cal.data3);
+	
+	crus_temp_acc = crus_temp_cal.data1;
+	crus_count = crus_temp_cal.data2;
+	
+	msleep(100);
+	pr_info("Step 3 CRUS Opalum starts F0 Calibration\n");
+	crus_afe_get_param(cirrus_fb_port, 0xa1bf00, 0xa1bf05, 8, &crus_excursion);
+	pr_info("CRUS_GB_GET_F0:crus_excursion.data1 = %d, crus_excursion.data2 = %d\n",
+				crus_excursion.data1, crus_excursion.data2);
+	crus_f0 = crus_excursion.data1;
+	crus_pass = 0;
+	
+	if ((crus_temp_acc - 0x3d937 < 0x145d0) && (crus_count == 0x10))
+		crus_pass = (crus_excursion.data1 - 0x191 < 499 && crus_ambient < 0x1d);
+	
+	pr_info("CRUS end of calibration; temp-acc=%d, count=%d, ambient=%d, f0=%d, pass=%d \n",
+				crus_temp_acc, crus_count, crus_ambient, crus_f0, crus_pass);
+	
+	ret = sprintf(buf, "%d", crus_pass);
+	return ret;
+};
+
+static const struct device_attribute opalum_dev_attr[] = {
+	__ATTR("temp-acc", 0777, opsl_temp_acc_show, opsl_temp_acc_store),
+	__ATTR("count", 0777, opsl_count_show, opsl_count_store),
+	__ATTR("ambient", 0777, opsl_ambient_show, opsl_ambient_store),
+	__ATTR("f0", 0777, opsl_f0_show, opsl_f0_store),
+	__ATTR("pass", 0777, opsl_pass_show, NULL),
+	__ATTR("start", 0777, opsl_cali_start, NULL),
+};
+
+static struct bus_type opsl_virt_bus = {
+	.name = "opsl-cali",
+	.dev_name = "opsl-cali",
+};
+
+static struct device opalum_virt = {
+	.bus = &opsl_virt_bus,
+};
+ 
+static int msm_routing_crus_gb_enable(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
-	const int crus_set = ucontrol->value.integer.value[0];
-
-	if (crus_set > 255) {
-		pr_err("Cirrus SP Enable: Invalid entry; Enter 0 to DISABLE, 1 to ENABLE\n");
+    int crus_set = ucontrol->value.integer.value[0];
+    
+    if (crus_set > 1) {
+		pr_err("CRUS GB Enable: Invalid entry %d; Enter 0 to DISABLE, 1 to ENABLE\n", crus_set);
 		return -EINVAL;
 	}
-
+	
 	switch (crus_set) {
-	case 0: /* "Config SP Disable" */
-		pr_info("Cirrus SP Enable: Config DISABLE\n");
+	case 0: /* "Config GB Disable" */
+		pr_info("CRUS GB Enable: Config DISABLE\n");
 		crus_enable.value = 0;
-		cirrus_sp_en = 0;
+		crus_gb_enable = 0;
 		break;
-	case 1: /* "Config SP Enable" */
-		pr_info("Cirrus SP Enable: Config ENABLE\n");
+	case 1: /* "Config GB Enable" */
+		pr_info("CRUS GB Enable: Config ENABLE\n");
 		crus_enable.value = 1;
-		cirrus_sp_en = 1;
+		crus_gb_enable = 1;
 		break;
 	default:
-	return -EINVAL;
+        return -EINVAL;
 	}
-
-	mutex_lock(&crus_sp_lock);
-	crus_afe_set_param(cirrus_ff_port, CIRRUS_SP,
+	
+	mutex_lock(&crus_gb_lock);
+	crus_afe_set_param(cirrus_ff_port, CRUS_GB,
 			   CRUS_AFE_PARAM_ID_ENABLE,
 			   sizeof(struct crus_single_data_t),
 			   (void *)&crus_enable);
-	mutex_unlock(&crus_sp_lock);
+	mutex_unlock(&crus_gb_lock);
 
-	mutex_lock(&crus_sp_lock);
-	crus_afe_set_param(cirrus_fb_port, CIRRUS_SP,
+	mutex_lock(&crus_gb_lock);
+	crus_afe_set_param(cirrus_fb_port, CRUS_GB,
 			   CRUS_AFE_PARAM_ID_ENABLE,
 			   sizeof(struct crus_single_data_t),
 			   (void *)&crus_enable);
-	mutex_unlock(&crus_sp_lock);
+	mutex_unlock(&crus_gb_lock);
+    
+    return 0;
+};
 
-	return 0;
-}
+static int cirrus_transfer_params(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol) {
+    
+    crus_set_cal_parametes.data1 = ucontrol->value.integer.value[0];
+    crus_set_cal_parametes.data2 = ucontrol->value.integer.value[0] + 8;
+    crus_set_cal_parametes.data3 = ucontrol->value.integer.value[0] + 0x10;
+    
+    pr_info("CRUS PARAMS TRANSFER +++++++++++++  =%d, count=%d, ambient=%d \n", 
+                    crus_set_cal_parametes.data1, 
+                    crus_set_cal_parametes.data2, 
+                    crus_set_cal_parametes.data3);
+    
+    if (((crus_set_cal_parametes.data1 - 0x50dc1 < 0x11f7f)
+        && (crus_set_cal_parametes.data2 == 0x10))
+            && (crus_set_cal_parametes.data3 - 0x15 < 8)) {
+        
+        crus_afe_set_param(cirrus_ff_port, CRUS_GB, 0xa1af08, 0xc, &crus_set_cal_parametes);
+        return 0;
+    } else {
+        pr_err("CRUS wrong range for temp-acc=%d, count=%d, ambient=%d \n",
+            crus_set_cal_parametes.data1,
+            crus_set_cal_parametes.data2,
+            crus_set_cal_parametes.data3);
+        return 1;
+    } 
+};
 
-static int msm_routing_crus_sp_enable_get(struct snd_kcontrol *kcontrol,
-					  struct snd_ctl_elem_value *ucontrol)
+static int msm_routing_crus_gb_config(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
 {
-	pr_info("Starting Cirrus SP Enable Get function call\n");
+    int crus_set = ucontrol->value.integer.value[0];
+    unsigned int opalum_state = 1;
+    crus_config_set = crus_set;
+    
+    pr_info("Starting CRUS GB Config function call %d\n", crus_set);
+    
+    switch (crus_set) {
+    case 0:
+        opalum_state = 0;
+        pr_info("CRUS path of Opalum for Music\n");
+        crus_afe_set_param(cirrus_ff_port, 0xa1bf00, 0xa1af02, 4, &opalum_state);
+        music_config_loaded = 0;
+        break;
+        
+    case 1:
+        pr_info("CRUS GB Config: Get Temp Cal Config\n");
+        crus_afe_set_param(cirrus_fb_port, 0xa1bf00, 0xa1bf03, 4, &opalum_state);
+        crus_afe_set_param(cirrus_ff_port, 0xa1af00, 0xa1af03, 4, &opalum_state);
+        msleep(7000);
+        crus_afe_get_param(cirrus_fb_port, 0xa1bf00, 0xa1bf06, 0xc, &crus_temp_cal);
+        
+        pr_info("CRUS_GB_CONFIG: temp cal complete: Temp-acc = %d, Count = %d, Ambient = %d\n",
+                        crus_temp_cal.data1,
+                        crus_temp_cal.data2,
+                        crus_temp_cal.data3);
+        break;
+        
+    case 2:
+        pr_info("CRUS GB Config: Set Temp Calibration\n");
+        if ((crus_temp_acc - 0x3d937U < 0x145d0) && (crus_count == 0x10)) {
+            
+            crus_temp_cal.data1 = crus_temp_acc;
+            crus_temp_cal.data2 = crus_count;
+        } else {
+            crus_temp_cal.data1 = 0x3d936;
+            crus_temp_cal.data2 = 0x10;
+        }
+        crus_temp_cal.data3 = 0x1c;
+        crus_afe_set_param(cirrus_ff_port, 0xa1af00, 0xa1af08, 0xc, &crus_temp_cal);
+        
+        pr_info("CRUS_GB_CONFIG: set temp cal with Temp-acc = %d, Count = %d, Ambient = %d\n",
+                        crus_temp_cal.data1,
+                        crus_temp_cal.data2,
+                        crus_temp_cal.data3);
+        break;
+        
+    case 3:
+        pr_info("CRUS GB Config: Get Current Temp\n");
+        crus_afe_get_param(cirrus_ff_port, 0xa1af00, 0xa1af07, 8, &crus_current_temp);
+        pr_info("CRUS_GB_CONFIG: current temp updated; Temp-acc = %d, Count = %d\n",
+                        crus_current_temp.data1,
+                        crus_current_temp.data2);
+        break;
+        
+    case 4:
+        pr_info("CRUS GB Config: Set Fo Calibration\n");
+        crus_afe_get_param(cirrus_fb_port, 0xa1bf00, 0xa1bf05, 8, &crus_excursion);
+        pr_info("CRUS_GB_GET_F0:crus_excursion.data1 = %d, crus_excursion.data2 = %d\n",
+                        crus_excursion.data1,
+                        crus_excursion.data2);
+        crus_f0 = crus_excursion.data1;
+        break;
+        
+    case 5:
+        opalum_state = 1;
+        pr_info(" CRUS path of Opalum, for Voice \n");
+        crus_afe_set_param(cirrus_ff_port, 0xa1af00, 0xa1af02, 4, &opalum_state);
+        voice_config_loaded = 0;
+        break;
+        
+    case 6:
+        opalum_state = 2;
+        pr_info(" CRUS path of Opalum for Dolby\n");
+        crus_afe_set_param(cirrus_ff_port, 0xa1af00, 0xa1af02, 4, &opalum_state);
+        break;
+        
+    default:
+        pr_err("CRUS GB Config: Invalid entry; Enter 0 for DEFAULT, 1 for RUN_DIAGNOSTICS, 2 for SET_TEMP_CAL, 3 for GET_CURRENT_TEMP, 4 for SET_FO_CAL\n");
+        return 0;
+    }
+    
+    return 0;
+};
 
-	return cirrus_sp_en;
-}
-
-static int msm_routing_crus_sp_prot_enable(struct snd_kcontrol *kcontrol,
-				      struct snd_ctl_elem_value *ucontrol)
+static int msm_routing_crus_ext_config(struct snd_kcontrol *kcontrol,
+											struct snd_ctl_elem_value *ucontrol)
 {
-	const int crus_set = ucontrol->value.integer.value[0];
+    int ret;
+    char *string;
+    size_t size;
+    const struct firmware *fw;
+    int crus_set = ucontrol->value.integer.value[0];
+    
+    crus_ext_config_set = crus_set;
+    pr_info("Starting CRUS GB EXT Config function call %d\n", crus_set);
+    
+    switch (crus_set) {
+    case 0:
+        ret = request_firmware(&fw, "crus_gb_config_default.bin", crus_gb_device);
+        if (ret == 0) {
+            crus_set = fw->size;
+            size = crus_set;
+            string = kmalloc(size, 0x80d0);
+            memcpy(string, fw->data, size);
+            string[size] = '\0';
+            
+            if (music_config_loaded == 0) {
+                music_config_loaded = 1;
+                pr_info("CRUS GB EXT Config: Config RX Default");
+                // flash
+                crus_afe_send_config(string, 0xaf00 | 0xa10000);
+                // make vars clean
+                release_firmware(fw);
+                kfree(string);
+                
+                return 0;
+            }    
+            
+            pr_info("CRUS GB EXT Config: Config RX Default ignored\n");
+            // make vars clean
+            release_firmware(fw);
+            kfree(string);
+            return 0;
+        } else {
+            string = NULL;
+            pr_err("CRUS %s: Request firmware failed\n", __func__);
+            return ret;
+        }
+        
+        break;
+    case 1:
+        ret = request_firmware(&fw, "crus_gb_config_default.bin", crus_gb_device);
+        if (ret == 0) {
+            crus_set = fw->size;
+            size = crus_set;
+            string = kmalloc(size, 0x80d0);
+            memcpy(string, fw->data, size);
+            string[size] = '\0';
+            
+            pr_info("CRUS GB EXT Config: Config TX Default");
+            // flash; wtf, check stock kernel in decompiler
+            //crus_afe_send_config(string, 0xaf00 | 0xa10000);
+            // make vars clean
+            release_firmware(fw);
+            kfree(string);
+            return 0;
+        } else {
+            string = NULL;
+            pr_err("CRUS %s: Request firmware failed\n", __func__);
+            return ret;
+        }
+        
+        break;
+    case 2:
+        ret = request_firmware(&fw, "crus_gb_config_new_rx.bin", crus_gb_device);
+        if (ret == 0) {
+            crus_set = fw->size;
+            size = crus_set;
+            string = kmalloc(size, 0x80d0);
+            memcpy(string, fw->data, size);
+            string[size] = '\0';
+            
+            if (voice_config_loaded == 0) {
+                voice_config_loaded = 1;
+                pr_info("CRUS GB EXT Config: Config RX New");
+                // flash
+                crus_afe_send_config(string, 0xaf00 | 0xa10000);
+                // make vars clean
+                release_firmware(fw);
+                kfree(string);
+                
+                return 0;
+            }
+            pr_info("CRUS GB EXT Config: Config RX New ignored\n");
+            // make vars clean
+            release_firmware(fw);
+            kfree(string);
+            return 0;
+        } else {
+            string = NULL;
+            pr_err("CRUS %s: Request firmware failed\n", __func__);
+            return ret;
+        }
+        
+        break;
+    case 3:
+        ret = request_firmware(&fw, "crus_gb_config_new_tx.bin", crus_gb_device);
+        if (ret == 0) {
+            crus_set = fw->size;
+            size = crus_set;
+            string = kmalloc(size, 0x80d0);
+            memcpy(string, fw->data, size);
+            string[size] = '\0';
+            
+            pr_info("CRUS GB EXT Config: Config TX New");
+            // flash
+            crus_afe_send_config(string, 0xbf00 | 0xa10000);
+            // make vars clean
+            release_firmware(fw);
+            kfree(string);
+            
+            return 0;
+        } else {
+            string = NULL;
+            pr_err("CRUS %s: Request firmware failed\n", __func__);
+            return ret;
+        }
+        
+        break;
+    default:
+        pr_err("CRUS GB External Config: Invalid entry - %d; Enter 0 for RX_DEFAULT, 1 for TX_DEFAULT, 2 for RX_NEW, 3 for TX_NEW\n",
+                    crus_set);
+        return 0;
+    }
+    
+    string = NULL;
+    pr_err("CRUS %s: Request firmware failed\n", __func__);
+    return ret;
+};
 
-	if (crus_set > 1) {
-		pr_err("Cirrus SP Protection: Invalid entry\n");
-		return -EINVAL;
-	}
-
-	cirrus_sp_prot_en = crus_set;
-
-	return 0;
-}
-
-static int msm_routing_crus_sp_prot_enable_get(struct snd_kcontrol *kcontrol,
-					  struct snd_ctl_elem_value *ucontrol)
-{
-	pr_info("Starting Cirrus SP Protection Get function call\n");
-
-	ucontrol->value.integer.value[0] = cirrus_sp_prot_en;
-
-	return 0;
-}
-
-static int msm_routing_crus_sp_usecase(struct snd_kcontrol *kcontrol,
-				       struct snd_ctl_elem_value *ucontrol)
-{
-	struct crus_rx_run_case_ctrl_t case_ctrl;
-	const int crus_set = ucontrol->value.integer.value[0];
-	struct soc_enum *e = (struct soc_enum *)kcontrol->private_value;
-	uint32_t max_index = e->items;
-
-	pr_debug("Starting Cirrus SP Config function call %d\n", crus_set);
-
-	if (crus_set >= max_index) {
-		pr_err("Cirrus SP Config index out of bounds (%d)\n", crus_set);
-		return -EINVAL;
-	}
-
-	cirrus_sp_usecase = crus_set;
-
-	case_ctrl.status_l = 1;
-	case_ctrl.status_r = 1;
-	case_ctrl.z_l = crus_sp_cal_rslt.z_l;
-	case_ctrl.z_r = crus_sp_cal_rslt.z_r;
-	case_ctrl.checksum_l = crus_sp_cal_rslt.z_l + 1;
-	case_ctrl.checksum_r = crus_sp_cal_rslt.z_r + 1;
-	case_ctrl.atemp = 23;
-	case_ctrl.value = cirrus_sp_usecase;
-
-	crus_afe_set_param(cirrus_fb_port, CIRRUS_SP,
-			   CRUS_PARAM_TX_SET_USECASE, sizeof(cirrus_sp_usecase),
-			   (void *)&cirrus_sp_usecase);
-	crus_afe_set_param(cirrus_ff_port, CIRRUS_SP,
-			   CRUS_PARAM_RX_SET_USECASE, sizeof(case_ctrl),
-			   (void *)&case_ctrl);
-
-	return 0;
-}
-
-static int msm_routing_crus_sp_usecase_get(struct snd_kcontrol *kcontrol,
-					   struct snd_ctl_elem_value *ucontrol)
-{
-	pr_debug("Starting Cirrus SP Config Get function call\n");
-	ucontrol->value.integer.value[0] = cirrus_sp_usecase;
-
-	return 0;
-}
-
-static int msm_routing_crus_load_config(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_value *ucontrol)
-{
-	const int crus_set = ucontrol->value.integer.value[0];
-	char config[CONFIG_FILE_SIZE];
-	const struct firmware *firmware;
-
-	pr_debug("Starting Cirrus SP Load Config function call %d\n", crus_set);
-
-	switch (crus_set) {
-	case 0:
-		break;
-	case 1: /* Load RX Config */
-		cirrus_fb_load_conf_sel = crus_set;
-		snprintf(config, CONFIG_FILE_SIZE, CRUS_RX_CONFIG,
-			 cirrus_sp_usecase);
-
-		if (request_firmware(&firmware, config, crus_sp_device) != 0) {
-			pr_err("%s: Request firmware failed\n", __func__);
-			return -EINVAL;
-		}
-
-		pr_info("%s: Sending RX config\n", __func__);
-		crus_afe_send_config(firmware->data, firmware->size,
-				     cirrus_ff_port, CIRRUS_SP);
-		release_firmware(firmware);
-		break;
-	case 2: /* Load TX Config */
-		cirrus_fb_load_conf_sel = crus_set;
-		snprintf(config, CONFIG_FILE_SIZE, CRUS_TX_CONFIG,
-			 cirrus_sp_usecase);
-
-		if (request_firmware(&firmware, config, crus_sp_device) != 0) {
-			pr_err("%s: Request firmware failed\n", __func__);
-			return -EINVAL;
-		}
-
-		pr_info("%s: Sending TX config\n", __func__);
-		crus_afe_send_config(firmware->data, firmware->size,
-				     cirrus_fb_port, CIRRUS_SP);
-		release_firmware(firmware);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	cirrus_fb_load_conf_sel = 0;
-
-	return 0;
-}
-
-static int msm_routing_crus_load_config_get(struct snd_kcontrol *kcontrol,
-					    struct snd_ctl_elem_value *ucontrol)
-{
-	pr_debug("Starting Cirrus SP Load Config Get function call\n");
-	ucontrol->value.integer.value[0] = cirrus_fb_load_conf_sel;
-
-	return 0;
-}
-
-static int msm_routing_crus_delta_config(struct snd_kcontrol *kcontrol,
-					 struct snd_ctl_elem_value *ucontrol)
-{
-	struct crus_single_data_t data;
-	const int crus_set = ucontrol->value.integer.value[0];
-	const struct firmware *firmware;
-
-	pr_debug("Starting Cirrus SP Delta Config function call %d\n",
-		 crus_set);
-
-	switch (crus_set) {
-	case 0:
-		break;
-	case 1: /* Load delta config over AFE */
-		cirrus_fb_delta_sel = crus_set;
-
-		if (request_firmware(&firmware, "crus_sp_delta_config.bin",
-				     crus_sp_device) != 0) {
-			pr_err("%s: Request firmware failed\n", __func__);
-			cirrus_fb_delta_sel = 0;
-			return -EINVAL;
-		}
-
-		pr_info("%s: Sending delta config\n", __func__);
-		crus_afe_send_delta(firmware->data, firmware->size);
-		release_firmware(firmware);
-		break;
-	case 2: /* Run delta transition */
-		cirrus_fb_delta_sel = crus_set;
-		data.value = 0;
-		crus_afe_set_param(cirrus_ff_port, CIRRUS_SP,
-				   CRUS_PARAM_RX_RUN_DELTA_CONFIG,
-				   sizeof(struct crus_single_data_t), &data);
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	cirrus_fb_delta_sel = 0;
-	return 0;
-}
-
-static int msm_routing_crus_delta_config_get(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_value *ucontrol)
-{
-	pr_debug("Starting Cirrus SP Delta Config Get function call\n");
-	ucontrol->value.integer.value[0] = cirrus_fb_delta_sel;
-
-	return 0;
-}
-
-static int msm_routing_crus_chan_swap(struct snd_kcontrol *kcontrol,
-				      struct snd_ctl_elem_value *ucontrol)
-{
-	struct crus_dual_data_t data;
-	const int crus_set = ucontrol->value.integer.value[0];
-
-	pr_debug("Starting Cirrus SP Channel Swap function call %d\n",
-		 crus_set);
-
-	switch (crus_set) {
-	case 0: /* L/R */
-		data.data1 = 1;
-		break;
-	case 1: /* R/L */
-		data.data1 = 2;
-		break;
-	default:
-		return -EINVAL;
-	}
-
-	data.data2 = cirrus_ff_chan_swap_dur;
-
-	crus_afe_set_param(cirrus_ff_port, CIRRUS_SP,
-			   CRUS_PARAM_RX_CHANNEL_SWAP,
-			   sizeof(struct crus_dual_data_t), &data);
-
-	cirrus_ff_chan_swap_sel = crus_set;
-
-	return 0;
-}
-
-static int msm_routing_crus_chan_swap_get(struct snd_kcontrol *kcontrol,
-					  struct snd_ctl_elem_value *ucontrol)
-{
-	pr_debug("Starting Cirrus SP Channel Swap Get function call\n");
-	ucontrol->value.integer.value[0] = cirrus_ff_chan_swap_sel;
-
-	return 0;
-}
-
-static int msm_routing_crus_chan_swap_dur(struct snd_kcontrol *kcontrol,
+static int msm_routing_crus_gb_enable_get(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol)
 {
 	int crus_set = ucontrol->value.integer.value[0];
+    
+	pr_info("Starting CRUS GB Enable Get function call\n");
 
-	pr_debug("Starting Cirrus SP Channel Swap Duration function call\n");
+	crus_set = crus_gb_enable;
+    return 0;
+};
 
-	if ((crus_set < 0) || (crus_set > MAX_CHAN_SWAP_SAMPLES)) {
-		pr_err("%s: Value out of range (%d)\n", __func__, crus_set);
-		return -EINVAL;
-	}
-
-	if (crus_set < MIN_CHAN_SWAP_SAMPLES) {
-		pr_info("%s: Received %d, rounding up to min value %d\n",
-			__func__, crus_set, MIN_CHAN_SWAP_SAMPLES);
-		crus_set = MIN_CHAN_SWAP_SAMPLES;
-	}
-
-	cirrus_ff_chan_swap_dur = crus_set;
-
-	return 0;
-}
-
-static int msm_routing_crus_chan_swap_dur_get(struct snd_kcontrol *kcontrol,
-					struct snd_ctl_elem_value *ucontrol)
+static int msm_routing_crus_gb_config_get(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
 {
-	pr_debug("Starting Cirrus SP Channel Swap Duration Get function call\n");
-	ucontrol->value.integer.value[0] = cirrus_ff_chan_swap_dur;
+	pr_debug("Starting CRUS GB EXT Config Get function call\n");
+	ucontrol->value.integer.value[0] = crus_config_set;
 
 	return 0;
-}
+};
 
-static int msm_routing_crus_fail_det(struct snd_kcontrol *kcontrol,
-				     struct snd_ctl_elem_value *ucontrol)
+static int msm_routing_crus_ext_config_get(struct snd_kcontrol *kcontrol,
+					    struct snd_ctl_elem_value *ucontrol)
 {
-	cirrus_fail_detect_en = ucontrol->value.integer.value[0];
-	return 0;
-}
+	pr_debug("Starting CRUS GB Config Get function call\n");
+	ucontrol->value.integer.value[0] = crus_ext_config_set;
 
-static int msm_routing_crus_fail_det_get(struct snd_kcontrol *kcontrol,
-					 struct snd_ctl_elem_value *ucontrol)
-{
-	ucontrol->value.integer.value[0] = cirrus_fail_detect_en;
 	return 0;
-}
+};
 
 static const char * const cirrus_fb_port_text[] = {"PRI_MI2S_RX",
 						   "SEC_MI2S_RX",
 						   "TERT_MI2S_RX",
 						   "QUAT_MI2S_RX",
-						   "QUAT_TDM_RX_0"};
+                           "QUIN_MI2S_RX"};
 
-static const char * const crus_en_text[] = {"Config SP Disable",
-					    "Config SP Enable"};
-
-static const char * const crus_prot_en_text[] = {"Disable", "Enable"};
-
-static const char * const crus_conf_load_text[] = {"Idle", "Load RX",
-						   "Load TX"};
-
-static const char * const crus_delta_text[] = {"Idle", "Load", "Run"};
-
-static const char * const crus_chan_swap_text[] = {"LR", "RL"};
+static const char * const crus_en_text[] = {"Config GB Disable",
+					    "Config GB Enable"};
+                        
+static const char * const crus_gb_text[] = {"Path_for_Music",
+                            "Run Diag",
+                            "Set Temp Cal",
+                            "Set Current Temp",
+                            "Set Fo Cal",
+                            "Path_for_Voice",
+                            "Path_for_Dolby"};
+                            
+static const char * const crus_ext_text[] = {"Config RX Default",
+                            "Config TX Default",
+                            "Config RX New",
+                            "Config TX New"};
 
 static const struct soc_enum cirrus_fb_controls_enum[] = {
 	SOC_ENUM_SINGLE_EXT(5, cirrus_fb_port_text),
@@ -785,468 +846,249 @@ static const struct soc_enum crus_en_enum[] = {
 	SOC_ENUM_SINGLE_EXT(2, crus_en_text),
 };
 
-static const struct soc_enum crus_prot_en_enum[] = {
-	SOC_ENUM_SINGLE_EXT(2, crus_prot_en_text),
+static const struct soc_enum crus_gb_enum[] = {
+	SOC_ENUM_SINGLE_EXT(7, crus_gb_text),
 };
 
-static struct soc_enum crus_sp_usecase_enum[] = {
-	SOC_ENUM_SINGLE_EXT(MAX_TUNING_CONFIGS, crus_sp_usecase_dt_text),
-};
-
-static const struct soc_enum crus_conf_load_enum[] = {
-	SOC_ENUM_SINGLE_EXT(3, crus_conf_load_text),
-};
-
-static const struct soc_enum crus_delta_enum[] = {
-	SOC_ENUM_SINGLE_EXT(3, crus_delta_text),
-};
-
-static const struct soc_enum crus_chan_swap_enum[] = {
-	SOC_ENUM_SINGLE_EXT(2, crus_chan_swap_text),
+static const struct soc_enum crus_ext_enum[] = {
+	SOC_ENUM_SINGLE_EXT(4, crus_ext_text),
 };
 
 static const struct snd_kcontrol_new crus_mixer_controls[] = {
-	SOC_ENUM_EXT("Cirrus SP FBPort", cirrus_fb_controls_enum[0],
+	SOC_ENUM_EXT("FBProtect Port", cirrus_fb_controls_enum[0],
 	msm_routing_cirrus_fbport_get, msm_routing_cirrus_fbport_put),
-	SOC_ENUM_EXT("Cirrus SP", crus_en_enum[0],
-	msm_routing_crus_sp_enable_get, msm_routing_crus_sp_enable),
-	SOC_ENUM_EXT("Cirrus SP Protection", crus_prot_en_enum[0],
-	msm_routing_crus_sp_prot_enable_get, msm_routing_crus_sp_prot_enable),
-	SOC_ENUM_EXT("Cirrus SP Usecase", crus_sp_usecase_enum[0],
-	msm_routing_crus_sp_usecase_get, msm_routing_crus_sp_usecase),
-	SOC_ENUM_EXT("Cirrus SP Load Config", crus_conf_load_enum[0],
-	msm_routing_crus_load_config_get, msm_routing_crus_load_config),
-	SOC_ENUM_EXT("Cirrus SP Delta Config", crus_delta_enum[0],
-	msm_routing_crus_delta_config_get, msm_routing_crus_delta_config),
-	SOC_ENUM_EXT("Cirrus SP Channel Swap", crus_chan_swap_enum[0],
-	msm_routing_crus_chan_swap_get, msm_routing_crus_chan_swap),
-	SOC_SINGLE_EXT("Cirrus SP Channel Swap Duration", SND_SOC_NOPM, 0,
-	MAX_CHAN_SWAP_SAMPLES, 0, msm_routing_crus_chan_swap_dur_get,
-	msm_routing_crus_chan_swap_dur),
-	SOC_SINGLE_BOOL_EXT("Cirrus SP Failure Detection", 0,
-	msm_routing_crus_fail_det_get, msm_routing_crus_fail_det),
+	SOC_ENUM_EXT("CIRRUS GB ENABLE", crus_en_enum[0],
+	msm_routing_crus_gb_enable_get, msm_routing_crus_gb_enable),
+	SOC_ENUM_EXT("CIRRUS GB CONFIG", crus_gb_enum[0],
+	msm_routing_crus_gb_config_get, msm_routing_crus_gb_config),
+    SOC_ENUM_EXT("CIRRUS EXT CONFIG", crus_ext_enum[0],
+	msm_routing_crus_ext_config_get, msm_routing_crus_ext_config),
+	SOC_SINGLE_MULTI_EXT("CIRRUS_TRANSFER_PARAMS", SND_SOC_NOPM, 0,
+	0xFFFF, 0, 4, cirrus_transfer_params, NULL),
 };
 
 void msm_crus_pb_add_controls(struct snd_soc_platform *platform)
 {
-	crus_sp_device = platform->dev;
+    crus_gb_device = platform->dev;
+    
+    if (crus_gb_device == 0) {
+        pr_err("CRUS %s: platform->dev is NULL!\n", __func__);
+    } else {
+        pr_info("CRUS %s: platform->dev check success!\n", __func__);
+    }
+    
+    snd_soc_add_platform_controls(platform, crus_mixer_controls, 5);
+    
+    return;
+};
 
-	if (crus_sp_device == NULL)
-		pr_err("%s: platform->dev is NULL!\n", __func__);
-	else
-		pr_debug("%s: platform->dev = %lx\n", __func__,
-			 (unsigned long)crus_sp_device);
-
-	if (crus_sp_usecase_dt_count == 0)
-		pr_err("%s: Missing usecase config selections\n", __func__);
-
-	crus_sp_usecase_enum[0].items = crus_sp_usecase_dt_count;
-	crus_sp_usecase_enum[0].texts = crus_sp_usecase_dt_text;
-
-	snd_soc_add_platform_controls(platform, crus_mixer_controls,
-					ARRAY_SIZE(crus_mixer_controls));
-}
-
-static long crus_sp_shared_ioctl(struct file *f, unsigned int cmd,
+static long crus_gb_shared_ioctl(struct file *f, unsigned int cmd,
 				 void __user *arg)
 {
-	int result = 0, port;
-	uint32_t bufsize = 0, size;
-	uint32_t option = 0;
-	void *io_data = NULL;
+	int port, param;
+	uint32_t size, length;
+    unsigned int result = 0, val = 0;
+    void *data = NULL;
 
-	pr_info("%s\n", __func__);
+	pr_info("CRUS %s ++\n", __func__);
 
+    if (arg == 0) {
+        pr_err("CRUS %s: No data sent to driver!\n", __func__);
+        result = -EFAULT;
+        goto exit;
+    } 
+    
+    pr_info("CRUS %s: Command is %x\n", __func__, cmd);
+    
 	if (copy_from_user(&size, arg, sizeof(size))) {
-		pr_err("%s: copy_from_user (size) failed\n", __func__);
+		pr_err("CRUS %s: copy_from_user (size) failed\n", __func__);
 		result = -EFAULT;
 		goto exit;
 	}
 
 	/* Copy IOCTL header from usermode */
-	if (copy_from_user(&crus_sp_hdr, arg, size)) {
-		pr_err("%s: copy_from_user (struct) failed\n", __func__);
+	if (copy_from_user(arg, &crus_gb_hdr, size)) {
+		pr_err("CRUS %s: copy_from_user (struct) failed\n", __func__);
 		result = -EFAULT;
 		goto exit;
 	}
-
-	bufsize = crus_sp_hdr.data_length;
-	io_data = kzalloc(bufsize, GFP_KERNEL);
+    
+	length = crus_gb_hdr.data_length;
+    val = crus_gb_hdr.data_length;
+    data = kmalloc(crus_gb_hdr.data_length, 0x80d0);
 
 	switch (cmd) {
-	case CRUS_SP_IOCTL_GET:
-		switch (crus_sp_hdr.module_id) {
-		case CRUS_MODULE_ID_TX:
-			port = cirrus_fb_port;
-		break;
-		case CRUS_MODULE_ID_RX:
-			port = cirrus_ff_port;
-		break;
-		default:
-			pr_info("%s: Unrecognized port ID (%d)\n", __func__,
-			       crus_sp_hdr.module_id);
-			port = cirrus_ff_port;
-		}
-
-		crus_afe_get_param(port, CIRRUS_SP, crus_sp_hdr.param_id,
-				   bufsize, io_data);
-
-		result = copy_to_user(crus_sp_hdr.data, io_data, bufsize);
-		if (result) {
-			pr_err("%s: copy_to_user failed (%d)\n", __func__,
-			       result);
-			result = -EFAULT;
-		} else {
-			result = bufsize;
-		}
-	break;
-	case CRUS_SP_IOCTL_SET:
-		result = copy_from_user(io_data, (void *)crus_sp_hdr.data,
-					bufsize);
-		if (result) {
-			pr_err("%s: copy_from_user failed (%d)\n", __func__,
-			       result);
-			result = -EFAULT;
-			goto exit_io;
-		}
-
-		switch (crus_sp_hdr.module_id) {
-		case CRUS_MODULE_ID_TX:
-			port = cirrus_fb_port;
-		break;
-		case CRUS_MODULE_ID_RX:
-			port = cirrus_ff_port;
-		break;
-		default:
-			pr_info("%s: Unrecognized port ID (%d)\n", __func__,
-			       crus_sp_hdr.module_id);
-			port = cirrus_ff_port;
-		}
-
-		crus_afe_set_param(port, CIRRUS_SP, crus_sp_hdr.param_id,
-				   bufsize, io_data);
-	break;
-	case CRUS_SP_IOCTL_GET_CALIB:
-		if (copy_from_user(io_data, (void *)crus_sp_hdr.data,
-				   bufsize)) {
-			pr_err("%s: copy_from_user failed\n", __func__);
-			result = -EFAULT;
-			goto exit_io;
-		}
-		option = 1;
-		crus_afe_set_param(cirrus_ff_port, CIRRUS_SP,
-				   CRUS_PARAM_RX_SET_CALIB, sizeof(option),
-				   (void *)&option);
-		crus_afe_set_param(cirrus_fb_port, CIRRUS_SP,
-				   CRUS_PARAM_TX_SET_CALIB, sizeof(option),
-				   (void *)&option);
-		msleep(2000);
-		crus_afe_get_param(cirrus_fb_port, CIRRUS_SP,
-				   CRUS_PARAM_TX_GET_TEMP_CAL, bufsize,
-				   io_data);
-		if (copy_to_user(crus_sp_hdr.data, io_data, bufsize)) {
-			pr_err("%s: copy_to_user failed\n", __func__);
-			result = -EFAULT;
-		} else
-			result = bufsize;
-	break;
-	case CRUS_SP_IOCTL_SET_CALIB:
-		if (copy_from_user(io_data, (void *)crus_sp_hdr.data,
-				   bufsize)) {
-			pr_err("%s: copy_from_user failed\n", __func__);
-			result = -EFAULT;
-			goto exit_io;
-		}
-		memcpy(&crus_sp_cal_rslt, io_data, bufsize);
-	break;
+    case 0:
+        if (crus_gb_hdr.param_id == 0xabcdee) {
+            param = 0xabcdee;
+            port = cirrus_fb_port;
+            crus_afe_get_param(port, crus_gb_hdr.module_id,
+                                    param, length, data);
+        } else if (crus_gb_hdr.param_id == 0xabcdef) {
+            param = 0xabcdef;
+            port = cirrus_ff_port;
+            crus_afe_get_param(port, crus_gb_hdr.module_id,
+                                    param, length, data);
+        }
+        
+        val = copy_to_user(crus_gb_hdr.data, data, val);
+        if (val != 0) {
+            length = 0xfffffff2;
+            pr_err("CRUS %s: copy_to_user failed, ret = %d\n", __func__, val);
+            result = val;
+            kfree(data);
+            goto exit;
+        }
+        result = val;
+        kfree(data);
+        goto exit;
+        break; 
+        
+    case 1:
+        memset(crus_gb_hdr.data, 0, length);
+            
+        val = copy_from_user(crus_gb_hdr.data, data, length);
+        if (val != 0) {
+            length = 0xfffffff2;
+            pr_err("CRUS %s: copy_from_user failed, ret = %d\n", __func__, val);
+            result = val;
+            kfree(data);
+            goto exit;
+        }
+        if (crus_gb_hdr.param_id == 0xabcdee) {
+            param = 0xabcdee;
+            port = cirrus_fb_port;
+            crus_afe_set_param(port, crus_gb_hdr.module_id,
+                                    param, length, data);
+        } else if (crus_gb_hdr.param_id == 0xabcdef) {
+            param = 0xabcdef;
+            port = cirrus_ff_port;
+            crus_afe_set_param(port, crus_gb_hdr.module_id,
+                                    param, length, data);
+        }
+        length = 0;
+        result = val;
+        kfree(data);
+        goto exit;
+        break;
+        
 	default:
-		pr_err("%s: Invalid IOCTL, command = %d!\n", __func__, cmd);
+		pr_err("CRUS %s: Invalid IOCTL, command = %d! Avalible cmds: 0, 1.\n", __func__, cmd);
 		result = -EINVAL;
-	}
-
-exit_io:
-	kfree(io_data);
+	} 
+	
 exit:
 	return result;
-}
+};
 
-static long crus_sp_ioctl(struct file *f,
+static long crus_gb_ioctl(struct file *f,
 		unsigned int cmd, unsigned long arg)
 {
-	pr_info("%s\n", __func__);
-
-	return crus_sp_shared_ioctl(f, cmd, (void __user *)arg);
+	return crus_gb_shared_ioctl(f, cmd, (void __user *)arg);
 }
 
-static long crus_sp_compat_ioctl(struct file *f,
-		unsigned int cmd, unsigned long arg)
+static int crus_gb_open(struct inode *inode, struct file *f)
 {
-	unsigned int cmd64;
+	char string;
+    bool monPass;
 
-	pr_info("%s\n", __func__);
-
-	switch (cmd) {
-	case CRUS_SP_IOCTL_GET32:
-		cmd64 = CRUS_SP_IOCTL_GET;
-		break;
-	case CRUS_SP_IOCTL_SET32:
-		cmd64 = CRUS_SP_IOCTL_SET;
-		break;
-	case CRUS_SP_IOCTL_GET_CALIB32:
-		cmd64 = CRUS_SP_IOCTL_GET_CALIB;
-		break;
-	case CRUS_SP_IOCTL_SET_CALIB32:
-		cmd64 = CRUS_SP_IOCTL_SET_CALIB;
-		break;
-	default:
-		pr_err("%s: Invalid IOCTL, command = %d!\n", __func__, cmd);
-		return -EINVAL;
-	}
-
-	return crus_sp_shared_ioctl(f, cmd64, compat_ptr(arg));
-}
-
-static int crus_sp_open(struct inode *inode, struct file *f)
-{
-	int result = 0;
-
-	pr_debug("%s\n", __func__);
-
-	atomic_inc(&crus_sp_misc_usage_count);
-	return result;
-}
-
-static int crus_sp_release(struct inode *inode, struct file *f)
-{
-	int result = 0;
-
-	pr_debug("%s\n", __func__);
-
-	atomic_dec(&crus_sp_misc_usage_count);
-	pr_debug("%s: ref count %d!\n", __func__,
-		atomic_read(&crus_sp_misc_usage_count));
-
-	return result;
-}
-
-static ssize_t temperature_left_show(struct device *dev,
-				     struct device_attribute *a, char *buf)
-{
-	static const int material = 250;
-	static const int scale_factor = 100000;
-	int buffer[96];
-	int out_cal0;
-	int out_cal1;
-	int z, r, t;
-	int temp0;
-
-	crus_afe_get_param(cirrus_ff_port, CIRRUS_SP, CRUS_PARAM_RX_GET_TEMP,
-			   384, buffer);
-
-	out_cal0 = buffer[12];
-	out_cal1 = buffer[13];
-
-	z = buffer[4];
-
-	temp0 = buffer[10];
-
-	if ((out_cal0 != 2) || (out_cal1 != 2))
-		return snprintf(buf, PAGE_SIZE, "Calibration is not done\n");
-
-	r = buffer[3];
-	t = (material * scale_factor * (r-z) / z) + (temp0 * scale_factor);
-
-	return snprintf(buf, PAGE_SIZE, "%d.%05dc\n", t / scale_factor,
-			t % scale_factor);
-}
-static DEVICE_ATTR_RO(temperature_left);
-
-static ssize_t temperature_right_show(struct device *dev,
-				      struct device_attribute *a, char *buf)
-{
-	static const int material = 250;
-	static const int scale_factor = 100000;
-	int buffer[96];
-	int out_cal0;
-	int out_cal1;
-	int z, r, t;
-	int temp0;
-
-	crus_afe_get_param(cirrus_ff_port, CIRRUS_SP, CRUS_PARAM_RX_GET_TEMP,
-			   384, buffer);
-
-	out_cal0 = buffer[14];
-	out_cal1 = buffer[15];
-
-	z = buffer[2];
-
-	temp0 = buffer[10];
-
-	if ((out_cal0 != 2) || (out_cal1 != 2))
-		return snprintf(buf, PAGE_SIZE, "Calibration is not done\n");
-
-	r = buffer[1];
-	t = (material * scale_factor * (r-z) / z) + (temp0 * scale_factor);
-
-	return snprintf(buf, PAGE_SIZE, "%d.%05dc\n", t / scale_factor,
-			t % scale_factor);
-}
-static DEVICE_ATTR_RO(temperature_right);
-
-static ssize_t resistance_left_show(struct device *dev,
-				    struct device_attribute *a, char *buf)
-{
-	static const int scale_factor = 100000000;
-	static const int amp_factor = 71498;
-	int buffer[96];
-	int out_cal0;
-	int out_cal1;
-	int r;
-
-	crus_afe_get_param(cirrus_ff_port, CIRRUS_SP, CRUS_PARAM_RX_GET_TEMP,
-			   384, buffer);
-
-	out_cal0 = buffer[12];
-	out_cal1 = buffer[13];
-
-	if ((out_cal0 != 2) || (out_cal1 != 2))
-		return snprintf(buf, PAGE_SIZE, "Calibration is not done\n");
-
-	r = buffer[3] * amp_factor;
-
-	return snprintf(buf, PAGE_SIZE, "%d.%08d ohms\n", r / scale_factor,
-		       r % scale_factor);
-}
-static DEVICE_ATTR_RO(resistance_left);
-
-static ssize_t resistance_right_show(struct device *dev,
-				     struct device_attribute *a, char *buf)
-{
-	static const int scale_factor = 100000000;
-	static const int amp_factor = 71498;
-	int buffer[96];
-	int out_cal0;
-	int out_cal1;
-	int r;
-
-	crus_afe_get_param(cirrus_ff_port, CIRRUS_SP, CRUS_PARAM_RX_GET_TEMP,
-			   384, buffer);
-
-	out_cal0 = buffer[14];
-	out_cal1 = buffer[15];
-
-	if ((out_cal0 != 2) || (out_cal1 != 2))
-		return snprintf(buf, PAGE_SIZE, "Calibration is not done\n");
-
-	r = buffer[1] * amp_factor;
-
-	return snprintf(buf, PAGE_SIZE, "%d.%08d ohms\n", r / scale_factor,
-		       r % scale_factor);
-}
-static DEVICE_ATTR_RO(resistance_right);
-
-static struct attribute *crus_sp_attrs[] = {
-	&dev_attr_temperature_left.attr,
-	&dev_attr_temperature_right.attr,
-	&dev_attr_resistance_left.attr,
-	&dev_attr_resistance_right.attr,
-	NULL,
-};
-
-static const struct attribute_group crus_sp_group = {
-	.attrs  = crus_sp_attrs,
-};
-
-static const struct attribute_group *crus_sp_groups[] = {
-	&crus_sp_group,
-	NULL,
-};
-
-static int msm_cirrus_playback_probe(struct platform_device *pdev)
-{
-	int i;
-
-	pr_info("CRUS_SP: initializing platform device\n");
-
-	crus_sp_usecase_dt_count = of_property_count_strings(pdev->dev.of_node,
-							     "usecase-names");
-	if (crus_sp_usecase_dt_count <= 0) {
-		dev_dbg(&pdev->dev, "Usecase names not found\n");
-		crus_sp_usecase_dt_count = 0;
-		return 0;
-	}
-
-	if ((crus_sp_usecase_dt_count > 0) &&
-	    (crus_sp_usecase_dt_count <= MAX_TUNING_CONFIGS))
-		of_property_read_string_array(pdev->dev.of_node,
-					      "usecase-names",
-					      crus_sp_usecase_dt_text,
-					      crus_sp_usecase_dt_count);
-	else if (crus_sp_usecase_dt_count > MAX_TUNING_CONFIGS) {
-		dev_err(&pdev->dev, "Max of %d usecase configs allowed\n",
-			MAX_TUNING_CONFIGS);
-		return -EINVAL;
-	}
-
-	for (i = 0; i < crus_sp_usecase_dt_count; i++)
-		pr_info("CRUS_SP: usecase[%d] = %s\n", i,
-			 crus_sp_usecase_dt_text[i]);
+	pr_info("CRUS %s\n", __func__);
+    
+    do {
+        string = '\x01';
+        monPass = (bool)atomic_read(&crus_gb_misc_usage_count);
+        
+        if (monPass) {
+            string = atomic_read(&crus_gb_misc_usage_count);
+            atomic_inc(&crus_gb_misc_usage_count);
+        }
+        
+    } while (string != '\0');
+    
+    pr_info("CRUS %s: done\n", __func__);
 
 	return 0;
-}
-
-static const struct of_device_id msm_cirrus_playback_dt_match[] = {
-	{.compatible = "cirrus,msm-cirrus-playback"},
-	{}
-};
-MODULE_DEVICE_TABLE(of, msm_cirrus_playback_dt_match);
-
-static struct platform_driver msm_cirrus_playback_driver = {
-	.driver = {
-		.name = "msm-cirrus-playback",
-		.owner = THIS_MODULE,
-		.of_match_table = msm_cirrus_playback_dt_match,
-	},
-	.probe = msm_cirrus_playback_probe,
 };
 
-static const struct file_operations crus_sp_fops = {
+static int crus_gb_release(struct inode *inode, struct file *f)
+{
+	char string;
+    bool monPass;
+
+	pr_info("CRUS %s\n", __func__);
+	
+    do {
+        string = '\x01';
+        monPass = (bool)atomic_read(&crus_gb_misc_usage_count);
+        
+        if (monPass) {
+            string = atomic_read(&crus_gb_misc_usage_count);
+            atomic_dec(&crus_gb_misc_usage_count);
+        }
+        
+    } while (string != '\0');
+    
+    pr_info("CRUS %s: ref count %d!\n", __func__, atomic_read(&crus_gb_misc_usage_count));
+
+	return 0;
+};
+
+static const struct file_operations crus_gb_fops = {
 	.owner = THIS_MODULE,
-	.open = crus_sp_open,
-	.release = crus_sp_release,
-	.unlocked_ioctl = crus_sp_ioctl,
-	.compat_ioctl = crus_sp_compat_ioctl,
+	.open = crus_gb_open,
+	.release = crus_gb_release,
+	.unlocked_ioctl = &crus_gb_ioctl,
 };
 
-struct miscdevice crus_sp_misc = {
+struct miscdevice crus_gb_misc = {
 	.minor = MISC_DYNAMIC_MINOR,
-	.name = "msm_cirrus_playback",
-	.fops = &crus_sp_fops,
+	.name = "CIRRUS_SPEAKER_PROTECTION",
+	.fops = &crus_gb_fops,
 };
 
-static int __init crus_sp_init(void)
+static int __init crus_gb_init(void)
 {
-	pr_info("CRUS_SP_INIT: initializing misc device\n");
-	atomic_set(&crus_sp_get_param_flag, 0);
-	atomic_set(&crus_sp_misc_usage_count, 0);
-	mutex_init(&crus_sp_get_param_lock);
-	mutex_init(&crus_sp_lock);
+    unsigned int pos, posSec;
+    int ret;
+    
+	pr_info("CRUS_GB_INIT: initializing misc device\n");
+	atomic_set(&crus_gb_get_param_flag, 0);
+	atomic_set(&crus_gb_misc_usage_count, 0);
+	mutex_init(&crus_gb_get_param_lock);
+	mutex_init(&crus_gb_lock);
 
-	misc_register(&crus_sp_misc);
+	ret = subsys_system_register(&opsl_virt_bus, 0);
+    if (ret == 0) {
+        ret = device_register(&opalum_virt);
+        if (ret != 0) {
+            dev_err(&opalum_virt, "opalum device register failed!\n");
+            return ret;
+        }
+    } else {
+        dev_err(&opalum_virt, "opalum sybsystem register failed!\n");
+        return ret;
+    }
+    
+    for (pos = 0; pos < 6; pos++) {
+        
+        ret = device_create_file(&opalum_virt, &opalum_dev_attr[pos]);
+        if (ret < 0) {
+            dev_err(&opalum_virt, "fail : node create, pos: %d\n", pos);
+            
+            for (posSec = pos; posSec >= 0; posSec--) 
+                device_remove_file(&opalum_virt, &opalum_dev_attr[posSec]);
+            
+            return ret;    
+        }    
+    }
+    
+    return 0;
+};
+module_init(crus_gb_init);
 
-	if (sysfs_create_groups(&crus_sp_misc.this_device->kobj,
-				crus_sp_groups))
-		pr_err("%s: Could not create sysfs groups\n", __func__);
-
-	return platform_driver_register(&msm_cirrus_playback_driver);
-}
-module_init(crus_sp_init);
-
-static void __exit crus_sp_exit(void)
+static void __exit crus_gb_exit(void)
 {
-	mutex_destroy(&crus_sp_get_param_lock);
-	mutex_destroy(&crus_sp_lock);
-
-	platform_driver_unregister(&msm_cirrus_playback_driver);
-}
-module_exit(crus_sp_exit);
+	mutex_destroy(&crus_gb_get_param_lock);
+	mutex_destroy(&crus_gb_lock);
+};
+module_exit(crus_gb_exit);

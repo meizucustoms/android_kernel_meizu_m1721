@@ -15,8 +15,10 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 
+#define CRUS_GB			        0x00A1AF00
 
-#define CIRRUS_SP			0x10027053
+
+#define CIRRUS_SP			    0x10027053
 #define CIRRUS_SP_ENABLE		0x10002001
 
 #define CRUS_MODULE_ID_TX		0x00000002
@@ -98,6 +100,13 @@
 	compat_uptr_t)
 
 struct crus_sp_ioctl_header {
+	uint32_t size;
+	uint32_t module_id;
+	uint32_t param_id;
+	uint32_t data_length;
+	void *data;
+};
+struct crus_gb_ioctl_header {
 	uint32_t size;
 	uint32_t module_id;
 	uint32_t param_id;
