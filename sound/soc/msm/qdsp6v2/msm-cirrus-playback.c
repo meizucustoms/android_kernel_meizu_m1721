@@ -55,9 +55,9 @@ static int crus_ambient;
 static int crus_count;
 static int crus_f0;
 static int crus_temp_acc;
-static int cirrus_fb_port_ctl;
-static int cirrus_fb_port = AFE_PORT_ID_QUATERNARY_TDM_TX;
-static int cirrus_ff_port = AFE_PORT_ID_QUATERNARY_TDM_RX;
+static int cirrus_fb_port_ctl = 4;
+static int cirrus_fb_port = 0x1007;
+static int cirrus_ff_port = 0x1006;
 
 static int crus_afe_get_param(int port, int module, int param, int length,
 			      void *data)
@@ -183,6 +183,8 @@ static int crus_afe_send_config(const char *data, int32_t module)
 	size_t chars_to_send;
 	struct afe_custom_crus_set_config_t *config;
 	
+    pr_info("%s: FBPORT: %d, FFPORT: %d", __func__, cirrus_fb_port, cirrus_ff_port);
+    
 	ffPort = cirrus_ff_port;
 	curPort = cirrus_fb_port;
 	chars_to_send = strlen(data);
@@ -291,6 +293,8 @@ int msm_routing_cirrus_fbport_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
 	cirrus_fb_port_ctl = ucontrol->value.integer.value[0];
+    
+    pr_info("CRUS FBPORT PUT ++");
 
 	switch (cirrus_fb_port_ctl) {
 	case 0:
@@ -318,7 +322,10 @@ int msm_routing_cirrus_fbport_put(struct snd_kcontrol *kcontrol,
 		cirrus_fb_port = 0x1007;
 		cirrus_ff_port = 0x1006;
 		break;
-	}
+	} 
+	
+	pr_info("%s: FBPORT: %d, FFPORT: %d", __func__, cirrus_fb_port, cirrus_ff_port);
+	
 	return 0;
 }
 
@@ -479,12 +486,12 @@ static ssize_t opsl_cali_start(struct device *dev,
 };
 
 static const struct device_attribute opalum_dev_attr[] = {
-	__ATTR("temp-acc", 0777, opsl_temp_acc_show, opsl_temp_acc_store),
-	__ATTR("count", 0777, opsl_count_show, opsl_count_store),
-	__ATTR("ambient", 0777, opsl_ambient_show, opsl_ambient_store),
-	__ATTR("f0", 0777, opsl_f0_show, opsl_f0_store),
-	__ATTR("pass", 0777, opsl_pass_show, NULL),
-	__ATTR("start", 0777, opsl_cali_start, NULL),
+	__ATTR("temp-acc", 0600, opsl_temp_acc_show, opsl_temp_acc_store),
+	__ATTR("count", 0600, opsl_count_show, opsl_count_store),
+	__ATTR("ambient", 0600, opsl_ambient_show, opsl_ambient_store),
+	__ATTR("f0", 0600, opsl_f0_show, opsl_f0_store),
+	__ATTR("pass", 0400, opsl_pass_show, NULL),
+	__ATTR("start", 0400, opsl_cali_start, NULL),
 };
 
 static struct bus_type opsl_virt_bus = {
@@ -541,28 +548,35 @@ static int msm_routing_crus_gb_enable(struct snd_kcontrol *kcontrol,
 static int cirrus_transfer_params(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol) {
     
+    int ret;
+    
     crus_set_cal_parametes.data1 = ucontrol->value.integer.value[0];
     crus_set_cal_parametes.data2 = ucontrol->value.integer.value[0] + 8;
-    crus_set_cal_parametes.data3 = ucontrol->value.integer.value[0] + 0x10;
+    crus_set_cal_parametes.data3 = ucontrol->value.integer.value[0] + 16;
     
     pr_info("CRUS PARAMS TRANSFER +++++++++++++  =%d, count=%d, ambient=%d \n", 
                     crus_set_cal_parametes.data1, 
                     crus_set_cal_parametes.data2, 
                     crus_set_cal_parametes.data3);
+    pr_info("%s: FBPORT: %d, FFPORT: %d", __func__, cirrus_fb_port, cirrus_ff_port);
     
-    if (((crus_set_cal_parametes.data1 - 0x50dc1 < 0x11f7f)
+  /*  if (((crus_set_cal_parametes.data1 - 0x50dc1 < 0x11f7f)
         && (crus_set_cal_parametes.data2 == 0x10))
-            && (crus_set_cal_parametes.data3 - 0x15 < 8)) {
+            && (crus_set_cal_parametes.data3 - 0x15 < 8)) {*/
         
-        crus_afe_set_param(cirrus_ff_port, CRUS_GB, 0xa1af08, 0xc, &crus_set_cal_parametes);
+        ret = crus_afe_set_param(cirrus_ff_port, 0xa1af00, 0xa1af08, 0xc, &crus_set_cal_parametes);
+        if (ret != 0) {
+            pr_err("%s: crus_afe_set_param error!", __func__);
+            return ret;
+        }
         return 0;
-    } else {
+   /* } else {
         pr_err("CRUS wrong range for temp-acc=%d, count=%d, ambient=%d \n",
             crus_set_cal_parametes.data1,
             crus_set_cal_parametes.data2,
             crus_set_cal_parametes.data3);
         return 1;
-    } 
+    } */
 };
 
 static int msm_routing_crus_gb_config(struct snd_kcontrol *kcontrol, struct snd_ctl_elem_value *ucontrol)
@@ -572,6 +586,7 @@ static int msm_routing_crus_gb_config(struct snd_kcontrol *kcontrol, struct snd_
     crus_config_set = crus_set;
     
     pr_info("Starting CRUS GB Config function call %d\n", crus_set);
+    pr_info("%s: FBPORT: %d, FFPORT: %d", __func__, cirrus_fb_port, cirrus_ff_port);
     
     switch (crus_set) {
     case 0:
@@ -662,6 +677,7 @@ static int msm_routing_crus_ext_config(struct snd_kcontrol *kcontrol,
     
     crus_ext_config_set = crus_set;
     pr_info("Starting CRUS GB EXT Config function call %d\n", crus_set);
+    pr_info("%s: FBPORT: %d, FFPORT: %d", __func__, cirrus_fb_port, cirrus_ff_port);
     
     switch (crus_set) {
     case 0:
@@ -793,6 +809,7 @@ static int msm_routing_crus_gb_enable_get(struct snd_kcontrol *kcontrol,
 	int crus_set = ucontrol->value.integer.value[0];
     
 	pr_info("Starting CRUS GB Enable Get function call\n");
+    pr_info("CRUS_GB_ENABLE : %d\n", crus_gb_enable);
 
 	crus_set = crus_gb_enable;
     return 0;
@@ -801,7 +818,8 @@ static int msm_routing_crus_gb_enable_get(struct snd_kcontrol *kcontrol,
 static int msm_routing_crus_gb_config_get(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	pr_debug("Starting CRUS GB EXT Config Get function call\n");
+	pr_info("Starting CRUS GB EXT Config Get function call\n");
+    pr_info("CRUS_CONFIG_SET : %d\n", crus_config_set);
 	ucontrol->value.integer.value[0] = crus_config_set;
 
 	return 0;
@@ -810,8 +828,10 @@ static int msm_routing_crus_gb_config_get(struct snd_kcontrol *kcontrol,
 static int msm_routing_crus_ext_config_get(struct snd_kcontrol *kcontrol,
 					    struct snd_ctl_elem_value *ucontrol)
 {
-	pr_debug("Starting CRUS GB Config Get function call\n");
+	pr_info("Starting CRUS GB Config Get function call\n");
+	pr_info("CRUS_EXT_CONFIG_SET : %d\n", crus_ext_config_set);
 	ucontrol->value.integer.value[0] = crus_ext_config_set;
+    
 
 	return 0;
 };
@@ -828,7 +848,7 @@ static const char * const crus_en_text[] = {"Config GB Disable",
 static const char * const crus_gb_text[] = {"Path_for_Music",
                             "Run Diag",
                             "Set Temp Cal",
-                            "Set Current Temp",
+                            "Get Current Temp",
                             "Set Fo Cal",
                             "Path_for_Voice",
                             "Path_for_Dolby"};
@@ -861,20 +881,21 @@ static const struct snd_kcontrol_new crus_mixer_controls[] = {
 	msm_routing_crus_gb_enable_get, msm_routing_crus_gb_enable),
 	SOC_ENUM_EXT("CIRRUS GB CONFIG", crus_gb_enum[0],
 	msm_routing_crus_gb_config_get, msm_routing_crus_gb_config),
-    SOC_ENUM_EXT("CIRRUS EXT CONFIG", crus_ext_enum[0],
+    SOC_ENUM_EXT("CIRRUS GB EXT CONFIG", crus_ext_enum[0],
 	msm_routing_crus_ext_config_get, msm_routing_crus_ext_config),
-	SOC_SINGLE_MULTI_EXT("CIRRUS_TRANSFER_PARAMS", SND_SOC_NOPM, 0,
-	0xFFFF, 0, 4, cirrus_transfer_params, NULL),
+	SOC_SINGLE_MULTI_EXT("CIRRUS_TRANSFER_PARAMS", 0xFFFFFFFF, 0,
+	0xFFFF, 0, 3, cirrus_transfer_params, NULL),
 };
 
 void msm_crus_pb_add_controls(struct snd_soc_platform *platform)
 {
     crus_gb_device = platform->dev;
+    pr_info("%s: FBPORT: %d, FFPORT: %d", __func__, cirrus_fb_port, cirrus_ff_port);
     
     if (crus_gb_device == 0) {
         pr_err("CRUS %s: platform->dev is NULL!\n", __func__);
     } else {
-        pr_info("CRUS %s: platform->dev check success!\n", __func__);
+        pr_info("CRUS %s: platform->dev = %s\n", __func__, (char *)crus_gb_device);
     }
     
     snd_soc_add_platform_controls(platform, crus_mixer_controls, 5);
@@ -891,6 +912,7 @@ static long crus_gb_shared_ioctl(struct file *f, unsigned int cmd,
     void *data = NULL;
 
 	pr_info("CRUS %s ++\n", __func__);
+    pr_info("%s: FBPORT: %d, FFPORT: %d", __func__, cirrus_fb_port, cirrus_ff_port);
 
     if (arg == 0) {
         pr_err("CRUS %s: No data sent to driver!\n", __func__);
@@ -1051,7 +1073,7 @@ static int __init crus_gb_init(void)
     unsigned int pos, posSec;
     int ret;
     
-	pr_info("CRUS_GB_INIT: initializing misc device\n");
+	pr_info("CRUS_GB_INIT: initializing opalum devices\n");
 	atomic_set(&crus_gb_get_param_flag, 0);
 	atomic_set(&crus_gb_misc_usage_count, 0);
 	mutex_init(&crus_gb_get_param_lock);
