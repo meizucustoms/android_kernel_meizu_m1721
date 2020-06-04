@@ -80,9 +80,6 @@ struct cirrus_cal_result_t {
 #define APR_CHUNK_SIZE		256
 #define CONFIG_FILE_SIZE	128
 #define PAYLOAD_FOLLOWS_CONFIG	4
-#define MAX_TUNING_CONFIGS	4
-#define MIN_CHAN_SWAP_SAMPLES	48
-#define MAX_CHAN_SWAP_SAMPLES	9600
 
 /* Payload struct for sending an external configuration string to the DSP
  * module
@@ -91,19 +88,6 @@ struct crus_external_config_t {
 	uint32_t total_size;
 	uint32_t chunk_size;
 	int32_t done;
-	int32_t reserved;
-	int32_t config;
-	char data[APR_CHUNK_SIZE];
-};
-
-/* Payload struct for sending an external tuning transition string to the DSP
- * module
- */
-struct crus_delta_config_t {
-	uint32_t total_size;
-	uint32_t chunk_size;
-	int32_t done;
-	int32_t index;
 	int32_t reserved;
 	int32_t config;
 	char data[APR_CHUNK_SIZE];

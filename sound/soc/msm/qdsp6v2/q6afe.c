@@ -679,10 +679,10 @@ static int afe_apr_send_pkt(void *data, wait_queue_head_t *wait)
 #ifdef CONFIG_CIRRUS_PLAYBACK
 extern int afe_apr_send_pkt_crus(void *data, int index, int set)
 {
-	if (set)
-		return afe_apr_send_pkt(data, &this_afe.wait[index]);
-	else /* get */
-		return afe_apr_send_pkt(data, 0);
+    if (!set)
+        return afe_apr_send_pkt(data, 0);
+    else
+        return afe_apr_send_pkt(data, &this_afe.wait[index]);
 }
 #endif
 
