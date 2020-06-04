@@ -187,6 +187,9 @@ static int crus_afe_get_param(int port, int module, int param, int length,
 		}
 	}
 
+	pr_info("CRUS CRUS_AFE_GET_PARAM: returned data = [4]: %d, [5]: %d\n",
+               crus_gb_get_buffer[4], crus_gb_get_buffer[5]);
+	
 	/* Copy from dynamic buffer to return buffer */
 	memcpy((u8 *)data, &crus_gb_get_buffer[4], length);
 
@@ -322,6 +325,7 @@ extern int crus_afe_callback(void *payload, int size)
 		atomic_set(&crus_gb_get_param_flag, 1);
 		break;
 	default:
+        pr_err("Cirrus AFE CALLBACK: ERROR: Invalid module parameter: %d", payload32[1]);
 		return -EINVAL;
 	}
 
@@ -340,6 +344,7 @@ int msm_routing_cirrus_fbport_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
     cirrus_fb_port_ctl.value = ucontrol->value.integer.value[0];
+    pr_info("CRUS %s: cirrus_fb_port_ctl = %d", __func__, cirrus_fb_port_ctl.value);
     
     switch (cirrus_fb_port_ctl.value) {
     case 0:
@@ -374,6 +379,8 @@ static int msm_routing_crus_gb_enable(struct snd_kcontrol *kcontrol,
 				      struct snd_ctl_elem_value *ucontrol)
 {
 	const int crus_set = ucontrol->value.integer.value[0];
+    
+    pr_info("CRUS %s: crus_set = %d", __func__, crus_set);
 
 	if (crus_set > 255) {
 		pr_err("Cirrus GB Enable: Invalid entry; Enter 0 to DISABLE, 1 to ENABLE\n");
@@ -416,6 +423,8 @@ static int msm_routing_crus_gb_enable_get(struct snd_kcontrol *kcontrol,
 					  struct snd_ctl_elem_value *ucontrol)
 {
 	pr_info("Starting Cirrus GB Enable Get function call, crus_gb_enable = %d\n", crus_gb_enable);
+    
+    pr_info("CRUS %s: crus_gb_enable = %d", __func__, crus_gb_enable);
     
     ucontrol->value.integer.value[0] = crus_gb_enable;
 
@@ -536,6 +545,7 @@ static int msm_routing_crus_gb_config_get(struct snd_kcontrol *kcontrol,
 {
 	pr_info("Starting Cirrus GB Config Get function call\n");
 	ucontrol->value.integer.value[0] = crus_config_set;
+    pr_info("CRUS %s: crus_config_set = %d", __func__, crus_config_set);
 
 	return 0;
 }
@@ -652,6 +662,8 @@ static int msm_routing_crus_ext_config_get(struct snd_kcontrol *kcontrol,
 {
 	pr_info("Starting Cirrus GB External Config Get function call\n");
 	ucontrol->value.integer.value[0] = crus_ext_config_set;
+    
+    pr_info("CRUS %s: crus_ext_config_set = %d", __func__, crus_ext_config_set);
 
 	return 0;
 }
@@ -659,6 +671,8 @@ static int msm_routing_crus_ext_config_get(struct snd_kcontrol *kcontrol,
 static int cirrus_transfer_params(struct snd_kcontrol *kcontrol, 
                         struct snd_ctl_elem_value *ucontrol)
 {
+    pr_info("CRUS %s: transfer_params_value = %d", __func__, ucontrol->value.integer.value[0];);
+    
     crus_set_cal_parametes.data1 = ucontrol->value.integer.value[0];
     crus_set_cal_parametes.data2 = ucontrol->value.integer.value[0] + 8;
     crus_set_cal_parametes.data3 = ucontrol->value.integer.value[0] + 0x10;
@@ -1020,12 +1034,12 @@ static ssize_t opsl_cali_start(struct device *dev,
 }
 
 static const struct device_attribute opalum_dev_attr[] = {
-	__ATTR("temp-acc", 0600, opsl_temp_acc_show, opsl_temp_acc_store),
-	__ATTR("count", 0600, opsl_count_show, opsl_count_store),
-	__ATTR("ambient", 0600, opsl_ambient_show, opsl_ambient_store),
-	__ATTR("f0", 0600, opsl_f0_show, opsl_f0_store),
-	__ATTR("pass", 0400, opsl_pass_show, NULL),
-	__ATTR("start", 0400, opsl_cali_start, NULL),
+	__ATTR(temp-acc, 0600, opsl_temp_acc_show, opsl_temp_acc_store),
+	__ATTR(count, 0600, opsl_count_show, opsl_count_store),
+	__ATTR(ambient, 0600, opsl_ambient_show, opsl_ambient_store),
+	__ATTR(f0, 0600, opsl_f0_show, opsl_f0_store),
+	__ATTR(pass, 0400, opsl_pass_show, NULL),
+	__ATTR(start, 0400, opsl_cali_start, NULL),
 };
 
 static struct bus_type opal_virt_bus = {
