@@ -671,7 +671,7 @@ static int msm_routing_crus_ext_config_get(struct snd_kcontrol *kcontrol,
 static int cirrus_transfer_params(struct snd_kcontrol *kcontrol, 
                         struct snd_ctl_elem_value *ucontrol)
 {
-    pr_info("CRUS %s: transfer_params_value = %d", __func__, ucontrol->value.integer.value[0];);
+    pr_info("CRUS %s: transfer_params_value = %ld", __func__, ucontrol->value.integer.value[0]);
     
     crus_set_cal_parametes.data1 = ucontrol->value.integer.value[0];
     crus_set_cal_parametes.data2 = ucontrol->value.integer.value[0] + 8;
@@ -1133,6 +1133,7 @@ static int __init crus_gb_init(void)
     }
     
     pr_info("CRUS_GB_INIT: Opalum successfully started! Last exit code: %d\n", ret);
+    pr_info("CRUS_GB_INIT: expecting new steps from mmi_speaker_calibration!\n");
     return 0;
 }
 module_init(crus_gb_init);
