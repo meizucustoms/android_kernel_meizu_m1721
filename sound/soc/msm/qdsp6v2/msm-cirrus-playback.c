@@ -674,33 +674,29 @@ static int cirrus_transfer_params(struct snd_kcontrol *kcontrol,
     pr_info("CRUS %s: transfer_params_value = %ld", __func__, ucontrol->value.integer.value[0]);
     
     crus_set_cal_parametes.data1 = ucontrol->value.integer.value[0];
-    crus_set_cal_parametes.data2 = ucontrol->value.integer.value[0] + 8;
-    crus_set_cal_parametes.data3 = ucontrol->value.integer.value[0] + 0x10;
+    crus_set_cal_parametes.data2 = ucontrol->value.integer.value[1];
+    crus_set_cal_parametes.data3 = ucontrol->value.integer.value[2];
     
     pr_info("CRUS PARAMS TRANSFER +++++++++++++  =%d, count=%d, ambient=%d \n",
         crus_set_cal_parametes.data1,
         crus_set_cal_parametes.data2,
         crus_set_cal_parametes.data3);
     
-    if (((crus_set_cal_parametes.data1 - 0x50dc1U < 0x11f7f) &&
-        (crus_set_cal_parametes.data2 == 0x10)) && 
-        (crus_set_cal_parametes.data3 - 0x15U < 8)) {
-        
-        crus_afe_set_param(cirrus_ff_port, CIRRUS_GB_FFPORT,
-                           CRUS_PARAM_SET_TEMP_CAL,
-                           sizeof(struct crus_triple_data_t),
-                           &crus_set_cal_parametes);
-    
-        return 0;
-    } else {
+    if ( (crus_set_cal_parametes.data1 - 331201) > 73598
+        || crus_set_cal_parametes.data2 != 16
+        || (crus_set_cal_parametes.data3 - 21) > 7 ) {
         pr_info("CRUS wrong range for temp-acc=%d, count=%d, ambient=%d \n",
             crus_set_cal_parametes.data1,
             crus_set_cal_parametes.data2,
             crus_set_cal_parametes.data3);
         return 1;
+    } else {
+        crus_afe_set_param(cirrus_ff_port, CIRRUS_GB_FFPORT,
+                           CRUS_PARAM_SET_TEMP_CAL,
+                           sizeof(struct crus_triple_data_t),
+                           &crus_set_cal_parametes);
+        return 0;
     }
-    
-    return 0;
 }
 
 static const char * const cirrus_fb_port_text[] = {"PRI_MI2S_RX",

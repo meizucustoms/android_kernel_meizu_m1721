@@ -129,44 +129,43 @@ static struct platform_driver spk_proinfo_pdrv = {
 
 static int __init spk_proinfo_init(void)
 {
-    int result = 0;
     int ret = 0;
-    const struct platform_device_info pdevinfo = {
-        .name = "spk_proinfo",
-        .id = 0xffffffff,
-    };
+    struct platform_device_info pdevinfo;
     
-    pr_info("SPK_PROINFO_INIT: enable driver nodes\n");
-    result = platform_driver_register(&spk_proinfo_pdrv);
-    if (result != 0)
-        pr_err("SPK_PROINFO_INIT: FAILED TO REGISTER DRIVER!\n");
-        return result;
-
-    spk_proinfo_pdev = platform_device_register_full(&pdevinfo);
-    if (IS_ERR(spk_proinfo_pdev)) {
-        pr_err("SPK_PROINFO_INIT: ERROR REGISTERING PLATFORM DEVICE!\n");
-        platform_device_unregister(spk_proinfo_pdev);
-        return -EINVAL;
+    ret = __platform_driver_register(&spk_proinfo_pdrv, 0);
+    if (ret == 0) {
+        pdevinfo.parent = 0;
+        pdevinfo.res = 0;
+        pdevinfo.num_res = 0;
+        pdevinfo.data = 0;
+        pdevinfo.size_data = 0;
+        pdevinfo.dma_mask = 0;
+        pdevinfo.name = "spk_proinfo";
+        pdevinfo.id = -1;
+        
+        spk_proinfo_pdev = platform_device_register_full(&pdevinfo);
+        if ( (uint64_t)spk_proinfo_pdev > 0xFFFFFFFFFFFFF000LL ) {
+            platform_driver_unregister(&spk_proinfo_pdrv);
+            return -1;
+        }
+        
+        spk_proinfo_root_dev = __root_device_register("spk_proinfo", 0);
+        if ( (uint64_t)spk_proinfo_root_dev > 0xFFFFFFFFFFFFF000LL ) {
+            platform_device_unregister(spk_proinfo_pdev);
+            platform_driver_unregister(&spk_proinfo_pdrv);
+            return -1;
+        }
+        
+        ret = device_create_file(spk_proinfo_root_dev, dev_attr_spk_cali);
+        if (ret != 0) {
+            root_device_unregister(spk_proinfo_root_dev);
+            platform_device_unregister(spk_proinfo_pdev);
+            platform_driver_unregister(&spk_proinfo_pdrv);
+            return ret;
+        }
+        ret = 0;
     }
-    
-    spk_proinfo_root_dev = root_device_register("spk_proinfo");
-    if (IS_ERR(spk_proinfo_root_dev)) {
-        pr_err("SPK_PROINFO_INIT: ERROR REGISTERING ROOT DEVICE!\n");
-        platform_device_unregister(spk_proinfo_pdev);
-        platform_driver_unregister(&spk_proinfo_pdrv);
-        return -EINVAL;
-    }
-    
-    ret = device_create_file(spk_proinfo_root_dev, dev_attr_spk_cali);
-    if (ret != 0) {
-        pr_err("SPK_PROINFO_INIT: ERROR CREATING DEVICE NODE!\n");
-        platform_device_unregister(spk_proinfo_pdev);
-        platform_driver_unregister(&spk_proinfo_pdrv);
-        root_device_unregister(spk_proinfo_root_dev);
-        return ret;
-    }
-    
-    return 0;
+    return ret;
 }
 module_init(spk_proinfo_init);
 

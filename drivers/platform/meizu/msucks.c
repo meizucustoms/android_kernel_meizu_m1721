@@ -21,7 +21,7 @@ static int __init msucks_init(void)
     pr_info("msucks: msucks device: Meizu M6 Note (m1721)\n");
 	pr_info("msucks: msucks device codename: msucks-m1721\n");
 	pr_info("msucks: msucks kernel version: MSPKr29\n");
-	pr_info("msucks: msucks maintaner: Teledurak\n");
+	pr_info("msucks: msucks maintainer: Teledurak\n");
     return 0;
 }
 module_init(msucks_init);
