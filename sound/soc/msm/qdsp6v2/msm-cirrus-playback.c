@@ -28,7 +28,6 @@ static struct device *crus_gb_device;
 static atomic_t crus_gb_misc_usage_count;
 
 static struct crus_single_data_t crus_enable;
-static struct crus_single_data_t cirrus_fb_port_ctl;
 static struct crus_dual_data_t crus_excursion;
 static struct crus_dual_data_t crus_current_temp;
 static struct crus_triple_data_t crus_temp_cal;
@@ -39,7 +38,8 @@ static int32_t *crus_gb_get_buffer;
 static atomic_t crus_gb_get_param_flag;
 struct mutex crus_gb_get_param_lock;
 struct mutex crus_gb_lock;
-static unsigned int crus_pass;
+static int crus_pass;
+static int cirrus_fb_port_ctl;
 static int crus_ext_config_set;
 static int crus_config_set;
 static int crus_gb_enable;
@@ -114,17 +114,16 @@ static void *crus_gen_afe_set_header(int length, int port, int module,
 		return NULL;
 
 	/* Set header section */
-	config->hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
-					APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
+	config->hdr.hdr_field = 592;
 	config->hdr.pkt_size = size;
-	config->hdr.src_svc = APR_SVC_AFE;
-	config->hdr.src_domain = APR_DOMAIN_APPS;
+	config->hdr.src_svc = 4;
+	config->hdr.src_domain = 5;
 	config->hdr.src_port = 0;
-	config->hdr.dest_svc = APR_SVC_AFE;
-	config->hdr.dest_domain = APR_DOMAIN_ADSP;
+	config->hdr.dest_svc = 4;
+	config->hdr.dest_domain = 4;
 	config->hdr.dest_port = 0;
 	config->hdr.token = index;
-	config->hdr.opcode = AFE_PORT_CMD_SET_PARAM_V2;
+	config->hdr.opcode = 65775;
 
 	/* Set param section */
 	config->param.port_id = (uint16_t) port;
@@ -149,7 +148,7 @@ static int crus_afe_get_param(int port, int module, int param, int length,
 {
 	struct afe_custom_crus_get_config_t *config = NULL;
 	int index = afe_get_port_index(port);
-	int ret = 0, count = 0;
+	int ret = 0;
 
 	pr_info("%s: port = %d module = %d param = 0x%x length = %d\n",
 		__func__, port, module, param, length);
@@ -178,14 +177,8 @@ static int crus_afe_get_param(int port, int module, int param, int length,
 			__func__, param, module);
 
 	/* Wait for afe callback to populate data */
-	while (!atomic_read(&crus_gb_get_param_flag)) {
-		usleep_range(800, 1200);
-		if (count++ >= 1000) {
-			pr_err("%s: AFE callback timeout\n", __func__);
-			atomic_set(&crus_gb_get_param_flag, 1);
-			return -EINVAL;
-		}
-	}
+	while (!atomic_read(&crus_gb_get_param_flag))
+		msleep(1);
 
 	pr_info("CRUS CRUS_AFE_GET_PARAM: returned data = [4]: %d, [5]: %d\n",
                crus_gb_get_buffer[4], crus_gb_get_buffer[5]);
@@ -201,24 +194,24 @@ static int crus_afe_get_param(int port, int module, int param, int length,
 	return ret;
 }
 
-static int crus_afe_set_param(int port, int module, int param, int length,
+static int crus_afe_set_param(int port, int module, int param, int data_size,
 			      void *data_ptr)
 {
 	struct afe_custom_crus_set_config_t *config = NULL;
 	int index = afe_get_port_index(port);
 	int ret = 0;
 
-	pr_info("%s: port = %d module = %d param = 0x%x length = %d\n",
-		__func__, port, module, param, length);
+	pr_info("%s: port = %d module = %d param = 0x%x data_size = %d\n",
+		__func__, port, module, param, data_size);
 
-	config = crus_gen_afe_set_header(length, port, module, param);
+	config = crus_gen_afe_set_header(data_size, port, module, param);
 	if (config == NULL) {
 		pr_err("%s: Memory allocation failed!\n", __func__);
 		return -ENOMEM;
 	}
 
 	memcpy((u8 *)config + sizeof(struct afe_custom_crus_set_config_t),
-	       (u8 *) data_ptr, length);
+	       (u8 *) data_ptr, data_size);
 
 	pr_info("%s: Preparing to send apr packet.\n", __func__);
 
@@ -335,18 +328,18 @@ extern int crus_afe_callback(void *payload, int size)
 int msm_routing_cirrus_fbport_get(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-	pr_info("CRUS %s: cirrus_fb_port_ctl = %d", __func__, cirrus_fb_port_ctl.value);
-	ucontrol->value.integer.value[0] = cirrus_fb_port_ctl.value;
+	pr_info("CRUS %s: cirrus_fb_port_ctl = %d", __func__, cirrus_fb_port_ctl);
+	ucontrol->value.integer.value[0] = cirrus_fb_port_ctl;
 	return 0;
 }
 
 int msm_routing_cirrus_fbport_put(struct snd_kcontrol *kcontrol,
 					struct snd_ctl_elem_value *ucontrol)
 {
-    cirrus_fb_port_ctl.value = ucontrol->value.integer.value[0];
-    pr_info("CRUS %s: cirrus_fb_port_ctl = %d", __func__, cirrus_fb_port_ctl.value);
+    cirrus_fb_port_ctl = ucontrol->value.integer.value[0];
+    pr_info("CRUS %s: cirrus_fb_port_ctl = %d", __func__, cirrus_fb_port_ctl);
     
-    switch (cirrus_fb_port_ctl.value) {
+    switch (cirrus_fb_port_ctl) {
     case 0:
         cirrus_fb_port = 0x1001;
         cirrus_ff_port = 0x1000;
@@ -368,7 +361,7 @@ int msm_routing_cirrus_fbport_put(struct snd_kcontrol *kcontrol,
         cirrus_ff_port = 0x1016;
         break;
     default:
-        cirrus_fb_port_ctl.value = 4;
+        cirrus_fb_port_ctl = 4;
         cirrus_fb_port = 0x1017;
         cirrus_ff_port = 0x1016;
     }
@@ -873,64 +866,48 @@ struct miscdevice crus_gb_misc = {
 static ssize_t opsl_pass_show(struct device *dev,
                 struct device_attribute *attr, char *buf)
 {
-    ssize_t ret;
-    
     pr_info("CRUS opalum enter %s\n", __func__);
-    ret = sprintf(buf, "%d", crus_pass);
-    return ret;
+    return sprintf(buf, "%d\n", crus_pass);
 }
 
 static ssize_t opsl_f0_show(struct device *dev,
                 struct device_attribute *attr, char *buf)
 {
-    ssize_t ret;
-    
     pr_info("CRUS opalum enter %s\n", __func__);
-    ret = sprintf(buf, "%d", crus_f0);
-    return ret;
+    return sprintf(buf, "%d\n", crus_f0);
 }
 
 static ssize_t opsl_ambient_show(struct device *dev,
                 struct device_attribute *attr, char *buf)
 {
-    ssize_t ret;
-    
     pr_info("CRUS opalum enter %s\n", __func__);
-    ret = sprintf(buf, "%d", crus_ambient);
-    return ret;
+    return sprintf(buf, "%d\n", crus_ambient);
 }
 
 static ssize_t opsl_count_show(struct device *dev,
                 struct device_attribute *attr, char *buf)
 {
-    ssize_t ret;
-    
     pr_info("CRUS opalum enter %s\n", __func__);
-    ret = sprintf(buf, "%d", crus_count);
-    return ret;
+    return sprintf(buf, "%d\n", crus_count);
 }
 
 static ssize_t opsl_temp_acc_show(struct device *dev,
                 struct device_attribute *attr, char *buf)
 {
-    ssize_t ret;
-    
     pr_info("CRUS opalum enter %s\n", __func__);
-    ret = sprintf(buf, "%d", crus_temp_acc);
-    return ret;
+    return sprintf(buf, "%d\n", crus_temp_acc);
 }
 
 static ssize_t opsl_f0_store(struct device *dev,
 					struct device_attribute *attr, const char *buf,
 					size_t count)
 {
-	ssize_t ret;
-	int newVarData;
+	int data;
+    ssize_t ret = -22LL;
 	
-	ret = 0xffffffffffffffea;
-	if (kstrtoint(buf, 0, &newVarData)) {
-		crus_f0 = newVarData;
-		pr_info("CRUS set f0 to %d\n", newVarData);
+	if (kstrtoint(buf, 0, &data)) {
+		crus_f0 = data;
+		pr_info("CRUS set f0 to %d\n", data);
 		ret = count;
 	}
 	return ret;
@@ -939,13 +916,12 @@ static ssize_t opsl_ambient_store(struct device *dev,
 					struct device_attribute *attr, const char *buf,
 					size_t count)
 {
-	ssize_t ret;
-	int newVarData;
+	int data;
+    ssize_t ret = -22LL;
 	
-	ret = 0xffffffffffffffea;
-	if (kstrtoint(buf, 0, &newVarData)) {
-		crus_ambient = newVarData;
-		pr_info("CRUS %s:set ambient temperature to  %d\n", __func__, newVarData);
+	if (kstrtoint(buf, 0, &data)) {
+		crus_ambient = data;
+		pr_info("CRUS %s: set ambient temperature to %d\n", __func__, data);
 		ret = count;
 	}
 	return ret;
@@ -954,13 +930,12 @@ static ssize_t opsl_count_store(struct device *dev,
 					struct device_attribute *attr, const char *buf,
 					size_t count)
 {
-	ssize_t ret;
-	int newVarData;
+	int data;
+    ssize_t ret = -22LL;
 	
-	ret = 0xffffffffffffffea;
-	if (kstrtoint(buf, 0, &newVarData)) {
-		crus_count = newVarData;
-		pr_info("CRUS set count to %d\n", newVarData);
+	if (kstrtoint(buf, 0, &data)) {
+		crus_count = data;
+		pr_info("CRUS set count to %d\n", data);
 		ret = count;
 	}
 	return ret;
@@ -969,13 +944,12 @@ static ssize_t opsl_temp_acc_store(struct device *dev,
 					struct device_attribute *attr, const char *buf,
 					size_t count)
 {
-	ssize_t ret;
-	int newVarData;
+	int data;
+    ssize_t ret = -22LL;
 	
-	ret = 0xffffffffffffffea;
-	if (kstrtoint(buf, 0, &newVarData)) {
-		crus_temp_acc = newVarData;
-		pr_info("CRUS set temp acc to %d\n", newVarData);
+	if (kstrtoint(buf, 0, &data)) {
+		crus_temp_acc = data;
+		pr_info("CRUS set temp acc to %d\n", data);
 		ret = count;
 	}
 	return ret;
