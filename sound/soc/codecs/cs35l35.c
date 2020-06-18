@@ -41,6 +41,10 @@
 
 #include "cs35l35.h"
 
+static int debug_freq;
+static int debug_clk_id;
+static int debug_clksrc;
+
 static const struct reg_default cs35l35_reg[] = {
 	{CS35L35_PWRCTL1,		0x01},
 	{CS35L35_PWRCTL2,		0x11},
@@ -469,6 +473,8 @@ static int cs35l35_get_clk_config(int sysclk, int srate)
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(cs35l35_clk_ctl); i++) {
+        printk("%s: pos = %d, sysclk_func = %d, sysclk = %d, srate_func = %d, srate = %d\n",
+            __func__, i, sysclk, cs35l35_clk_ctl[i].sysclk, srate, cs35l35_clk_ctl[i].srate);
 		if (cs35l35_clk_ctl[i].sysclk == sysclk &&
 			cs35l35_clk_ctl[i].srate == srate)
 			return cs35l35_clk_ctl[i].clk_cfg;
@@ -488,6 +494,10 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 	int audin_format;
 
 	int clk_ctl = cs35l35_get_clk_config(cs35l35->sysclk, srate);
+    
+    cs35l35->sysclk = 26000000;
+    
+    printk("cs35l35_codec_set_sysclk: variables; clk_id = %d, freq = %d, clksrc = %d\n", debug_clk_id, debug_freq, debug_clksrc);
 
 	if (clk_ctl < 0) {
 		dev_err(codec->dev, "Invalid CLK:Rate %d:%d\n",
@@ -722,6 +732,10 @@ static int cs35l35_codec_set_sysclk(struct snd_soc_codec *codec,
 		dev_err(codec->dev, "Invalid CLK Source\n");
 		return -EINVAL;
 	}
+	
+	debug_clk_id = clk_id;
+    debug_clksrc = clksrc;
+    debug_freq = freq;
 
 	switch (freq) {
 	case 5644800:
@@ -1535,6 +1549,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 			"%s: Register codec failed\n", __func__);
 		goto err;
 	}
+	
+	printk("cs35l35_register: ret = %d", ret);
 
 err:
 	regulator_bulk_disable(cs35l35->num_supplies,

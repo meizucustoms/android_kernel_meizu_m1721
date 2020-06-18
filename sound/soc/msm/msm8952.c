@@ -75,6 +75,11 @@ static atomic_t auxpcm_mi2s_clk_ref;
 /*struct mutex l35_mclk_mutex;
 static atomic_t l35_mclk_rsc_ref;*/
 
+//
+// MEIZU changes: cs35l35 init from ass
+//
+static atomic_t quat_mi2s_rsc_ref;
+
 static int msm8952_enable_dig_cdc_clk(struct snd_soc_codec *codec, int enable,
 					bool dapm);
 static bool msm8952_swap_gnd_mic(struct snd_soc_codec *codec);
@@ -163,14 +168,27 @@ static struct afe_clk_set wsa_ana_clk = {
 	0,
 };
 
-/*static struct afe_clk_set l35_ana_clk = {
+//
+// MEIZU changes: clocks for cs35l35
+//
+
+static struct afe_clk_set mi2s_osr_clk = {
 	AFE_API_VERSION_I2S_CONFIG,
 	Q6AFE_LPASS_CLK_ID_MCLK_2,
 	Q6AFE_LPASS_OSR_CLK_12_P288_MHZ,
 	Q6AFE_LPASS_CLK_ATTRIBUTE_COUPLE_NO,
 	Q6AFE_LPASS_CLK_ROOT_DEFAULT,
 	0,
-};*/
+};
+
+static struct afe_clk_set mi2s_sclk_clk = {
+	AFE_API_VERSION_I2S_CONFIG,
+	Q6AFE_LPASS_CLK_ID_QUAD_MI2S_IBIT,
+	Q6AFE_LPASS_OSR_CLK_1_P536_MHZ,
+	Q6AFE_LPASS_CLK_ATTRIBUTE_COUPLE_NO,
+	Q6AFE_LPASS_CLK_ROOT_DEFAULT,
+	0,
+};
 
 static char const *rx_bit_format_text[] = {"S16_LE", "S24_LE", "S24_3LE"};
 static const char *const mi2s_ch_text[] = {"One", "Two"};
@@ -1384,6 +1402,9 @@ static void msm_sec_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
 				substream->name, substream->stream);
+    
+    
+    
 	if ((pdata->ext_pa & SEC_MI2S_ID) == SEC_MI2S_ID) {
 		ret = msm_gpioset_suspend(CLIENT_WCD_INT, "sec_i2s");
 		if (ret < 0) {
@@ -1402,52 +1423,107 @@ static int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_card *card = rtd->card;
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
+    struct snd_soc_dai *codec_dai = rtd->codec_dai;
+    struct snd_soc_codec *codec = codec_dai->codec;
 	struct msm8916_asoc_mach_data *pdata =
 			snd_soc_card_get_drvdata(card);
 	int ret = 0, val = 0;
-
-	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
-				substream->name, substream->stream);
+    u16 port_id;
+    
+    // Get port state
+    if (substream->stream)
+        port_id = AFE_PORT_ID_SECONDARY_MI2S_TX;
+    else
+        port_id = AFE_PORT_ID_SECONDARY_MI2S_RX;
+    
+	pr_info("%s(): substream = %s  stream = %d, ref_count = %d\n", __func__,
+				substream->name, substream->stream, atomic_read(&quat_mi2s_rsc_ref));
+    
 	if (pdata->vaddr_gpio_mux_mic_ctl) {
 		val = ioread32(pdata->vaddr_gpio_mux_mic_ctl);
 		val = val | 0x02020002;
 		iowrite32(val, pdata->vaddr_gpio_mux_mic_ctl);
 	}
-	ret = msm_mi2s_sclk_ctl(substream, true);
+    
+    if (atomic_inc_return(&quat_mi2s_rsc_ref) == 1) {
+        mi2s_osr_clk.enable = 1;
+        ret = afe_set_lpass_clock_v2(port_id, &mi2s_osr_clk);
+        if (ret < 0) {
+            pr_err("%s(): afe lpass osr fail! ret = %d\n", __func__, ret);
+            return ret;
+        }
+        mi2s_sclk_clk.enable = 1;
+        ret = afe_set_lpass_clock_v2(port_id, &mi2s_sclk_clk);
+        if (ret < 0) {
+            pr_err("%s(): afe lpass sclk fail! ret = %d\n", __func__, ret);
+            return ret;
+        }
+        
+        ret = snd_soc_dai_set_fmt(cpu_dai, 0x4000);
+        if (ret < 0) {
+            pr_err("%s(): set fmt cpu dai failed (0x4000), err:%d\n", __func__, ret);
+        }
+        
+        ret = snd_soc_dai_set_fmt(cpu_dai, 0x4001);
+        if (ret < 0) {
+            pr_err("%s(): set fmt cpu dai failed (0x4001), err:%d\n", __func__, ret);
+        }
+        
+        // set sysclk in cs35l35 range
+        ret = snd_soc_codec_set_sysclk(codec, 0, 0, 
+                    Q6AFE_LPASS_OSR_CLK_12_P288_MHZ, 0);
+        if (ret < 0) {
+            pr_err("%s(): set sysclk failed, err:%d\n", __func__, ret);
+        }
+        
+        // set sysclk in cs35l35 range
+        ret = snd_soc_dai_set_sysclk(codec_dai, 0, 
+                    Q6AFE_LPASS_OSR_CLK_1_P536_MHZ, 0);
+        if (ret < 0) {
+            pr_err("%s(): set dai_sysclk failed, err:%d\n", __func__, ret);
+        }
+    }
+    
+	ret = msm_gpioset_activate(0, "quat_i2s");
 	if (ret < 0) {
-		pr_err("failed to enable sclk\n");
-		return ret;
+		pr_err("%s(): configure gpios failed = %s\n", __func__, "quat_i2s");
+        return ret;
 	}
-	ret = msm_gpioset_activate(CLIENT_WCD_INT, "quat_i2s");
-	if (ret < 0) {
-		pr_err("failed to enable codec gpios\n");
-		goto err;
-	}
-	if (atomic_inc_return(&quat_mi2s_clk_ref) == 1) {
-		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
-		if (ret < 0)
-			pr_err("%s: set fmt cpu dai failed\n", __func__);
-	}
-	return ret;
-err:
-	ret = msm_mi2s_sclk_ctl(substream, false);
-	if (ret < 0)
-		pr_err("failed to disable sclk\n");
+	
+	pr_info("%s(): configure quat_i2s success\n", __func__);
 	return ret;
 }
 
 static void msm_quat_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 {
 	int ret;
+    u16 port_id;
 
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
 				substream->name, substream->stream);
-	ret = msm_mi2s_sclk_ctl(substream, false);
-	if (ret < 0)
-		pr_err("%s:clock disable failed\n", __func__);
-	if (atomic_read(&quat_mi2s_clk_ref) > 0)
-		atomic_dec(&quat_mi2s_clk_ref);
-	ret = msm_gpioset_suspend(CLIENT_WCD_INT, "quat_i2s");
+    
+    // Get port state
+    if (substream->stream)
+        port_id = AFE_PORT_ID_SECONDARY_MI2S_TX;
+    else
+        port_id = AFE_PORT_ID_SECONDARY_MI2S_RX;
+    
+    if (atomic_dec_return(&quat_mi2s_rsc_ref) == 0) {
+        mi2s_osr_clk.enable = 0;
+        ret = afe_set_lpass_clock_v2(port_id, &mi2s_osr_clk);
+        if (ret < 0) {
+            pr_err("%s(): afe lpass osr fail! ret = %d\n", __func__, ret);
+            return;
+        }
+        mi2s_sclk_clk.enable = 0;
+        ret = afe_set_lpass_clock_v2(port_id, &mi2s_sclk_clk);
+        if (ret < 0) {
+            pr_err("%s(): afe lpass sclk fail! ret = %d\n", __func__, ret);
+            return;
+        }
+    }
+    
+	ret = msm_gpioset_suspend(0, "quat_i2s");
 	if (ret < 0) {
 		pr_err("%s: gpio set cannot be de-activated %sd",
 					__func__, "quat_i2s");
@@ -1743,14 +1819,6 @@ static struct snd_soc_ops msm_pri_auxpcm_be_ops = {
 		pr_err("%s: set dai_sysclk failed, err:%d\n",
 			__func__, ret);
 	pr_debug("%s: setting dapm parameters...\n", __func__);
-	snd_soc_dapm_ignore_suspend(dapm, "AMP Playback");
-	snd_soc_dapm_ignore_suspend(dapm, "AMP Capture");
-	snd_soc_dapm_ignore_suspend(dapm, "SDIN");
-    snd_soc_dapm_ignore_suspend(dapm, "SDOUT");
-    snd_soc_dapm_ignore_suspend(dapm, "SPK");
-    pr_debug("%s: syncing dapm...\n", __func__);
-	snd_soc_dapm_sync(dapm);
-	pr_debug("%s: done! exit code: %d\n", __func__, ret);
 	return ret;
 }*/
 
@@ -3324,6 +3392,7 @@ parse_mclk_freq:
 	}
 	atomic_set(&pdata->mclk_enabled, false);
 	atomic_set(&quat_mi2s_clk_ref, 0);
+    atomic_set(&quat_mi2s_rsc_ref, 0);
 	atomic_set(&quin_mi2s_clk_ref, 0);
 	atomic_set(&auxpcm_mi2s_clk_ref, 0);
 	/*mutex_init(&l35_mclk_mutex);
