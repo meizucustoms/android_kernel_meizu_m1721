@@ -1515,6 +1515,10 @@ static int32_t q6asm_srvc_callback(struct apr_client_data *data, void *priv)
 	}
 
 	dir = (data->token & 0x0F);
+	if (dir != IN && dir != OUT) {
+		pr_err("%s: Invalid audio port index: %d\n", __func__, dir);
+		return 0;
+	}
 	port = &ac->port[dir];
 
 	switch (data->opcode) {
