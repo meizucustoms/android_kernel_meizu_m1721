@@ -1,7 +1,6 @@
 /* rc-ir-raw.c - handle IR pulse/space events
  *
  * Copyright (C) 2010 by Mauro Carvalho Chehab
- * Copyright (C) 2017 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -106,12 +105,6 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store);
  */
 int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type)
 {
-	return ir_raw_event_store_edge_with_adjust(dev, type, 0);
-}
-EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
-
-int ir_raw_event_store_edge_with_adjust(struct rc_dev *dev, enum raw_event_type type, s32 ns)
-{
 	ktime_t			now;
 	s64			delta; /* ns */
 	DEFINE_IR_RAW_EVENT(ev);
@@ -121,7 +114,7 @@ int ir_raw_event_store_edge_with_adjust(struct rc_dev *dev, enum raw_event_type 
 	if (!dev->raw)
 		return -EINVAL;
 
-	now = ktime_add_ns(ktime_get(), ns);
+	now = ktime_get();
 	delta = ktime_to_ns(ktime_sub(now, dev->raw->last_event));
 	delay = MS_TO_NS(dev->input_dev->rep[REP_DELAY]);
 
@@ -149,7 +142,7 @@ int ir_raw_event_store_edge_with_adjust(struct rc_dev *dev, enum raw_event_type 
 	dev->raw->last_type = type;
 	return rc;
 }
-EXPORT_SYMBOL_GPL(ir_raw_event_store_edge_with_adjust);
+EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);
 
 /**
  * ir_raw_event_store_with_filter() - pass next pulse/space to decoders with some processing
