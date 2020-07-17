@@ -368,10 +368,7 @@ extern int gtp_int_gpio;
 
 #define GTP_INFO(fmt, arg...)           printk("<<-GTP-INFO->> "fmt"\n", ##arg)
 #define GTP_ERROR(fmt, arg...)          printk("<<-GTP-ERROR->> "fmt"\n", ##arg)
-#define GTP_DEBUG(fmt, arg...)          do {\
-		if (GTP_DEBUG_ON)\
-			printk("<<-GTP-DEBUG->> [%d]"fmt"\n", __LINE__, ##arg);\
-	} while (0)
+#define GTP_DEBUG(fmt, arg...)          printk("<<-GTP-DEBUG->> [%d]"fmt"\n", __LINE__, ##arg)
 #define GTP_DEBUG_ARRAY(array, num)    do {\
 		s32 i;\
 		u8 *a = array;\
