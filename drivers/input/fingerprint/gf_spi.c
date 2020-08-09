@@ -656,7 +656,7 @@ static int gf_probe(struct spi_device *spi)
 			input_set_capability(gf_dev->input, maps[i].type, maps[i].code);
         }
 
-		gf_dev->input->name = "gf_keys";
+		gf_dev->input->name = "gf-keys";
 		status = input_register_device(gf_dev->input);
 		if (status) {
 			gf_err("failed to register input device\n");
