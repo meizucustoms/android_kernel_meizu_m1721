@@ -17,19 +17,19 @@ enum FP_MODE{
 	GF_DEBUG_MODE = 0x56
 };
 
-#define GF_NAV_INPUT_UP			KEY_UP
-#define GF_NAV_INPUT_DOWN		KEY_DOWN
-#define GF_NAV_INPUT_LEFT		KEY_LEFT
-#define GF_NAV_INPUT_RIGHT		KEY_RIGHT
-#define GF_NAV_INPUT_CLICK		KEY_VOLUMEDOWN
+#define GF_NAV_INPUT_UP		   	    KEY_UP
+#define GF_NAV_INPUT_DOWN		    KEY_DOWN
+#define GF_NAV_INPUT_LEFT	        KEY_LEFT
+#define GF_NAV_INPUT_RIGHT		    KEY_RIGHT
+#define GF_NAV_INPUT_CLICK		    KEY_VOLUMEDOWN
 #define GF_NAV_INPUT_DOUBLE_CLICK	KEY_VOLUMEUP
 #define GF_NAV_INPUT_LONG_PRESS		KEY_SEARCH
-#define GF_NAV_INPUT_HEAVY		KEY_CHAT
-#define GF_KEY_INPUT_HOME		KEY_HOME
-#define GF_KEY_INPUT_MENU		KEY_MENU
-#define GF_KEY_INPUT_BACK		KEY_BACK
-#define GF_KEY_INPUT_POWER		KEY_POWER
-#define GF_KEY_INPUT_CAMERA		KEY_CAMERA
+#define GF_NAV_INPUT_HEAVY		    KEY_CHAT
+#define GF_KEY_INPUT_HOME		    KEY_HOME
+#define GF_KEY_INPUT_MENU		    KEY_MENU
+#define GF_KEY_INPUT_BACK		    KEY_BACK
+#define GF_KEY_INPUT_POWER		    KEY_POWER
+#define GF_KEY_INPUT_CAMERA		    KEY_CAMERA
 
 typedef enum gf_nav_event {
 	GF_NAV_NONE = 0,
@@ -52,6 +52,7 @@ typedef enum gf_key_event {
 	GF_KEY_MENU,
 	GF_KEY_BACK,
 	GF_KEY_CAMERA,
+    GF_KEY_LONG_PRESS,
 } gf_key_event_t;
 
 struct gf_key {
@@ -113,6 +114,10 @@ struct gf_ioc_chip_info {
 
 #define N_SPI_MINORS		32	/* ... up to 256 */
 #define SPIDEV_MAJOR        255
+
+#define gf_info(fmt, args...) pr_info("gf: %s: " fmt, __func__, ##args);
+#define gf_warn(fmt, args...) pr_warn("gf: %s: " fmt, __func__, ##args);
+#define gf_err(fmt, args...)  pr_err("gf: %s: " fmt, __func__, ##args);
 
 struct gf_dev {
 	dev_t devt;

@@ -49,10 +49,6 @@
 #include <net/netlink.h>
 #include "gf_spi.h"
 
-#define gf_info(fmt, args...) pr_info("gf: %s: " fmt, __func__, ##args);
-#define gf_warn(fmt, args...) pr_warn("gf: %s: " fmt, __func__, ##args);
-#define gf_err(fmt, args...)  pr_err("gf: %s: " fmt, __func__, ##args);
-
 static DECLARE_BITMAP(minors, N_SPI_MINORS);
 static LIST_HEAD(device_list);
 static DEFINE_MUTEX(device_list_lock);
@@ -302,16 +298,18 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 {
 	uint32_t key_input = 0;
 	if (GF_KEY_HOME == gf_key->key) {
-		key_input = GF_KEY_INPUT_HOME;
+		key_input = 158;
+    } else if (GF_KEY_LONG_PRESS == gf_key->key) {
+        key_input = 192;
 	} else if (GF_KEY_POWER == gf_key->key) {
-		key_input = GF_KEY_INPUT_POWER;
+		key_input = 112;
 	} else if (GF_KEY_CAMERA == gf_key->key) {
-		key_input = GF_KEY_INPUT_CAMERA;
+		key_input = 212;
 	} else {
 		key_input = gf_key->key;
 	}
-	pr_info("%s: received key event[%d], key=%d, value=%d\n",
-			__func__, key_input, gf_key->key, gf_key->value);
+	gf_info("recieved key event[%d], key=%d, value=%d\n",
+                        key_input, gf_key->key, gf_key->value);
 
 	if ((GF_KEY_POWER == gf_key->key || GF_KEY_CAMERA == gf_key->key)
 			&& (gf_key->value == 1)) {
@@ -369,12 +367,12 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		gf_info("GF_IOC_EXIT\n");
 		break;
     case GF_IOC_DISABLE_IRQ:
-		pr_info("gf: %s: GF_IOC_DISABLE_IRQ .\n", __func__);
+		gf_info("GF_IOC_DISABLE_IRQ\n");
 		gf_dev->irq_enabled = 0;
         disable_irq(gf_dev->irq);
 		break;
 	case GF_IOC_ENABLE_IRQ:
-		pr_info("gf: %s: GF_IOC_ENABLE_IRQ .\n", __func__);
+		gf_info("GF_IOC_ENABLE_IRQ\n");
 		gf_dev->irq_enabled = 1;
         enable_irq(gf_dev->irq);
 		break;
@@ -383,7 +381,7 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		gf_hw_reset(gf_dev, 3);
 		break;
     case GF_IOC_RELEASE_GPIO:
-		pr_info("gf: %s: GF_IOC_RELEASE_GPIO. \n", __func__);
+		gf_info("GF_IOC_RELEASE_GPIO\n");
 		gf_dev->irq_enabled = 0;
         disable_irq(gf_dev->irq);
 		gf_cleanup(gf_dev);
@@ -437,11 +435,11 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		break;
     case GF_IOC_ENABLE_SPI_CLK:
 		gf_info("GF_IOC_ENABLE_SPI_CLK\n");
-		pr_info("Doesn't support control clock.\n");
+		gf_info("Doesn't support control clock.\n");
 		break;
 	case GF_IOC_DISABLE_SPI_CLK:
 		gf_info("GF_IOC_DISABLE_SPI_CLK\n");
-		pr_info("Doesn't support control clock.\n");
+		gf_info("Doesn't support control clock.\n");
 		break;
     case GF_IOC_ENTER_SLEEP_MODE:
 		gf_info("GF_IOC_ENTER_SLEEP_MODE\n");
@@ -612,7 +610,7 @@ static int gf_probe(struct spi_device *spi)
 	gf_hw_reset(gf_dev, 70);
     if (strnstr(saved_command_line, "androidboot.mode=ffbm-01", strlen(saved_command_line)) ||
         strnstr(saved_command_line, "androidboot.mode=charger", strlen(saved_command_line))) {
-        pr_warn("disable Goodix, we are in offline charging mode.");
+        gf_warn("disable Goodix, we are in offline charging mode.");
         status = -1;
         gf_dev->device_available = 0;
         gf_power_off(&gf);
