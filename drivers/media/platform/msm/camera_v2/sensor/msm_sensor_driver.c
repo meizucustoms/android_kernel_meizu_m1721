@@ -10,7 +10,7 @@
  * GNU General Public License for more details.
  */
 
-#define SENSOR_DRIVER_I2C "i2c_camera"
+#define SENSOR_DRIVER_I2C "camera"
 /* Header file declaration */
 #include "msm_sensor.h"
 #include "msm_sd.h"
@@ -335,6 +335,42 @@ static int32_t msm_sensor_fill_ois_subdevid_by_name(
 		src_node = NULL;
 	}
 
+	return rc;
+}
+
+static int32_t msm_sensor_fill_flash_subdevid_by_name(
+				struct msm_sensor_ctrl_t *s_ctrl)
+{
+	int32_t rc = 0;
+	struct device_node *src_node = NULL;
+	uint32_t val = 0;
+	int32_t *flash_subdev_id;
+	struct  msm_sensor_info_t *sensor_info;
+	struct device_node *of_node = s_ctrl->of_node;
+
+	if (!of_node)
+		return -EINVAL;
+
+	sensor_info = s_ctrl->sensordata->sensor_info;
+	flash_subdev_id = &sensor_info->subdev_id[SUB_MODULE_LED_FLASH];
+
+	*flash_subdev_id = -1;
+
+	src_node = of_parse_phandle(of_node, "qcom,led-flash-src", 0);
+	if (!src_node) {
+		CDBG("%s:%d src_node NULL\n", __func__, __LINE__);
+	} else {
+		rc = of_property_read_u32(src_node, "cell-index", &val);
+		CDBG("%s qcom,flash cell index %d, rc %d\n", __func__,
+			val, rc);
+		if (rc < 0) {
+			pr_err("%s failed %d\n", __func__, __LINE__);
+			return -EINVAL;
+		}
+		*flash_subdev_id = val;
+		of_node_put(src_node);
+		src_node = NULL;
+	}
 	return rc;
 }
 
@@ -884,6 +920,7 @@ CSID_TG:
 	s_ctrl->sensordata->eeprom_name = slave_info->eeprom_name;
 	s_ctrl->sensordata->actuator_name = slave_info->actuator_name;
 	s_ctrl->sensordata->ois_name = slave_info->ois_name;
+	s_ctrl->sensordata->flash_name = slave_info->flash_name;
 	/*
 	 * Update eeporm subdevice Id by input eeprom name
 	 */
@@ -902,6 +939,12 @@ CSID_TG:
 	}
 
 	rc = msm_sensor_fill_ois_subdevid_by_name(s_ctrl);
+	if (rc < 0) {
+		pr_err("%s failed %d\n", __func__, __LINE__);
+		goto free_camera_info;
+	}
+
+	rc = msm_sensor_fill_flash_subdevid_by_name(s_ctrl);
 	if (rc < 0) {
 		pr_err("%s failed %d\n", __func__, __LINE__);
 		goto free_camera_info;
@@ -956,7 +999,7 @@ CSID_TG:
 	}
 	/* Update sensor mount angle and position in media entity flag */
 	is_yuv = (slave_info->output_format == MSM_SENSOR_YCBCR) ? 1 : 0;
-	mount_pos = is_yuv << 25 |
+	mount_pos = ((s_ctrl->is_secure & 0x1) << 26) | is_yuv << 25 |
 		(s_ctrl->sensordata->sensor_info->position << 16) |
 		((s_ctrl->sensordata->
 		sensor_info->sensor_mount_angle / 90) << 8);
@@ -1046,6 +1089,16 @@ static int32_t msm_sensor_driver_get_dt_data(struct msm_sensor_ctrl_t *s_ctrl)
 	if (rc < 0) {
 		pr_err("failed: msm_sensor_driver_get_gpio_data rc %d", rc);
 		goto FREE_VREG_DATA;
+	}
+
+	/* Get custom mode */
+	rc = of_property_read_u32(of_node, "qcom,secure",
+		&s_ctrl->is_secure);
+	CDBG("qcom,secure = %d, rc %d", s_ctrl->is_secure, rc);
+	if (rc < 0) {
+		/* Set default to non-secure mode */
+		s_ctrl->is_secure = 0;
+		rc = 0;
 	}
 
 	/* Get CCI master */
@@ -1161,6 +1214,7 @@ static int32_t msm_sensor_driver_parse(struct msm_sensor_ctrl_t *s_ctrl)
 FREE_DT_DATA:
 	kfree(s_ctrl->sensordata->power_info.gpio_conf->gpio_num_info);
 	kfree(s_ctrl->sensordata->power_info.gpio_conf->cam_gpio_req_tbl);
+	kfree(s_ctrl->sensordata->power_info.gpio_conf->cam_gpio_set_tbl);
 	kfree(s_ctrl->sensordata->power_info.gpio_conf);
 	kfree(s_ctrl->sensordata->power_info.cam_vreg);
 	kfree(s_ctrl->sensordata);

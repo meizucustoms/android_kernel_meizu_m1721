@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -31,9 +31,9 @@
 #include <media/msm_cam_sensor.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-ioctl.h>
-#include "msm_camera_i2c.h"
-#include "msm_camera_dt_util.h"
-#include "msm_sd.h"
+#include "io/msm_camera_i2c.h"
+#include "io/msm_camera_dt_util.h"
+#include "../msm_sd.h"
 
 #define DEFINE_MSM_MUTEX(mutexname) \
 	static struct mutex mutexname = __MUTEX_INITIALIZER(mutexname)
@@ -88,6 +88,7 @@ struct msm_sensor_ctrl_t {
 	enum msm_camera_stream_type_t camera_stream_type;
 	uint32_t set_mclk_23880000;
 	uint8_t is_csid_tg_mode;
+	uint32_t is_secure;
 };
 
 int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp);

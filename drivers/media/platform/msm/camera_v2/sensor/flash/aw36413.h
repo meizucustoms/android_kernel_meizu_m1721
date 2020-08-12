@@ -1,0 +1,50 @@
+/*
+ * Copyright (C) 2020 MeizuCustoms enthusiasts
+ *
+ * This software is licensed under the terms of the GNU General Public
+ * License version 2, as published by the Free Software Foundation, and
+ * may be copied, distributed, and modified under those terms.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */ 
+
+#include "msm_led_flash.h" 
+
+#define aw_info(fmt, args...) pr_info("aw36413_led: %s: " fmt, __func__, ##args);
+#define aw_warn(fmt, args...) pr_warn("aw36413_led: %s: " fmt, __func__, ##args);
+#define aw_err(fmt, args...)  pr_err("aw36413_led: %s: " fmt, __func__, ##args);
+
+#define AW36413_TIMING_COUNT  0x1C
+
+/*
+ *  Mode codes for aw36413_read_reg and aw36413_write_reg
+ */
+enum aw36413_ops {
+    AW36413_FIRST = 1,
+    AW36413_SECOND,
+    AW36413_DOUBLE,
+}
+
+/*
+ *  I2C registers for aw36413
+ */
+enum aw36413_registers {
+    REG_AW36413_CHIP_ID = 0,            // Chip ID Register
+    REG_AW36413_ENABLE = 1,             // Enable Register
+    REG_AW36413_IVFM = 2,               // IVFM Register
+    REG_AW36413_LED1_FLASH = 3,         // LED1 Flash Brightness Register
+    REG_AW36413_LED2_FLASH = 4,         // LED2 Flash Brightness Register
+    REG_AW36413_LED1_TORCH = 5,         // LED1 Torch Brightness Register
+    REG_AW36413_LED2_TORCH = 6,         // LED2 Torch Brightness Register
+    REG_AW36413_BOOST = 7,              // Boost Configuration Register
+    REG_AW36413_TIMING = 8,             // Timing Configuration Register
+    REG_AW36413_TEMP = 9,               // Temp Register
+    REG_AW36413_FLAGS1 = 10,            // Flags1 Register
+    REG_AW36413_FLAGS2 = 11,            // Flags2 Register
+    REG_AW36413_DEVICE_ID = 12,         // Device ID Register
+    REG_AW36413_LAST_FLASH = 13,        // Last Flash Register
+    REG_AW36413_IND_CUR = 0x39,         // Indicator Current Register
+}
