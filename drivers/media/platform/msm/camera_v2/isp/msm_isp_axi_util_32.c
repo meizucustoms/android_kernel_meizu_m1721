@@ -1210,7 +1210,7 @@ static void msm_isp_update_rdi_output_count(
 
 	for (i = 0; i < stream_cfg_cmd->num_streams; i++) {
 		if (HANDLE_TO_IDX(stream_cfg_cmd->stream_handle[i])
-			> MAX_NUM_STREAM)
+			>= MAX_NUM_STREAM)
 			return;
 		stream_info =
 			&axi_data->stream_info[
