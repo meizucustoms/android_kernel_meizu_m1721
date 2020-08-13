@@ -20,13 +20,21 @@
 #define AW36413_TIMING_COUNT  0x1C
 
 /*
+ *  aw36413 GPIO states
+ */
+enum aw36413_gpio {
+    AW36413_I2C_OFF = 0,
+    AW36413_I2C_READY,
+};
+
+/*
  *  Mode codes for aw36413_read_reg and aw36413_write_reg
  */
 enum aw36413_ops {
     AW36413_FIRST = 1,
     AW36413_SECOND,
     AW36413_DOUBLE,
-}
+};
 
 /*
  *  I2C registers for aw36413
@@ -47,4 +55,4 @@ enum aw36413_registers {
     REG_AW36413_DEVICE_ID = 12,         // Device ID Register
     REG_AW36413_LAST_FLASH = 13,        // Last Flash Register
     REG_AW36413_IND_CUR = 0x39,         // Indicator Current Register
-}
+};

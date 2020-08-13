@@ -15,8 +15,8 @@
 
 #undef CDBG
 #ifdef CONFIG_MSMB_CAMERA_DEBUG
-#define CDBG(fmt, args...) pr_debug(fmt, ##args)
-#define S_I2C_DBG(fmt, args...) pr_debug(fmt, ##args)
+#define CDBG(fmt, args...) pr_warn(fmt, ##args)
+#define S_I2C_DBG(fmt, args...) pr_warn(fmt, ##args)
 #else
 #define CDBG(fmt, args...) do { } while (0)
 #define S_I2C_DBG(fmt, args...) do { } while (0)

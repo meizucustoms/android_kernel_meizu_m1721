@@ -1,4 +1,4 @@
-/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2009-2014, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -16,7 +16,7 @@
 #include "msm_led_flash.h"
 
 #undef CDBG
-#define CDBG(fmt, args...) pr_err(fmt, ##args)
+#define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
 static struct v4l2_file_operations msm_led_flash_v4l2_subdev_fops;
 
@@ -24,8 +24,8 @@ static long msm_led_flash_subdev_ioctl(struct v4l2_subdev *sd,
 	unsigned int cmd, void *arg)
 {
 	struct msm_led_flash_ctrl_t *fctrl = NULL;
-	void *argp = (void *)arg;
-
+	void __user *argp = (void __user *)arg;
+	//printk("come to %s,%d,allenyao\n",__func__,__LINE__);
 	if (!sd) {
 		pr_err("sd NULL\n");
 		return -EINVAL;
@@ -35,29 +35,27 @@ static long msm_led_flash_subdev_ioctl(struct v4l2_subdev *sd,
 		pr_err("fctrl NULL\n");
 		return -EINVAL;
 	}
+	CDBG("come to %s,%d,%xallenyao\n",__func__,__LINE__,cmd);
 	switch (cmd) {
 	case VIDIOC_MSM_SENSOR_GET_SUBDEV_ID:
-                if (fctrl->func_tbl->flash_get_subdev_id)
-			return fctrl->func_tbl->flash_get_subdev_id(fctrl, argp);
-		else
-			pr_err("NULL flash_get_subdev function\n");
-			return -EINVAL;
+		CDBG("come to %s,%d,allenyao\n",__func__,__LINE__);
+		return fctrl->func_tbl->flash_get_subdev_id(fctrl, argp);
 	case VIDIOC_MSM_FLASH_LED_DATA_CFG:
-                if (fctrl->func_tbl->flash_led_config)
-			return fctrl->func_tbl->flash_led_config(fctrl, argp);
-		else
-			pr_err("NULL flash_led_config function\n");
-			return -EINVAL;
+		CDBG("come to %s,%d,%x allenyao\n",__func__,__LINE__,cmd);
+		return fctrl->func_tbl->flash_led_config(fctrl, argp);
+	case VIDIOC_MSM_FLASH_CFG:
+		//return msm_flash_config(fctrl, argp);
+		CDBG("come to %s,%d,%x allenyao\n",__func__,__LINE__,cmd);
+		return fctrl->func_tbl->flash_led_config(fctrl, argp);
 	case MSM_SD_NOTIFY_FREEZE:
+		CDBG("come to %s,%d,%x allenyao\n",__func__,__LINE__,cmd);
 		return 0;
 	case MSM_SD_SHUTDOWN:
-                if (fctrl->func_tbl->flash_led_release)
-			return fctrl->func_tbl->flash_led_release(fctrl);
-		else
-			pr_err("NULL flash_led_release function\n");
-			return -EINVAL;
+		*(int *)argp = MSM_CAMERA_LED_RELEASE;
+		CDBG("come to %s,%d,%x allenyao\n",__func__,__LINE__,cmd);
+		return fctrl->func_tbl->flash_led_config(fctrl, argp);
 	default:
-		pr_err_ratelimited("invalid cmd %d\n", cmd);
+		CDBG("invalid cmd %d,allenyao,%s,%d\n", cmd,__func__,__LINE__);
 		return -ENOIOCTLCMD;
 	}
 }
@@ -94,7 +92,7 @@ int32_t msm_led_flash_create_v4lsubdev(struct platform_device *pdev, void *data)
 		"msm_flash");
 	media_entity_init(&fctrl->msm_sd.sd.entity, 0, NULL, 0);
 	fctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
-	fctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_FLASH;
+	fctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_LED_FLASH;
 	fctrl->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x1;
 	msm_sd_register(&fctrl->msm_sd);
 
@@ -108,10 +106,101 @@ int32_t msm_led_flash_create_v4lsubdev(struct platform_device *pdev, void *data)
 	return 0;
 }
 
+//add by allenyao
+#ifdef CONFIG_COMPAT
+static long msm_led_flash_subdev_do_ioctl(
+	struct file *file, unsigned int cmd, void *arg)
+{
+	int32_t i = 0;
+	int32_t rc = 0;
+	struct video_device *vdev;
+	struct v4l2_subdev *sd;
+	struct msm_flash_cfg_data_t32 *u32;
+	struct msm_flash_cfg_data_t flash_data;
+	struct msm_flash_init_info_t32 flash_init_info32;
+	struct msm_flash_init_info_t flash_init_info;
+
+	CDBG("Enter");
+	//printk("come to %s,%d,allenyao-flash\n",__func__,__LINE__);
+	if (!file || !arg) {
+		pr_err("%s:failed NULL parameter\n", __func__);
+		return -EINVAL;
+	}
+	vdev = video_devdata(file);
+	sd = vdev_to_v4l2_subdev(vdev);
+	u32 = (struct msm_flash_cfg_data_t32 *)arg;
+
+	flash_data.cfg_type = u32->cfg_type;
+	for (i = 0; i < MAX_LED_TRIGGERS; i++) {
+		flash_data.flash_current[i] = u32->flash_current[i];
+		flash_data.flash_duration[i] = u32->flash_duration[i];
+	}
+	CDBG("come to %s,%d,allenyao-flash\n",__func__,__LINE__);
+	switch (cmd) {
+	case VIDIOC_MSM_FLASH_CFG32:
+		cmd = VIDIOC_MSM_FLASH_CFG;
+		switch (flash_data.cfg_type) {
+		case CFG_FLASH_OFF:
+		case CFG_FLASH_LOW:
+		case CFG_FLASH_HIGH:
+			CDBG("come to %s,%d,allenyao-flash\n",__func__,__LINE__);
+			flash_data.cfg.settings = compat_ptr(u32->cfg.settings);
+			break;
+		case CFG_FLASH_INIT:
+			CDBG("come to %s,%d,allenyao-flash\n",__func__,__LINE__);
+			flash_data.cfg.flash_init_info = &flash_init_info;
+			if (copy_from_user(&flash_init_info32,
+				(void *)compat_ptr(u32->cfg.flash_init_info),
+				sizeof(struct msm_flash_init_info_t32))) {
+				pr_err("%s copy_from_user failed %d\n",
+					__func__, __LINE__);
+				return -EFAULT;
+			}
+			flash_init_info.flash_driver_type =
+				flash_init_info32.flash_driver_type;
+			flash_init_info.slave_addr =
+				flash_init_info32.slave_addr;
+			flash_init_info.i2c_freq_mode =
+				flash_init_info32.i2c_freq_mode;
+			flash_init_info.settings =
+				compat_ptr(flash_init_info32.settings);
+			flash_init_info.power_setting_array =
+				compat_ptr(
+				flash_init_info32.power_setting_array);
+			break;
+		default:
+			break;
+		}
+		break;
+	default:
+		CDBG("come to %s,%d,allenyao-flash\n",__func__,__LINE__);
+		return msm_led_flash_subdev_ioctl(sd, cmd, arg);
+	}
+	CDBG("come to %s,%d,allenyao-flash\n",__func__,__LINE__);
+	rc =  msm_led_flash_subdev_ioctl(sd, cmd, &flash_data);
+	for (i = 0; i < MAX_LED_TRIGGERS; i++) {
+		u32->flash_current[i] = flash_data.flash_current[i];
+		u32->flash_duration[i] = flash_data.flash_duration[i];
+		CDBG("come to %s,%d,allenyao-flash,flash_current[%d] is %d\n",__func__,__LINE__,i,u32->flash_current[i]);
+		CDBG("come to %s,%d,allenyao-flash,flash_duration[%d] is %d\n",__func__,__LINE__,i,u32->flash_duration[i]);
+	}
+	CDBG("Exit");
+	return rc;
+}
+
+static long msm_led_flash_subdev_fops_ioctl(struct file *file,
+	unsigned int cmd, unsigned long arg)
+{
+	return video_usercopy(file, cmd, arg, msm_led_flash_subdev_do_ioctl);
+}
+#endif
+
+//end
 int32_t msm_led_i2c_flash_create_v4lsubdev(void *data)
 {
 	struct msm_led_flash_ctrl_t *fctrl =
 		(struct msm_led_flash_ctrl_t *)data;
+	int ret=0;
 	CDBG("Enter\n");
 
 	if (!fctrl) {
@@ -130,9 +219,17 @@ int32_t msm_led_i2c_flash_create_v4lsubdev(void *data)
 	media_entity_init(&fctrl->msm_sd.sd.entity, 0, NULL, 0);
 	fctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 	fctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_LED_FLASH;
-	msm_sd_register(&fctrl->msm_sd);
+	ret=msm_sd_register(&fctrl->msm_sd);
+	printk("%s,ret is %d,allenyao\n",__func__,ret);
+	//add by allenyao
+	msm_cam_copy_v4l2_subdev_fops(&msm_led_flash_v4l2_subdev_fops);
+#ifdef CONFIG_COMPAT
+	msm_led_flash_v4l2_subdev_fops.compat_ioctl32 =
+		msm_led_flash_subdev_fops_ioctl;
+#endif
+	//end
 
-	msm_led_flash_v4l2_subdev_fops = v4l2_subdev_fops;
+	//msm_led_flash_v4l2_subdev_fops = v4l2_subdev_fops;
 	fctrl->msm_sd.sd.devnode->fops = &msm_led_flash_v4l2_subdev_fops;
 
 	CDBG("probe success\n");

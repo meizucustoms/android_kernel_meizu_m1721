@@ -4,4 +4,4 @@ ccflags-y += -Idrivers/media/platform/msm/camera_v2/common
 ccflags-y += -Idrivers/media/platform/msm/camera_v2/sensor/io
 obj-$(CONFIG_MSMB_CAMERA) += msm_led_flash.o
 obj-$(CONFIG_MSMB_CAMERA) += msm_led_i2c_trigger.o
-obj-$(CONFIG_MSMB_CAMERA) += aw36413.c
+obj-$(CONFIG_MSMB_CAMERA) += aw36413.o

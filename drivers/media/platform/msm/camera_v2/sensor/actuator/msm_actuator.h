@@ -27,6 +27,7 @@
 
 #define	MSM_ACTUATOR_MAX_VREGS (10)
 #define	ACTUATOR_MAX_POLL_COUNT 10
+#define MSM_ACTUATOR_DEBUG
 
 struct msm_actuator_ctrl_t;
 

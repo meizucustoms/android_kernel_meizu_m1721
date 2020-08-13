@@ -17,13 +17,13 @@
 
 #define CAM_SENSOR_PINCTRL_STATE_SLEEP "cam_suspend"
 #define CAM_SENSOR_PINCTRL_STATE_DEFAULT "cam_default"
-/*#define CONFIG_MSM_CAMERA_DT_DEBUG*/
+#define CONFIG_MSM_CAMERA_DT_DEBUG
 
 #define VALIDATE_VOLTAGE(min, max, config_val) ((config_val) && \
 	(config_val >= min) && (config_val <= max))
 
 #undef CDBG
-#define CDBG(fmt, args...) pr_debug(fmt, ##args)
+#define CDBG(fmt, args...) pr_warn(fmt, ##args)
 
 int msm_camera_fill_vreg_params(struct camera_vreg_t *cam_vreg,
 	int num_vreg, struct msm_sensor_power_setting *power_setting,
@@ -47,6 +47,7 @@ int msm_camera_fill_vreg_params(struct camera_vreg_t *cam_vreg,
 
 	for (i = 0; i < power_setting_size; i++) {
 		if (power_setting[i].seq_type != SENSOR_VREG)
+            pr_err("seq type != sensor vreg\n");
 			continue;
 
 		switch (power_setting[i].seq_val) {
@@ -1442,26 +1443,31 @@ int32_t msm_sensor_driver_get_gpio_data(
 	int16_t                     gpio_array_size = 0;
 	struct msm_camera_gpio_conf *gconf = NULL;
 
+    pr_info("%s enter", __func__);
+    
 	/* Validate input parameters */
 	if (!of_node) {
 		pr_err("failed: invalid param of_node %pK", of_node);
 		return -EINVAL;
 	}
 
-	gpio_array_size = of_gpio_count(of_node);
+	gpio_array_size = of_count_phandle_with_args(of_node, "gpios", "#gpio-cells");
 	CDBG("gpio count %d\n", gpio_array_size);
 	if (gpio_array_size <= 0)
+        pr_info("%s gpio array size", __func__);
 		return -ENODEV;
 
 	gconf = kzalloc(sizeof(struct msm_camera_gpio_conf),
 		GFP_KERNEL);
 	if (!gconf)
+        pr_info("%s gconf", __func__);
 		return -ENOMEM;
 
 	*gpio_conf = gconf;
 
 	gpio_array = kcalloc(gpio_array_size, sizeof(uint16_t), GFP_KERNEL);
 	if (!gpio_array)
+        pr_info("%s gpio array", __func__);
 		goto FREE_GPIO_CONF;
 
 	for (i = 0; i < gpio_array_size; i++) {

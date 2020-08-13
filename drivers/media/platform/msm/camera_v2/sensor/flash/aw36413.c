@@ -13,56 +13,31 @@
 
 #include <linux/module.h>
 #include <linux/export.h>
+#include <linux/gpio.h>
 #include "aw36413.h"
+#include "../../common/msm_camera_io_util.h"
 
+static struct msm_led_flash_ctrl_t fctrl;
 static struct i2c_adapter *aw36413_dev_1;
 static struct i2c_adapter *aw36413_dev_2;
 static int msm_flash_en;
 static int aw36413_vendor_id;
 static int aw36413_probe_done;
 
-static int32_t msm_led_aw36413_i2c_trigger_get_subdev_id(struct msm_led_flash_ctrl_t *fctrl, void *arg);
-static int32_t msm_led_aw36413_i2c_trigger_config(struct msm_led_flash_ctrl_t *fctrl, void *data);
-static int msm_flash_aw36413_led_off(struct msm_led_flash_ctrl_t *fctrl);
-static int msm_flash_aw36413_led_init(struct msm_led_flash_ctrl_t *fctrl);
-static int msm_flash_aw36413_led_release(struct msm_led_flash_ctrl_t *fctrl);
-static int msm_flash_aw36413_led_high(struct msm_led_flash_ctrl_t *fctrl);
-static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl);
-
-static struct msm_flash_fn_t aw36413_func_tbl = {
-    .flash_get_subdev_id = msm_led_aw36413_i2c_trigger_get_subdev_id,
-	.flash_led_config = msm_led_aw36413_i2c_trigger_config,
-	.flash_led_init = msm_aw36413_flash_led_init,
-	.flash_led_release = msm_aw36413_flash_led_release,
-	.flash_led_off = msm_aw36413_flash_led_off,
-	.flash_led_low = msm_aw36413_flash_led_low,
-	.flash_led_high = msm_aw36413_flash_led_high,
-};
-
-static struct msm_camera_i2c_client aw36413_i2c_client = {
-	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
-};
-
-static struct msm_led_flash_ctrl_t fctrl = {
-    .flash_i2c_client = aw36413_i2c_client,
-    .func_tbl = aw36413_func_tbl,
-};
-
-static struct i2c_device_id aw36413_device_id {
-    { .name = "awinic,aw36413" },
-    { }
+static const struct i2c_device_id aw36413_i2c_id[] = {
+    { "awinic,aw36413", (kernel_ulong_t)&fctrl },
+    { },
 };
 
 static const struct of_device_id aw36413_i2c_trigger_dt_match[] = {
 	{ .compatible = "awinic,aw36413" },
-	{ }
+	{ },
 };
-
 MODULE_DEVICE_TABLE(of, aw36413_trigger_dt_match);
 
-static unsigned char aw36413_read_reg(unsigned int reg, int mode) {
-    byte data;
-    int ret;
+static unsigned int aw36413_read_reg(unsigned int reg, int mode) {
+    uint8_t data;
+    unsigned int ret32;
     char *device;
     
     // Set what aw36413 we will use...
@@ -71,7 +46,7 @@ static unsigned char aw36413_read_reg(unsigned int reg, int mode) {
         aw_info("read reg from first aw36413...\n");
         device = "first";
         fctrl.flash_i2c_client->client->adapter = aw36413_dev_1; // set first aw36413 as i2c client
-        ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_read_seq(fctrl.flash_i2c_client,
+        ret32 = fctrl.flash_i2c_client->i2c_func_tbl->i2c_read_seq(fctrl.flash_i2c_client,
                                                             reg, &data,
                                                             MSM_CAMERA_I2C_BYTE_DATA);
         break;
@@ -79,25 +54,25 @@ static unsigned char aw36413_read_reg(unsigned int reg, int mode) {
         aw_info("read reg from second aw36413...\n");
         device = "second";
         fctrl.flash_i2c_client->client->adapter = aw36413_dev_2; // set second aw36413 as i2c client
-        ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_read_seq(fctrl.flash_i2c_client,
+        ret32 = fctrl.flash_i2c_client->i2c_func_tbl->i2c_read_seq(fctrl.flash_i2c_client,
                                                             reg, &data,
                                                             MSM_CAMERA_I2C_BYTE_DATA);
         break;
     case AW36413_DOUBLE:
         aw_err("double read not supported!\n");
-        ret = -EINVAL;
+        ret32 = -EINVAL;
         break;
     default:
         aw_err("invalid mode %d!\n", mode);
-        ret = -EINVAL;
+        ret32 = -EINVAL;
         break;
     }
     
-    if (ret < 0) {
-        aw_err("read error! ret = %d\n", ret);
+    if (ret32 < 0) {
+        aw_err("read error! ret = %d\n", ret32);
     } else {
         aw_info("read successful, data: 0x%02x, reg: 0x%02x, device: %s\n", 
-                            (unsigned int)data, reg, device);
+                                                        data, reg, device);
     }
     
     return (unsigned char)data;
@@ -114,29 +89,29 @@ static int aw36413_write_reg(unsigned int reg, unsigned int val, int mode) {
         device = "first";
         fctrl.flash_i2c_client->client->adapter = aw36413_dev_1; // set first aw36413 as i2c client
         ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client,
-                                                            reg, val,
-                                                            MSM_CAMERA_I2C_BYTE_DATA);
+                                                              reg, val,
+                                                              MSM_CAMERA_I2C_BYTE_DATA);
         break;
     case AW36413_SECOND:
         aw_info("write reg to second aw36413...\n");
         device = "second";
         fctrl.flash_i2c_client->client->adapter = aw36413_dev_2; // set second aw36413 as i2c client
         ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client, reg, val,
-                                                            MSM_CAMERA_I2C_BYTE_DATA);
+                                                              MSM_CAMERA_I2C_BYTE_DATA);
         break;
     case AW36413_DOUBLE:
         aw_err("write reg to both aw36413...\n");
         device = "double";
         fctrl.flash_i2c_client->client->adapter = aw36413_dev_1; // set first aw36413 as i2c client
         ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client, reg, val,
-                                                            MSM_CAMERA_I2C_BYTE_DATA);
+                                                              MSM_CAMERA_I2C_BYTE_DATA);
         if (ret < 0) { // check both write operations for error
             aw_err("write error! ret = %d\n", ret);
             return ret;
         }
         fctrl.flash_i2c_client->client->adapter = aw36413_dev_2; // set second aw36413 as i2c client
         ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client, reg, val,
-                                                            MSM_CAMERA_I2C_BYTE_DATA);
+                                                              MSM_CAMERA_I2C_BYTE_DATA);
         break;
     default:
         aw_err("invalid mode %d!\n", mode);
@@ -161,16 +136,16 @@ static int aw36413_gpio_set(int val, int mode) {
     switch (mode) {
     case AW36413_FIRST:
         device = "first";
-        gpio_set_value_cansleep(power_info->gpio_conf->gpio_num_info->gpio_num[7]);
+        gpio_set_value_cansleep(fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[7], val);
         break;
     case AW36413_SECOND:
         device = "second";
-        gpio_set_value_cansleep(power_info->gpio_conf->gpio_num_info->gpio_num[8]);
+        gpio_set_value_cansleep(fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[8], val);
         break;
     case AW36413_DOUBLE:
         device = "double";
-        gpio_set_value_cansleep(power_info->gpio_conf->gpio_num_info->gpio_num[7]);
-        gpio_set_value_cansleep(power_info->gpio_conf->gpio_num_info->gpio_num[8]);
+        gpio_set_value_cansleep(fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[7], val);
+        gpio_set_value_cansleep(fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[8], val);
         break;
     default:
         aw_err("invalid mode!\n");
@@ -179,13 +154,17 @@ static int aw36413_gpio_set(int val, int mode) {
     }
     
     aw_info("GPIO set success, value: 0x%02x, device: %s\n", val, device);
+    aw_info("GPIO table: [FIRST | %d] [SECOND | %d]\n", 
+    fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[7],
+    fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[8]);
     return 0;
 }
 
-static void aw36413_get_vendor_id() {
-    aw36413_gpio_set(0, AW36413_FIRST);
+static void aw36413_get_vendor_id(void) {
+    aw_info("enter\n");
+    aw36413_gpio_set(AW36413_I2C_OFF, AW36413_FIRST);
     msleep(2);
-    aw36413_gpio_set(2, AW36413_FIRST);
+    aw36413_gpio_set(AW36413_I2C_READY, AW36413_FIRST);
     msleep(2);
     
     if (aw36413_read_reg(REG_AW36413_DEVICE_ID, AW36413_FIRST) != 28) {
@@ -196,24 +175,45 @@ static void aw36413_get_vendor_id() {
         aw36413_vendor_id = 1;
     }
     
-    aw36413_gpio_set(0, AW36413_FIRST);
+    aw36413_gpio_set(AW36413_I2C_OFF, AW36413_FIRST);
 }
 
+static void msm_led_torch_brightness_set(struct led_classdev *led_cdev,
+				enum led_brightness value) {
+    if (value == LED_OFF) {
+        fctrl.func_tbl->flash_led_off(&fctrl);
+    } else {
+        fctrl.flash_op_current[0] = value;
+        fctrl.flash_op_current[1] = value;
+        fctrl.func_tbl->flash_led_low(&fctrl);
+    }
+};
+
+static struct led_classdev msm_torch_led = {
+    .name		    = "torch-light",
+    .brightness_set	= msm_led_torch_brightness_set,
+    .brightness	    = LED_OFF,
+};
+
 static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
-                                       struct i2c_device_id *id) {
+                                 const struct i2c_device_id *id) {
     int ret = 0;
     
     aw_info("enter\n");
     if (!id) {
-        id = aw36413_device_id;
+        id = aw36413_i2c_id;
         aw_warn("id not found, was set default.\n");
     }
     
+    aw_info("first adapter\n");
     aw36413_dev_1 = i2c_get_adapter(6);
+    aw_info("second adapter\n");
     aw36413_dev_2 = i2c_get_adapter(5);
-    if (!aw36413_dev_1) aw_err("first aw36413 not found\n");
-    if (!aw36413_dev_2) aw_err("second aw36413 not found\n");
+    aw_info("check adapter\n");
+    if (aw36413_dev_1 == NULL) aw_err("first aw36413 not found\n");
+    if (aw36413_dev_2 == NULL) aw_err("second aw36413 not found\n");
     
+    aw_info("probe\n");
     msm_flash_i2c_probe(client, id);
     aw_info("i2c probe done\n");
     ret = msm_camera_request_gpio_table(fctrl.flashdata->power_info.gpio_conf->cam_gpio_req_tbl,
@@ -233,15 +233,19 @@ static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
         }
     }
     
-    msm_led_torch_brightness_set(&msm_torch_led, 0);
     aw36413_get_vendor_id();
+    
+    msm_led_torch_brightness_set(&msm_torch_led, LED_OFF);
+    ret = led_classdev_register(&client->dev, &msm_torch_led);
+    if (ret) {
+        aw_err("Failed to register LED classdev. ret = %d\n", ret);
+    }
     aw_info("done\n");
     aw36413_probe_done = 1;
     return ret;
 }
 
-static int msm_flash_aw36413_i2c_remove(struct i2c_client *client,
-                                        struct i2c_device_id *id) {
+static int msm_flash_aw36413_i2c_remove(struct i2c_client *client) {
     int ret = 0;
     
     aw_info("enter\n");
@@ -278,9 +282,9 @@ static struct i2c_driver aw36413_i2c_driver = {
 
 static int msm_flash_aw36413_led_init(struct msm_led_flash_ctrl_t *fctrl) {
     aw_info("enter\n");
-    aw36413_gpio_set(0, AW36413_DOUBLE);
+    aw36413_gpio_set(AW36413_I2C_OFF, AW36413_DOUBLE);
     msleep(2);
-    aw36413_gpio_set(2, AW36413_DOUBLE);
+    aw36413_gpio_set(AW36413_I2C_READY, AW36413_DOUBLE);
     msleep(8);
     aw36413_write_reg(REG_AW36413_ENABLE, 0, AW36413_DOUBLE);
     msm_flash_en = 1;
@@ -289,12 +293,12 @@ static int msm_flash_aw36413_led_init(struct msm_led_flash_ctrl_t *fctrl) {
 
 static int msm_flash_aw36413_led_release(struct msm_led_flash_ctrl_t *fctrl) {
     aw_info("enter\n");
-    if (!fctrl) || (!fctrl->flashdata) {
+    if (!fctrl || !fctrl->flashdata) {
         aw_err("fctrl not found\n");
         return -EINVAL;
     }
     
-    aw36413_gpio_set(0, AW36413_DOUBLE);
+    aw36413_gpio_set(AW36413_I2C_OFF, AW36413_DOUBLE);
     msleep(8);
     msm_flash_en = 0;
     return 0;
@@ -302,19 +306,21 @@ static int msm_flash_aw36413_led_release(struct msm_led_flash_ctrl_t *fctrl) {
 
 static int msm_flash_aw36413_led_off(struct msm_led_flash_ctrl_t *fctrl) {
     aw_info("enter\n");
-    if (!fctrl) || (!fctrl->flashdata) {
+    if (!fctrl || !fctrl->flashdata) {
         aw_err("fctrl not found\n");
         return -EINVAL;
     }
     
     if (aw36413_write_reg(REG_AW36413_ENABLE, 0, AW36413_FIRST)) {
-        aw36413_gpio_set(2, AW36413_FIRST);
+        aw_info("retry 1\n");
+        aw36413_gpio_set(AW36413_I2C_READY, AW36413_FIRST);
         msleep(2);
         aw36413_write_reg(REG_AW36413_ENABLE, 0, AW36413_FIRST);
     }
     
     if (aw36413_write_reg(REG_AW36413_ENABLE, 0, AW36413_SECOND)) {
-        aw36413_gpio_set(2, AW36413_SECOND);
+        aw_info("retry 2\n");
+        aw36413_gpio_set(AW36413_I2C_READY, AW36413_SECOND);
         msleep(2);
         aw36413_write_reg(REG_AW36413_ENABLE, 0, AW36413_SECOND);
     }
@@ -323,13 +329,13 @@ static int msm_flash_aw36413_led_off(struct msm_led_flash_ctrl_t *fctrl) {
 }
 
 static int msm_flash_aw36413_led_high(struct msm_led_flash_ctrl_t *fctrl) {
-    int torch_op_current_0, torch_op_current_1;
+    int flash_op_current_0, flash_op_current_1;
     int reg_current_0, reg_current_1;
     int temp_led1_brightness, temp_led2_brightness;
     int led1_brightness, led2_brightness, enable;
     
     aw_info("enter\n");
-    if (!fctrl) || (!fctrl->flashdata) {
+    if (!fctrl || !fctrl->flashdata) {
         aw_err("fctrl not found\n");
         return -EINVAL;
     }
@@ -338,8 +344,8 @@ static int msm_flash_aw36413_led_high(struct msm_led_flash_ctrl_t *fctrl) {
         aw_info("cci_master = %d\n", fctrl->cci_i2c_master);
     }
     
-    flash_op_current_0 = fcrtl->flash_op_current[0];
-    flash_op_current_1 = fcrtl->flash_op_current[1];
+    flash_op_current_0 = fctrl->flash_op_current[0];
+    flash_op_current_1 = fctrl->flash_op_current[1];
     reg_current_0 = 1000;
     if (flash_op_current_0 <= 3000)
     {
@@ -358,7 +364,7 @@ static int msm_flash_aw36413_led_high(struct msm_led_flash_ctrl_t *fctrl) {
     }
     
     if (msm_flash_en) {
-        aw36413_gpio_set(2, AW36413_DOUBLE);
+        aw36413_gpio_set(AW36413_I2C_READY, AW36413_DOUBLE);
         msleep(2);
         temp_led1_brightness = (100 * reg_current_0 + 1170) / 2344;
         temp_led2_brightness = (100 * reg_current_1 + 1170) / 2344;
@@ -397,7 +403,7 @@ static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl) {
     int led1_brightness, led2_brightness, enable;
     
     aw_info("enter\n");
-    if (!fctrl) || (!fctrl->flashdata) {
+    if (!fctrl || !fctrl->flashdata) {
         aw_err("fctrl not found\n");
         return -EINVAL;
     }
@@ -406,8 +412,8 @@ static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl) {
         aw_info("cci_master = %d\n", fctrl->cci_i2c_master);
     }
     
-    torch_op_current_0 = fcrtl->flash_op_current[0];
-    torch_op_current_1 = fcrtl->flash_op_current[1];
+    torch_op_current_0 = fctrl->flash_op_current[0];
+    torch_op_current_1 = fctrl->flash_op_current[1];
     if ( torch_op_current_0 <= 3000 ) {
         if ( torch_op_current_0 > 300 )
             reg_current_0 = 300;
@@ -423,9 +429,9 @@ static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl) {
     }
     
     if (msm_flash_en) {
-        aw36413_gpio_set(2, AW36413_DOUBLE);
+        aw36413_gpio_set(AW36413_I2C_READY, AW36413_DOUBLE);
         msleep(2);
-        if (flash_vendor_id == 1) {
+        if (aw36413_vendor_id == 1) {
             temp_led1_brightness = (100 * reg_current_0 + 280) / 560;
             temp_led2_brightness = (100 * reg_current_1 + 280) / 560;
         } else {
@@ -467,56 +473,56 @@ static int32_t msm_led_aw36413_i2c_trigger_get_subdev_id(struct msm_led_flash_ct
         return -EINVAL;
     }
     
-    arg = fctrl->subdev_id;
+    arg = &fctrl->subdev_id;
     aw_info("subdev id = %d\n", fctrl->subdev_id);
     return 0;
 }
 
 static int32_t msm_led_aw36413_i2c_trigger_config(struct msm_led_flash_ctrl_t *fctrl, void *data) {
     int ret;
-    int *vdata = (int *)data;
+    struct msm_flash_cfg_data_t *cfg =(struct msm_flash_cfg_data_t *) data;
     
-    aw_info("enter");
+    aw_info("enter\n");
     if (!fctrl->func_tbl) {
         aw_err("no function table\n");
         return -EINVAL;
     }
     
-    switch (*vdata) {
-    case MSM_CAMERA_LED_INIT:
+    switch (cfg->cfg_type) {
+    case CFG_FLASH_INIT:
         if (fctrl->func_tbl->flash_led_init)
             ret = fctrl->func_tbl->flash_led_init(fctrl);
         break;
-    case MSM_CAMERA_LED_RELEASE:
+    case CFG_FLASH_RELEASE:
         if (fctrl->func_tbl->flash_led_release)
             ret = fctrl->func_tbl->flash_led_release(fctrl);
         break;
-    case MSM_CAMERA_LED_OFF:
+    case CFG_FLASH_OFF:
         if (fctrl->func_tbl->flash_led_off)
             ret = fctrl->func_tbl->flash_led_off(fctrl);
         break;
-    case MSM_CAMERA_LED_LOW:
-        fctrl->flash_op_current[0] = vdata[1];
-        fctrl->flash_op_current[1] = vdata[2];
+    case CFG_FLASH_LOW:
+        fctrl->flash_op_current[0] = cfg->flash_current[0];
+        fctrl->flash_op_current[1] = cfg->flash_current[1];
         aw_info("[LED1 | %d mA] [LED2 | %d mA] [LED3 | %d mA] [LED4 | %d mA]\n", fctrl->flash_op_current[0],
                          fctrl->flash_op_current[0], fctrl->flash_op_current[1], fctrl->flash_op_current[1]);
-        aw_info("[LED1, LED2 | max %d mA] [LED3, LED4 | max %d mA]", fctrl->flash_max_current[0],
+        aw_info("[LED1, LED2 | max %d mA] [LED3, LED4 | max %d mA]\n", fctrl->flash_max_current[0],
                                                                      fctrl->flash_max_current[1]);
         if (fctrl->func_tbl->flash_led_low)
             ret = fctrl->func_tbl->flash_led_low(fctrl);
         break;
-    case MSM_CAMERA_LED_HIGH:
-        fctrl->flash_op_current[0] = vdata[1];
-        fctrl->flash_op_current[1] = vdata[2];
+    case CFG_FLASH_HIGH:
+        fctrl->flash_op_current[0] = cfg->flash_current[0];
+        fctrl->flash_op_current[1] = cfg->flash_current[1];
         aw_info("[LED1 | %d mA] [LED2 | %d mA] [LED3 | %d mA] [LED4 | %d mA]\n", fctrl->flash_op_current[0],
                          fctrl->flash_op_current[0], fctrl->flash_op_current[1], fctrl->flash_op_current[1]);
-        aw_info("[LED1, LED2 | max %d mA] [LED3, LED4 | max %d mA]", fctrl->flash_max_current[0],
+        aw_info("[LED1, LED2 | max %d mA] [LED3, LED4 | max %d mA]\n", fctrl->flash_max_current[0],
                                                                      fctrl->flash_max_current[1]);
         if (fctrl->func_tbl->flash_led_high)
             ret = fctrl->func_tbl->flash_led_high(fctrl);
         break;
     default:
-        aw_warn("invalid vdata = %d\n", vdata);
+        aw_warn("invalid cfg_type = %d\n", cfg->cfg_type);
         ret = -EFAULT;
         break;
     }
@@ -524,12 +530,32 @@ static int32_t msm_led_aw36413_i2c_trigger_config(struct msm_led_flash_ctrl_t *f
     return ret;
 }
 
+static struct msm_flash_fn_t aw36413_func_tbl = {
+    .flash_get_subdev_id = msm_led_aw36413_i2c_trigger_get_subdev_id,
+	.flash_led_config = msm_led_aw36413_i2c_trigger_config,
+	.flash_led_init = msm_flash_aw36413_led_init,
+	.flash_led_release = msm_flash_aw36413_led_release,
+	.flash_led_off = msm_flash_aw36413_led_off,
+	.flash_led_low = msm_flash_aw36413_led_low,
+	.flash_led_high = msm_flash_aw36413_led_high,
+};
+
+static struct msm_camera_i2c_client aw36413_i2c_client = {
+	.addr_type = MSM_CAMERA_I2C_BYTE_ADDR,
+};
+
+static struct msm_led_flash_ctrl_t fctrl = {
+    .flash_i2c_client = &aw36413_i2c_client,
+    .func_tbl = &aw36413_func_tbl,
+};
+
 static int __init msm_flash_aw36413_init(void)
 {
 	int32_t rc = 0;
+    aw_info("enter\n");
     rc = i2c_add_driver(&aw36413_i2c_driver);
     if (!rc)
-        aw_info("done");
+        aw_info("done\n");
 	return rc;
 }
 
@@ -538,8 +564,8 @@ static void __exit msm_flash_aw36413_exit(void)
     i2c_del_driver(&aw36413_i2c_driver);
 }
 
-module_init(msm_flash_aw36413_init_module);
-module_exit(msm_flash_aw36413_exit_module);
+module_init(msm_flash_aw36413_init);
+module_exit(msm_flash_aw36413_exit);
 MODULE_DESCRIPTION("AW36413 (x2) LED driver");
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Roman Rihter <teledurak@msucks.space>");
