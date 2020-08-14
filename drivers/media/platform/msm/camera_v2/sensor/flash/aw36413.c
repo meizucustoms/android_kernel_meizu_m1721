@@ -132,20 +132,28 @@ static int aw36413_write_reg(unsigned int reg, unsigned int val, int mode) {
 
 static int aw36413_gpio_set(int val, int mode) {
     char *device;
+    unsigned int aw36413_1_gpio = 95;
+    unsigned int aw36413_2_gpio = 93;
+    
+    if (!aw36413_1_gpio || !aw36413_2_gpio) {
+        aw_err("Can't find one of GPIOs. GPIO table: [FIRST | %d] [SECOND | %d]\n", 
+                                                    aw36413_1_gpio, aw36413_2_gpio);
+        return -EINVAL;
+    }
     
     switch (mode) {
     case AW36413_FIRST:
         device = "first";
-        gpio_set_value_cansleep(fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[7], val);
+        gpio_set_value_cansleep(aw36413_1_gpio, val);
         break;
     case AW36413_SECOND:
         device = "second";
-        gpio_set_value_cansleep(fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[8], val);
+        gpio_set_value_cansleep(aw36413_2_gpio, val);
         break;
     case AW36413_DOUBLE:
         device = "double";
-        gpio_set_value_cansleep(fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[7], val);
-        gpio_set_value_cansleep(fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[8], val);
+        gpio_set_value_cansleep(aw36413_1_gpio, val);
+        gpio_set_value_cansleep(aw36413_2_gpio, val);
         break;
     default:
         aw_err("invalid mode!\n");
@@ -154,9 +162,7 @@ static int aw36413_gpio_set(int val, int mode) {
     }
     
     aw_info("GPIO set success, value: 0x%02x, device: %s\n", val, device);
-    aw_info("GPIO table: [FIRST | %d] [SECOND | %d]\n", 
-    fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[7],
-    fctrl.flashdata->power_info.gpio_conf->gpio_num_info->gpio_num[8]);
+    aw_info("GPIO table: [FIRST | %d] [SECOND | %d]\n", aw36413_1_gpio, aw36413_2_gpio);
     return 0;
 }
 

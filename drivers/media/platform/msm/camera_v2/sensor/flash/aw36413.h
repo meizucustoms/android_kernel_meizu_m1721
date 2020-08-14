@@ -24,7 +24,7 @@
  */
 enum aw36413_gpio {
     AW36413_I2C_OFF = 0,
-    AW36413_I2C_READY,
+    AW36413_I2C_READY = 2,
 };
 
 /*
