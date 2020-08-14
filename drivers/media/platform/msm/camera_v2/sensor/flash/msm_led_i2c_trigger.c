@@ -841,24 +841,21 @@ int msm_flash_i2c_probe(struct i2c_client *client,
 	int rc = 0;
 	struct msm_led_flash_ctrl_t *fctrl = NULL;
 
-    CDBG("1");
 	if (!i2c_check_functionality(client->adapter, I2C_FUNC_I2C)) {
 		pr_err("i2c_check_functionality failed\n");
 		goto probe_failure;
 	}
-    CDBG("2");
+	
 	fctrl = (struct msm_led_flash_ctrl_t *)(id->driver_data);
-    CDBG("3");
     if (fctrl == NULL) {
         pr_err("fctrl is null!");
         return -EINVAL;
     }
     
 	if (fctrl->flash_i2c_client)
-        CDBG("4");
 		fctrl->flash_i2c_client->client = client;
+    
 	/* Set device type as I2C */
-    CDBG("5");
 	fctrl->flash_device_type = MSM_CAMERA_I2C_DEVICE;
 	printk("%s %d,allenyao\n", __func__,__LINE__);
 	/* Assign name for sub device */
@@ -893,6 +890,8 @@ int msm_flash_i2c_probe(struct i2c_client *client,
 			&msm_sensor_qup_func_tbl;
             
     rc = msm_led_i2c_flash_create_v4lsubdev(fctrl);
+    CDBG("%s:%d probe done\n", __func__, __LINE__);
+    return rc;
 
 probe_failure:
 	CDBG("%s:%d probe failed\n", __func__, __LINE__);

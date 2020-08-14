@@ -13,27 +13,60 @@
 
 #include "msm_led_flash.h" 
 
-#define aw_info(fmt, args...) pr_info("aw36413_led: %s: " fmt, __func__, ##args);
-#define aw_warn(fmt, args...) pr_warn("aw36413_led: %s: " fmt, __func__, ##args);
-#define aw_err(fmt, args...)  pr_err("aw36413_led: %s: " fmt, __func__, ##args);
+#define aw_info(fmt, args...) pr_info("aw36413: %s: " fmt, __func__, ##args);
+#define aw_warn(fmt, args...) pr_warn("aw36413: %s: " fmt, __func__, ##args);
+#define aw_err(fmt, args...)  pr_err("aw36413: %s: " fmt, __func__, ##args);
 
-#define AW36413_TIMING_COUNT  0x1C
+#define AW36413_TIMING_COUNT  0x16
+
+struct aw36413_effects_data {
+	int device;
+	unsigned int reg;
+	unsigned int val;
+	int delay;
+};
+
+/*
+ *  Main aw36413 data structure
+ */
+struct aw36413_cfg {
+    // Devices
+    struct i2c_adapter *a1; // first aw36413 i2c adapter
+    struct i2c_adapter *a2; // second aw36413 i2c adapter
+    
+    // States
+    int ready;   // ready to power on LEDs?
+    int probed;  // is i2c_probe succeed?
+    int hwenpwr; // is HWEN powered?
+    int proc;    // proc state
+    
+    // Info
+    int vendor;  // Vendor ID
+    
+    // GPIOs
+    unsigned int hwen1;   // HWEN for first aw36413
+    unsigned int hwen2;   // HWEN for second aw36413
+    unsigned int strobe;  // Strobe pin
+    
+    // I2C data
+    const struct i2c_device_id *id; // aw36413 i2c id
+};
 
 /*
  *  aw36413 GPIO states
  */
 enum aw36413_gpio {
-    AW36413_I2C_OFF = 0,
-    AW36413_I2C_READY = 2,
+    AW36413_HWEN_OFF = 0,
+    AW36413_HWEN_ON = 1,
 };
 
 /*
- *  Mode codes for aw36413_read_reg and aw36413_write_reg
+ *  Device codes for aw36413_read_reg and aw36413_write_reg
  */
 enum aw36413_ops {
     AW36413_FIRST = 1,
     AW36413_SECOND,
-    AW36413_DOUBLE,
+    AW36413_BOTH,
 };
 
 /*

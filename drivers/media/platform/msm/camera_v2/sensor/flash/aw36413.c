@@ -1,5 +1,8 @@
 /*
  * Copyright (C) 2020 MeizuCustoms enthusiasts
+ * 
+ * Part of the MeizuSucks project
+ * v2.0
  *
  * This software is licensed under the terms of the GNU General Public
  * License version 2, as published by the Free Software Foundation, and
@@ -14,174 +17,219 @@
 #include <linux/module.h>
 #include <linux/export.h>
 #include <linux/gpio.h>
+#include <linux/kernel.h>
+#include <asm/uaccess.h>
+#include <linux/cdev.h>
+#include <linux/proc_fs.h>
 #include "aw36413.h"
 #include "../../common/msm_camera_io_util.h"
 
 static struct msm_led_flash_ctrl_t fctrl;
-static struct i2c_adapter *aw36413_dev_1;
-static struct i2c_adapter *aw36413_dev_2;
-static int msm_flash_en;
-static int aw36413_vendor_id;
-static int aw36413_probe_done;
 
 static const struct i2c_device_id aw36413_i2c_id[] = {
-    { "awinic,aw36413", (kernel_ulong_t)&fctrl },
-    { },
+	{ "awinic,aw36413", (kernel_ulong_t)&fctrl },
+	{ },
 };
-
 static const struct of_device_id aw36413_i2c_trigger_dt_match[] = {
 	{ .compatible = "awinic,aw36413" },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, aw36413_trigger_dt_match);
 
-static unsigned int aw36413_read_reg(unsigned int reg, int mode) {
-    uint8_t data;
-    unsigned int ret32;
-    char *device;
-    
-    // Set what aw36413 we will use...
-    switch (mode) {
-    case AW36413_FIRST:
-        aw_info("read reg from first aw36413...\n");
-        device = "first";
-        fctrl.flash_i2c_client->client->adapter = aw36413_dev_1; // set first aw36413 as i2c client
-        ret32 = fctrl.flash_i2c_client->i2c_func_tbl->i2c_read_seq(fctrl.flash_i2c_client,
-                                                            reg, &data,
-                                                            MSM_CAMERA_I2C_BYTE_DATA);
-        break;
-    case AW36413_SECOND:
-        aw_info("read reg from second aw36413...\n");
-        device = "second";
-        fctrl.flash_i2c_client->client->adapter = aw36413_dev_2; // set second aw36413 as i2c client
-        ret32 = fctrl.flash_i2c_client->i2c_func_tbl->i2c_read_seq(fctrl.flash_i2c_client,
-                                                            reg, &data,
-                                                            MSM_CAMERA_I2C_BYTE_DATA);
-        break;
-    case AW36413_DOUBLE:
-        aw_err("double read not supported!\n");
-        ret32 = -EINVAL;
-        break;
-    default:
-        aw_err("invalid mode %d!\n", mode);
-        ret32 = -EINVAL;
-        break;
-    }
-    
-    if (ret32 < 0) {
-        aw_err("read error! ret = %d\n", ret32);
-    } else {
-        aw_info("read successful, data: 0x%02x, reg: 0x%02x, device: %s\n", 
-                                                        data, reg, device);
-    }
-    
-    return (unsigned char)data;
+static struct aw36413_cfg *aw36413 = NULL;
+
+static int aw36413_reg_write(int device, unsigned int reg, unsigned int val) {
+	unsigned int ret;
+	
+	if (!fctrl.flash_i2c_client->i2c_func_tbl) {
+		aw_err("I2C functions are not defined!\n");
+		return -EINVAL;
+	}
+	
+	switch (device) {
+	case AW36413_FIRST:
+		fctrl.flash_i2c_client->client->adapter = aw36413->a1;
+		ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client,
+																 reg, val, MSM_CAMERA_I2C_BYTE_DATA);
+		break;
+	case AW36413_SECOND:
+		fctrl.flash_i2c_client->client->adapter = aw36413->a2;
+		ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client,
+																 reg, val, MSM_CAMERA_I2C_BYTE_DATA);
+		break;
+	case AW36413_BOTH:
+		fctrl.flash_i2c_client->client->adapter = aw36413->a1;
+		ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client,
+																 reg, val, MSM_CAMERA_I2C_BYTE_DATA);
+		if (ret < 0) {
+			aw_err("error: %d, device: %d, reg: 0x%02x, val: 0x%02x\n", ret, device, reg, val);
+			return ret;
+		}
+		fctrl.flash_i2c_client->client->adapter = aw36413->a2;
+		ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client,
+																 reg, val, MSM_CAMERA_I2C_BYTE_DATA);
+		break;
+	default:
+		aw_err("Invalid device %d. Please use aw36413_ops values.\n", device);
+		return -EINVAL;
+		break;
+	}
+	
+	if (ret < 0) {
+		aw_err("error: %d, device: %d, reg: 0x%02x, val: 0x%02x\n", ret, device, reg, val);
+		return ret;
+	} else {
+		aw_info("done %d, device: %d, reg: 0x%02x, val: 0x%02x\n", ret, device, reg, val);
+	}
+	
+	return 0;
 }
 
-static int aw36413_write_reg(unsigned int reg, unsigned int val, int mode) {
-    int ret;
-    char *device;
-    
-    // Set what aw36413 we will use...
-    switch (mode) {
-    case AW36413_FIRST:
-        aw_info("write reg to first aw36413...\n");
-        device = "first";
-        fctrl.flash_i2c_client->client->adapter = aw36413_dev_1; // set first aw36413 as i2c client
-        ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client,
-                                                              reg, val,
-                                                              MSM_CAMERA_I2C_BYTE_DATA);
-        break;
-    case AW36413_SECOND:
-        aw_info("write reg to second aw36413...\n");
-        device = "second";
-        fctrl.flash_i2c_client->client->adapter = aw36413_dev_2; // set second aw36413 as i2c client
-        ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client, reg, val,
-                                                              MSM_CAMERA_I2C_BYTE_DATA);
-        break;
-    case AW36413_DOUBLE:
-        aw_err("write reg to both aw36413...\n");
-        device = "double";
-        fctrl.flash_i2c_client->client->adapter = aw36413_dev_1; // set first aw36413 as i2c client
-        ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client, reg, val,
-                                                              MSM_CAMERA_I2C_BYTE_DATA);
-        if (ret < 0) { // check both write operations for error
-            aw_err("write error! ret = %d\n", ret);
+static unsigned int aw36413_reg_read(int device, unsigned int reg) {
+	unsigned int ret;
+	uint8_t val;
+	
+	if (!fctrl.flash_i2c_client->i2c_func_tbl) {
+		aw_err("I2C functions are not defined!\n");
+		return -EINVAL;
+	}
+	
+	switch (device) {
+	case AW36413_FIRST:
+		fctrl.flash_i2c_client->client->adapter = aw36413->a1;
+		ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_read_seq(fctrl.flash_i2c_client,
+																 reg, &val, MSM_CAMERA_I2C_BYTE_DATA);
+		break;
+	case AW36413_SECOND:
+		fctrl.flash_i2c_client->client->adapter = aw36413->a2;
+		ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_read_seq(fctrl.flash_i2c_client,
+																 reg, &val, MSM_CAMERA_I2C_BYTE_DATA);
+		break;
+	case AW36413_BOTH:
+		aw_err("both mode not supported\n");
+		break;
+	default:
+		aw_err("Invalid device %d. Please use aw36413_ops values.\n", device);
+		return -EINVAL;
+		break;
+	}
+	
+	if (ret < 0) {
+		aw_err("error: %d, device: %d, reg: 0x%02x, val: 0x%02x\n", ret, device, reg, val);
+		return ret;
+	} else {
+		aw_info("done %d, device: %d, reg: 0x%02x, val: 0x%02x\n", ret, device, reg, val);
+	}
+	
+	return val;
+}
+
+static void aw36413_hwen(int device, int state) {
+	switch (device) {
+	case AW36413_FIRST:
+		if (gpio_is_valid(aw36413->hwen1)) {
+			gpio_direction_output(aw36413->hwen1, state);
+		} else {
+			aw_err("HWEN1 invalid!\n");
+			return;
+		}
+		break;
+	case AW36413_SECOND:
+		if (gpio_is_valid(aw36413->hwen1)) {
+			gpio_direction_output(aw36413->hwen2, state);
+		} else {
+			aw_err("HWEN2 invalid!\n");
+			return;
+		}
+		break;
+	case AW36413_BOTH:
+		if (gpio_is_valid(aw36413->hwen1)) {
+			gpio_direction_output(aw36413->hwen1, state);
+		} else {
+			aw_err("HWEN1 invalid!\n");
+			return;
+		}
+		if (gpio_is_valid(aw36413->hwen2)) {
+			gpio_direction_output(aw36413->hwen2, state);
+		} else {
+			aw_err("HWEN1 invalid!\n");
+			return;
+		}
+		break;
+	default:
+		aw_err("Invalid device %d. Please use aw36413_ops values.\n", device);
+		return;
+		break;
+	}
+	
+	aw36413->hwenpwr = 1;
+	if (state == AW36413_HWEN_OFF)
+		aw36413->hwenpwr = 0;
+	
+	aw_info("Success, device: %d, state: %d\n", device, state);
+	return;
+}
+
+static int aw36413_gpio_setup(void) {
+	int ret = 0;
+	
+	if (!aw36413) {
+		aw_err("main structure not found!\n");
+		return -EINVAL;
+	}
+	
+	if (gpio_is_valid(aw36413->hwen1)) {
+		ret = gpio_request(aw36413->hwen1, "aw36413_hwen1");
+        if (ret) {
+            aw_err("could not request HWEN1 GPIO %d! %d\n", aw36413->hwen1, ret);
             return ret;
         }
-        fctrl.flash_i2c_client->client->adapter = aw36413_dev_2; // set second aw36413 as i2c client
-        ret = fctrl.flash_i2c_client->i2c_func_tbl->i2c_write(fctrl.flash_i2c_client, reg, val,
-                                                              MSM_CAMERA_I2C_BYTE_DATA);
-        break;
-    default:
-        aw_err("invalid mode %d!\n", mode);
-        ret = -EINVAL;
-        break;
-    }
-    
-    if (ret < 0) {
-        aw_err("write error! ret = %d\n", ret);
-        return ret;
-    } else {
-        aw_info("write successful, val: 0x%02x, reg: 0x%02x, device: %s\n", 
-                            val, reg, device);
-    }
-    
-    return ret;
-}
-
-static int aw36413_gpio_set(int val, int mode) {
-    char *device;
-    unsigned int aw36413_1_gpio = 95;
-    unsigned int aw36413_2_gpio = 93;
-    
-    if (!aw36413_1_gpio || !aw36413_2_gpio) {
-        aw_err("Can't find one of GPIOs. GPIO table: [FIRST | %d] [SECOND | %d]\n", 
-                                                    aw36413_1_gpio, aw36413_2_gpio);
-        return -EINVAL;
-    }
-    
-    switch (mode) {
-    case AW36413_FIRST:
-        device = "first";
-        gpio_set_value_cansleep(aw36413_1_gpio, val);
-        break;
-    case AW36413_SECOND:
-        device = "second";
-        gpio_set_value_cansleep(aw36413_2_gpio, val);
-        break;
-    case AW36413_DOUBLE:
-        device = "double";
-        gpio_set_value_cansleep(aw36413_1_gpio, val);
-        gpio_set_value_cansleep(aw36413_2_gpio, val);
-        break;
-    default:
-        aw_err("invalid mode!\n");
-        return -EINVAL;
-        break;
-    }
-    
-    aw_info("GPIO set success, value: 0x%02x, device: %s\n", val, device);
-    aw_info("GPIO table: [FIRST | %d] [SECOND | %d]\n", aw36413_1_gpio, aw36413_2_gpio);
-    return 0;
+	} else {
+		aw_err("HWEN1 GPIO is invalid!\n");
+		return -EIO;
+	}
+	
+	if (gpio_is_valid(aw36413->hwen2)) {
+		ret = gpio_request(aw36413->hwen2, "aw36413_hwen2");
+        if (ret) {
+            aw_err("could not request HWEN2 GPIO %d! %d\n", aw36413->hwen2, ret);
+            return ret;
+        }
+	} else {
+		aw_err("HWEN2 GPIO is invalid!\n");
+		return -EIO;
+	}
+	
+	if (gpio_is_valid(aw36413->strobe)) {
+		ret = gpio_request(aw36413->strobe, "aw36413_strobe");
+        if (ret) {
+            aw_err("could not request STROBE GPIO %d! %d\n", aw36413->strobe, ret);
+            return ret;
+        }
+	} else {
+		aw_err("STROBE GPIO is invalid!\n");
+		return -EIO;
+	}
+	
+	aw_info("STROBE: %d. HWEN1: %d, HWEN2: %d\n", aw36413->strobe, aw36413->hwen1, aw36413->hwen2);
+	return 0;
 }
 
 static void aw36413_get_vendor_id(void) {
-    aw_info("enter\n");
-    aw36413_gpio_set(AW36413_I2C_OFF, AW36413_FIRST);
-    msleep(2);
-    aw36413_gpio_set(AW36413_I2C_READY, AW36413_FIRST);
-    msleep(2);
-    
-    if (aw36413_read_reg(REG_AW36413_DEVICE_ID, AW36413_FIRST) != 28) {
-        fctrl.flash_i2c_client->client->addr = 214;
-        aw36413_vendor_id = 0;
-    } else {
-        fctrl.flash_i2c_client->client->addr = 198;
-        aw36413_vendor_id = 1;
-    }
-    
-    aw36413_gpio_set(AW36413_I2C_OFF, AW36413_FIRST);
+	int devid;
+	aw36413_hwen(AW36413_FIRST, AW36413_HWEN_OFF);
+	mdelay(10);
+	aw36413_hwen(AW36413_FIRST, AW36413_HWEN_ON);
+	mdelay(10);
+	aw36413->vendor = 0;
+	fctrl.flash_i2c_client->client->addr = 0xc6;
+	devid = aw36413_reg_read(AW36413_FIRST, REG_AW36413_DEVICE_ID);
+	aw_info("device id: 0x%02x\n", devid);
+	if (aw36413_reg_read(AW36413_FIRST, REG_AW36413_DEVICE_ID) != 0x1c) {
+		fctrl.flash_i2c_client->client->addr = 0xd6;
+		aw36413->vendor = 1;
+	}
+	aw_info("done\n");
 }
 
 static void msm_led_torch_brightness_set(struct led_classdev *led_cdev,
@@ -201,33 +249,173 @@ static struct led_classdev msm_torch_led = {
     .brightness	    = LED_OFF,
 };
 
-static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
-                                 const struct i2c_device_id *id) {
-    int ret = 0;
+static int aw36413_led_bullet(struct msm_led_flash_ctrl_t *fctrl) {
+    int torch_op_current_0, torch_op_current_1;
+    int reg_current_0, reg_current_1;
+    int temp_led1_brightness, temp_led2_brightness;
+    int led1_brightness, led2_brightness, enable;
+	int i;
     
     aw_info("enter\n");
-    if (!id) {
-        id = aw36413_i2c_id;
-        aw_warn("id not found, was set default.\n");
+    if (!fctrl || !fctrl->flashdata) {
+        aw_err("fctrl not found\n");
+        return -EINVAL;
     }
     
-    aw_info("first adapter\n");
-    aw36413_dev_1 = i2c_get_adapter(6);
-    aw_info("second adapter\n");
-    aw36413_dev_2 = i2c_get_adapter(5);
-    aw_info("check adapter\n");
-    if (aw36413_dev_1 == NULL) aw_err("first aw36413 not found\n");
-    if (aw36413_dev_2 == NULL) aw_err("second aw36413 not found\n");
-    
-    aw_info("probe\n");
-    msm_flash_i2c_probe(client, id);
-    aw_info("i2c probe done\n");
-    ret = msm_camera_request_gpio_table(fctrl.flashdata->power_info.gpio_conf->cam_gpio_req_tbl,
-                                fctrl.flashdata->power_info.gpio_conf->cam_gpio_req_tbl_size, 1);
-    if (ret) {
-        aw_err("request GPIO failed\n");
-        return ret;
+    if (fctrl->cci_i2c_master) {
+        aw_info("cci_master = %d\n", fctrl->cci_i2c_master);
     }
+    
+    torch_op_current_0 = fctrl->flash_op_current[0];
+    torch_op_current_1 = fctrl->flash_op_current[1];
+    if ( torch_op_current_0 <= 3000 ) {
+        if ( torch_op_current_0 > 300 )
+            reg_current_0 = 300;
+        else
+            reg_current_0 = torch_op_current_0;
+    }
+    reg_current_1 = 200;
+    if ( torch_op_current_1 <= 3000 ) {
+        if ( torch_op_current_1 > 300 )
+            reg_current_1 = 300;
+        else
+            reg_current_1 = torch_op_current_1;
+    }
+    
+    if (aw36413->ready) {
+        aw36413_hwen(AW36413_SECOND, AW36413_HWEN_ON);
+        mdelay(10);
+        if (aw36413->vendor == 1) {
+            temp_led1_brightness = (100 * reg_current_0 + 280) / 560;
+            temp_led2_brightness = (100 * reg_current_1 + 280) / 560;
+        } else {
+            temp_led1_brightness = (100 * reg_current_0 + 291) / 582;
+            temp_led2_brightness = (100 * reg_current_1 + 291) / 582;
+        }
+        if (temp_led1_brightness)
+            led1_brightness = temp_led1_brightness - 1;
+        else
+            led1_brightness = 0;
+        
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED1_TORCH, 0);
+        
+        if (temp_led2_brightness)
+            led2_brightness = temp_led2_brightness - 1;
+        else
+            led2_brightness = 0;
+        
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED2_TORCH, 0);
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_TIMING, AW36413_TIMING_COUNT);
+        
+        if (temp_led1_brightness)
+            enable = 11;
+        else
+            enable = 10;
+        if (!temp_led2_brightness)
+            enable &= 253;
+        
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_ENABLE, enable);
+		
+		for (i=0;i<48;i++) {
+			aw_info("i=%d\n", i);
+			aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED1_TORCH, i);
+			aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED2_TORCH, i);
+			mdelay(25);
+		}
+		
+		for (i=48;i>0;i--) {
+			aw_info("i=%d\n", i);
+			aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED1_TORCH, i);
+			aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED2_TORCH, i);
+			mdelay(25);
+		}
+		
+		for (i=0;i<48;i++) {
+			aw_info("i=%d\n", i);
+			aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED1_TORCH, i);
+			aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED2_TORCH, i);
+			mdelay(25);
+		}
+		
+		for (i=48;i>0;i--) {
+			aw_info("i=%d\n", i);
+			aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED1_TORCH, i);
+			aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED2_TORCH, i);
+			mdelay(25);
+		}
+		
+		aw36413_reg_write(AW36413_BOTH, REG_AW36413_ENABLE, 0);
+    } else {
+		aw_info("aw36413 not ready\n");
+	}
+    return 0;
+}
+
+static ssize_t aw36413_proc_write(struct file *filp, const char __user *buff,
+    size_t len, loff_t *data) {
+	aw_info("Enable LED\n");
+	fctrl.func_tbl->flash_led_init(&fctrl);
+	fctrl.flash_op_current[0] = 1500;
+	fctrl.flash_op_current[1] = 1500;
+	fctrl.func_tbl->flash_led_low(&fctrl);
+	msleep(5000);
+	fctrl.func_tbl->flash_led_off(&fctrl);
+	aw_info("Enable LED done\n");
+	return len;
+}
+
+static const struct file_operations aw36413_fops = {
+    .owner          = THIS_MODULE,
+    .write          = aw36413_proc_write,
+};
+
+static ssize_t aw36413_proc_write2(struct file *filp, const char __user *buff,
+    size_t len, loff_t *data) {
+	aw_info("Enable LED\n");
+	fctrl.func_tbl->flash_led_init(&fctrl);
+	fctrl.flash_op_current[0] = 300;
+	fctrl.flash_op_current[1] = 300;
+	aw36413_led_bullet(&fctrl);
+	fctrl.func_tbl->flash_led_off(&fctrl);
+	aw_info("Enable LED done\n");
+	return len;
+}
+
+static const struct file_operations aw36413_fops2 = {
+    .owner          = THIS_MODULE,
+    .write          = aw36413_proc_write2,
+};
+
+static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
+        const struct i2c_device_id *id) {
+	int ret;
+	struct proc_dir_entry *proc_entry;
+	
+	aw36413 = kzalloc(sizeof(struct aw36413_cfg *), GFP_KERNEL);
+	aw36413->id = aw36413_i2c_id;
+	aw36413->hwen1 = 95;
+	aw36413->hwen2 = 93;
+	aw36413->strobe = 96;
+	aw36413->a1 = i2c_get_adapter(6);
+	aw36413->a2 = i2c_get_adapter(5);
+	client->adapter = aw36413->a1;
+	
+	if (!id) id = aw36413->id;
+	if (!aw36413->a1) {
+		aw_err("no a1 found.\n");
+		return -EINVAL;
+	}
+	if (!aw36413->a2) {
+		aw_err("no a2 found.\n");
+		return -EINVAL;
+	}
+	
+	msm_flash_i2c_probe(client, id);
+    ret = aw36413_gpio_setup();
+	if (ret) {
+		aw_err("GPIO validating error\n");
+		return ret;
+	}
     
     if (fctrl.pinctrl_info.use_pinctrl != false) {
         aw_info("set pinctrl state to active\n");
@@ -240,15 +428,28 @@ static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
     }
     
     aw36413_get_vendor_id();
-    
-    msm_led_torch_brightness_set(&msm_torch_led, LED_OFF);
+	msm_led_torch_brightness_set(&msm_torch_led, LED_OFF);
     ret = led_classdev_register(&client->dev, &msm_torch_led);
     if (ret) {
         aw_err("Failed to register LED classdev. ret = %d\n", ret);
+		gpio_free(aw36413->hwen1);
+		gpio_free(aw36413->hwen2);
+		gpio_free(aw36413->strobe);
+		return ret;
     }
-    aw_info("done\n");
-    aw36413_probe_done = 1;
-    return ret;
+    
+    proc_entry = proc_create_data("aw36413_switch", 0660, NULL, &aw36413_fops, NULL);
+	if (!proc_entry) {
+		aw_err("proc entry create error!\n");
+	}
+	proc_entry = proc_create_data("aw36413_effect1", 0660, NULL, &aw36413_fops2, NULL);
+	if (!proc_entry) {
+		aw_err("proc entry create error!\n");
+	}
+    
+	aw_info("done\n");
+	aw36413->probed = 1;
+	return ret;
 }
 
 static int msm_flash_aw36413_i2c_remove(struct i2c_client *client) {
@@ -271,7 +472,11 @@ static int msm_flash_aw36413_i2c_remove(struct i2c_client *client) {
             return ret;
         }
     }
+    gpio_free(aw36413->hwen1);
+	gpio_free(aw36413->hwen2);
+	gpio_free(aw36413->strobe);
     aw_info("done\n");
+	aw36413->probed = 0;
     return ret;
 }
 
@@ -288,12 +493,12 @@ static struct i2c_driver aw36413_i2c_driver = {
 
 static int msm_flash_aw36413_led_init(struct msm_led_flash_ctrl_t *fctrl) {
     aw_info("enter\n");
-    aw36413_gpio_set(AW36413_I2C_OFF, AW36413_DOUBLE);
-    msleep(2);
-    aw36413_gpio_set(AW36413_I2C_READY, AW36413_DOUBLE);
-    msleep(8);
-    aw36413_write_reg(REG_AW36413_ENABLE, 0, AW36413_DOUBLE);
-    msm_flash_en = 1;
+    aw36413_hwen(AW36413_BOTH, AW36413_HWEN_OFF);
+    mdelay(10);
+    aw36413_hwen(AW36413_BOTH, AW36413_HWEN_ON);
+    mdelay(10);
+    aw36413_reg_write(AW36413_BOTH, REG_AW36413_ENABLE, 0);
+    aw36413->ready = 1;
     return 0;
 }
 
@@ -304,31 +509,39 @@ static int msm_flash_aw36413_led_release(struct msm_led_flash_ctrl_t *fctrl) {
         return -EINVAL;
     }
     
-    aw36413_gpio_set(AW36413_I2C_OFF, AW36413_DOUBLE);
-    msleep(8);
-    msm_flash_en = 0;
+    aw36413_hwen(AW36413_BOTH, AW36413_HWEN_OFF);
+    mdelay(10);
+    aw36413->ready = 0;
     return 0;
 }
 
 static int msm_flash_aw36413_led_off(struct msm_led_flash_ctrl_t *fctrl) {
-    aw_info("enter\n");
+    int ret;
+	
+	aw_info("enter\n");
     if (!fctrl || !fctrl->flashdata) {
         aw_err("fctrl not found\n");
         return -EINVAL;
     }
     
-    if (aw36413_write_reg(REG_AW36413_ENABLE, 0, AW36413_FIRST)) {
-        aw_info("retry 1\n");
-        aw36413_gpio_set(AW36413_I2C_READY, AW36413_FIRST);
-        msleep(2);
-        aw36413_write_reg(REG_AW36413_ENABLE, 0, AW36413_FIRST);
+    if (aw36413_reg_write(AW36413_FIRST, REG_AW36413_ENABLE, 0)) {
+        aw36413_hwen(AW36413_FIRST, AW36413_HWEN_ON);
+        mdelay(10);
+        ret = aw36413_reg_write(AW36413_FIRST, REG_AW36413_ENABLE, 0);
+		if (ret) {
+			aw_err("failed to write reg\n");
+			return ret;
+		}
     }
     
-    if (aw36413_write_reg(REG_AW36413_ENABLE, 0, AW36413_SECOND)) {
-        aw_info("retry 2\n");
-        aw36413_gpio_set(AW36413_I2C_READY, AW36413_SECOND);
-        msleep(2);
-        aw36413_write_reg(REG_AW36413_ENABLE, 0, AW36413_SECOND);
+    if (aw36413_reg_write(AW36413_SECOND, REG_AW36413_ENABLE, 0)) {
+        aw36413_hwen(AW36413_SECOND, AW36413_HWEN_ON);
+        mdelay(10);
+        ret = aw36413_reg_write(AW36413_SECOND, REG_AW36413_ENABLE, 0);
+		if (ret) {
+			aw_err("failed to write reg\n");
+			return ret;
+		}
     }
     
     return 0;
@@ -369,9 +582,9 @@ static int msm_flash_aw36413_led_high(struct msm_led_flash_ctrl_t *fctrl) {
             reg_current_1 = flash_op_current_1;
     }
     
-    if (msm_flash_en) {
-        aw36413_gpio_set(AW36413_I2C_READY, AW36413_DOUBLE);
-        msleep(2);
+    if (aw36413->ready) {
+        aw36413_hwen(AW36413_SECOND, AW36413_HWEN_ON);
+        mdelay(10);
         temp_led1_brightness = (100 * reg_current_0 + 1170) / 2344;
         temp_led2_brightness = (100 * reg_current_1 + 1170) / 2344;
         if (temp_led1_brightness)
@@ -379,15 +592,15 @@ static int msm_flash_aw36413_led_high(struct msm_led_flash_ctrl_t *fctrl) {
         else
             led1_brightness = 0;
         
-        aw36413_write_reg(REG_AW36413_LED1_FLASH, led1_brightness, AW36413_DOUBLE);
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED1_FLASH, led1_brightness);
         
         if (temp_led2_brightness)
             led2_brightness = temp_led2_brightness - 1;
         else
             led2_brightness = 0;
         
-        aw36413_write_reg(REG_AW36413_LED2_FLASH, led2_brightness, AW36413_DOUBLE);
-        aw36413_write_reg(REG_AW36413_TIMING, AW36413_TIMING_COUNT, AW36413_DOUBLE);
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED2_FLASH, led2_brightness);
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_TIMING, AW36413_TIMING_COUNT);
         
         if (temp_led1_brightness)
             enable = 15;
@@ -397,8 +610,10 @@ static int msm_flash_aw36413_led_high(struct msm_led_flash_ctrl_t *fctrl) {
         if (!temp_led2_brightness)
             enable &= 253;
         
-        aw36413_write_reg(REG_AW36413_ENABLE, enable, AW36413_DOUBLE);
-    }
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_ENABLE, enable);
+    } else {
+		aw_info("aw36413 not ready\n");
+	}
     return 0;
 }
 
@@ -434,10 +649,10 @@ static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl) {
             reg_current_1 = torch_op_current_1;
     }
     
-    if (msm_flash_en) {
-        aw36413_gpio_set(AW36413_I2C_READY, AW36413_DOUBLE);
-        msleep(2);
-        if (aw36413_vendor_id == 1) {
+    if (aw36413->ready) {
+        aw36413_hwen(AW36413_SECOND, AW36413_HWEN_ON);
+        mdelay(10);
+        if (aw36413->vendor == 1) {
             temp_led1_brightness = (100 * reg_current_0 + 280) / 560;
             temp_led2_brightness = (100 * reg_current_1 + 280) / 560;
         } else {
@@ -449,15 +664,15 @@ static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl) {
         else
             led1_brightness = 0;
         
-        aw36413_write_reg(REG_AW36413_LED1_TORCH, led1_brightness, AW36413_DOUBLE);
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED1_TORCH, led1_brightness);
         
         if (temp_led2_brightness)
             led2_brightness = temp_led2_brightness - 1;
         else
             led2_brightness = 0;
         
-        aw36413_write_reg(REG_AW36413_LED2_TORCH, led2_brightness, AW36413_DOUBLE);
-        aw36413_write_reg(REG_AW36413_TIMING, AW36413_TIMING_COUNT, AW36413_DOUBLE);
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED2_TORCH, led2_brightness);
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_TIMING, AW36413_TIMING_COUNT);
         
         if (temp_led1_brightness)
             enable = 11;
@@ -466,8 +681,10 @@ static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl) {
         if (!temp_led2_brightness)
             enable &= 253;
         
-        aw36413_write_reg(REG_AW36413_ENABLE, enable, AW36413_DOUBLE);
-    }
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_ENABLE, enable);
+    } else {
+		aw_info("aw36413 not ready\n");
+	}
     return 0;
 }
 
@@ -537,7 +754,7 @@ static int32_t msm_led_aw36413_i2c_trigger_config(struct msm_led_flash_ctrl_t *f
 }
 
 static struct msm_flash_fn_t aw36413_func_tbl = {
-    .flash_get_subdev_id = msm_led_aw36413_i2c_trigger_get_subdev_id,
+	.flash_get_subdev_id = msm_led_aw36413_i2c_trigger_get_subdev_id,
 	.flash_led_config = msm_led_aw36413_i2c_trigger_config,
 	.flash_led_init = msm_flash_aw36413_led_init,
 	.flash_led_release = msm_flash_aw36413_led_release,
@@ -564,7 +781,6 @@ static int __init msm_flash_aw36413_init(void)
         aw_info("done\n");
 	return rc;
 }
-
 static void __exit msm_flash_aw36413_exit(void)
 {
     i2c_del_driver(&aw36413_i2c_driver);
