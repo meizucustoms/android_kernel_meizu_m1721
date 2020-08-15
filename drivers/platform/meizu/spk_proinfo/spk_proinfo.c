@@ -1,8 +1,7 @@
 /*
  * TXJ Speaker support - Low-level kernel driver
  *
- * Copyright (C) 2020 MeizuCustoms team
- * Copyright (C) 2020 Roman Rihter, msucks-m1721 maintaner
+ * Copyright (C) 2020 MeizuCustoms enthusiasts
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by

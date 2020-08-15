@@ -28,6 +28,11 @@ config MEIZU_SPEAKER_CALIBRATION
 	help
 	  Enable kernel TXJ driver to support OS-level library for speaker
 	  
+config MEIZU_HARDWARE_INFO
+	bool "IOCTL for Meizu libs"
+	help
+	  Enable kernel meizu_hw driver to get HW info
+	  
 endmenu
 
 menu "MeizuSucks selection"
