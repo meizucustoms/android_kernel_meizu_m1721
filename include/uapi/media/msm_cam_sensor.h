@@ -254,7 +254,7 @@ struct csiphy_cfg_data {
 };
 
 enum eeprom_cfg_type_t {
-	CFG_EEPROM_GET_INFO,
+	CFG_EEPROM_GET_INFO = 0,
 	CFG_EEPROM_GET_CAL_DATA,
 	CFG_EEPROM_READ_CAL_DATA,
 	CFG_EEPROM_WRITE_DATA,

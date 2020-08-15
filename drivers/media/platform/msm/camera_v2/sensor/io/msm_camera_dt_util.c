@@ -782,86 +782,6 @@ ERROR1:
 	gconf->cam_gpio_req_tbl_size = 0;
 	return rc;
 }
-int msm_camera_get_dt_gpio_set_tbl(struct device_node *of_node,
-	struct msm_camera_gpio_conf *gconf, uint16_t *gpio_array,
-	uint16_t gpio_array_size)
-{
-	int rc = 0, i = 0;
-	uint32_t count = 0;
-	uint32_t *val_array = NULL;
-
-	if (!of_get_property(of_node, "qcom,gpio-set-tbl-num", &count))
-		return 0;
-
-	count /= sizeof(uint32_t);
-	if (!count) {
-		pr_err("%s qcom,gpio-set-tbl-num 0\n", __func__);
-		return 0;
-	}
-
-	val_array = kzalloc((sizeof(uint32_t) * count), GFP_KERNEL);
-	if (!val_array)
-		return -ENOMEM;
-
-	gconf->cam_gpio_set_tbl = kzalloc(sizeof(struct msm_gpio_set_tbl) *
-		count, GFP_KERNEL);
-	if (!gconf->cam_gpio_set_tbl) {
-		rc = -ENOMEM;
-		goto ERROR1;
-	}
-	gconf->cam_gpio_set_tbl_size = count;
-
-	rc = of_property_read_u32_array(of_node, "qcom,gpio-set-tbl-num",
-		val_array, count);
-	if (rc < 0) {
-		pr_err("%s failed %d\n", __func__, __LINE__);
-		goto ERROR2;
-	}
-	for (i = 0; i < count; i++) {
-		if (val_array[i] >= gpio_array_size) {
-			pr_err("%s gpio set tbl index %d invalid\n",
-				__func__, val_array[i]);
-			return -EINVAL;
-		}
-		gconf->cam_gpio_set_tbl[i].gpio = gpio_array[val_array[i]];
-		CDBG("%s cam_gpio_set_tbl[%d].gpio = %d\n", __func__, i,
-			gconf->cam_gpio_set_tbl[i].gpio);
-	}
-
-	rc = of_property_read_u32_array(of_node, "qcom,gpio-set-tbl-flags",
-		val_array, count);
-	if (rc < 0) {
-		pr_err("%s failed %d\n", __func__, __LINE__);
-		goto ERROR2;
-	}
-	for (i = 0; i < count; i++) {
-		gconf->cam_gpio_set_tbl[i].flags = val_array[i];
-		CDBG("%s cam_gpio_set_tbl[%d].flags = %ld\n", __func__, i,
-			gconf->cam_gpio_set_tbl[i].flags);
-	}
-
-	rc = of_property_read_u32_array(of_node, "qcom,gpio-set-tbl-delay",
-		val_array, count);
-	if (rc < 0) {
-		pr_err("%s failed %d\n", __func__, __LINE__);
-		goto ERROR2;
-	}
-	for (i = 0; i < count; i++) {
-		gconf->cam_gpio_set_tbl[i].delay = val_array[i];
-		CDBG("%s cam_gpio_set_tbl[%d].delay = %d\n", __func__, i,
-			gconf->cam_gpio_set_tbl[i].delay);
-	}
-
-	kfree(val_array);
-	return rc;
-
-ERROR2:
-	kfree(gconf->cam_gpio_set_tbl);
-ERROR1:
-	kfree(val_array);
-	gconf->cam_gpio_set_tbl_size = 0;
-	return rc;
-}
 
 int msm_camera_init_gpio_pin_tbl(struct device_node *of_node,
 	struct msm_camera_gpio_conf *gconf, uint16_t *gpio_array,
@@ -1443,7 +1363,7 @@ int32_t msm_sensor_driver_get_gpio_data(
 	int16_t                     gpio_array_size = 0;
 	struct msm_camera_gpio_conf *gconf = NULL;
 
-    pr_info("%s enter", __func__);
+    pr_warn("%s enter", __func__);
     
 	/* Validate input parameters */
 	if (!of_node) {
@@ -1453,27 +1373,22 @@ int32_t msm_sensor_driver_get_gpio_data(
 
 	gpio_array_size = of_count_phandle_with_args(of_node, "gpios", "#gpio-cells");
 	CDBG("gpio count %d\n", gpio_array_size);
-	if (gpio_array_size <= 0)
-        pr_info("%s gpio array size", __func__);
-		return -ENODEV;
+    CDBG("1");
 
 	gconf = kzalloc(sizeof(struct msm_camera_gpio_conf),
 		GFP_KERNEL);
-	if (!gconf)
-        pr_info("%s gconf", __func__);
-		return -ENOMEM;
-
-	*gpio_conf = gconf;
+    *gpio_conf = gconf;
 
 	gpio_array = kcalloc(gpio_array_size, sizeof(uint16_t), GFP_KERNEL);
-	if (!gpio_array)
-        pr_info("%s gpio array", __func__);
-		goto FREE_GPIO_CONF;
+    
+    CDBG("5");
 
 	for (i = 0; i < gpio_array_size; i++) {
 		gpio_array[i] = of_get_gpio(of_node, i);
 		CDBG("gpio_array[%d] = %d", i, gpio_array[i]);
 	}
+	
+	CDBG("6");
 
 	rc = msm_camera_get_dt_gpio_req_tbl(of_node, gconf, gpio_array,
 		gpio_array_size);
@@ -1481,13 +1396,8 @@ int32_t msm_sensor_driver_get_gpio_data(
 		pr_err("failed in msm_camera_get_dt_gpio_req_tbl\n");
 		goto FREE_GPIO_CONF;
 	}
-
-	rc = msm_camera_get_dt_gpio_set_tbl(of_node, gconf,
-		gpio_array, gpio_array_size);
-	if (rc < 0) {
-		pr_err("%s failed %d\n", __func__, __LINE__);
-		goto FREE_GPIO_REQ_TBL;
-	}
+	
+	CDBG("8");
 
 	rc = msm_camera_init_gpio_pin_tbl(of_node, gconf, gpio_array,
 		gpio_array_size);
@@ -1495,6 +1405,8 @@ int32_t msm_sensor_driver_get_gpio_data(
 		pr_err("failed in msm_camera_init_gpio_pin_tbl\n");
 		goto FREE_GPIO_REQ_TBL;
 	}
+	
+	CDBG("9");
 	kfree(gpio_array);
 	return rc;
 FREE_GPIO_REQ_TBL:

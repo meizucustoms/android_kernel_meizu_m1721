@@ -27,7 +27,7 @@
 #include <linux/types.h>
 #include "meizu_hw.h"
 
-static struct meizu_hw_info info = {
+struct meizu_hw_info mzhw_info = {
     .display = "NO THAT DEVICE",
     .touchscreen = "NO THAT DEVICE",
     .memory = "NO THAT DEVICE",
@@ -55,52 +55,52 @@ static long meizu_hw_ioctl(struct file *filp, unsigned int cmd, unsigned long ar
 	
 	switch (cmd) {
 	case -MEIZUHW_IOC_DISPLAY:
-		ret = __copy_to_user(&arg, info.display, 40);
+		ret = __copy_to_user(&arg, mzhw_info.display, 40);
 		break;
 	case -MEIZUHW_IOC_TOUCHSCREEN:
-		ret = __copy_to_user(&arg, info.touchscreen, 40);
+		ret = __copy_to_user(&arg, mzhw_info.touchscreen, 40);
 		break;
 	case -MEIZUHW_IOC_MEMORY:
-		ret = __copy_to_user(&arg, info.memory, 40);
+		ret = __copy_to_user(&arg, mzhw_info.memory, 40);
 		break;
 	case -MEIZUHW_IOC_FRONT_CAMERA:
-		ret = __copy_to_user(&arg, info.front_camera, 40);
+		ret = __copy_to_user(&arg, mzhw_info.front_camera, 40);
 		break;
 	case -MEIZUHW_IOC_BACK_CAMERA:
-		ret = __copy_to_user(&arg, info.back_camera, 40);
+		ret = __copy_to_user(&arg, mzhw_info.back_camera, 40);
 		break;
 	case -MEIZUHW_IOC_GRAVITY_SENSOR:
-		ret = __copy_to_user(&arg, info.gravity_sensor, 40);
+		ret = __copy_to_user(&arg, mzhw_info.gravity_sensor, 40);
 		break;
 	case -MEIZUHW_IOC_LIGHT_SENSOR:
-		ret = __copy_to_user(&arg, info.light_sensor, 40);
+		ret = __copy_to_user(&arg, mzhw_info.light_sensor, 40);
 		break;
 	case -MEIZUHW_IOC_GYROSCOPE:
-		ret = __copy_to_user(&arg, info.gyroscope, 40);
+		ret = __copy_to_user(&arg, mzhw_info.gyroscope, 40);
 		break;
 	case -MEIZUHW_IOC_MAGNETOMETER:
-		ret = __copy_to_user(&arg, info.magnetometer, 40);
+		ret = __copy_to_user(&arg, mzhw_info.magnetometer, 40);
 		break;
 	case -MEIZUHW_IOC_BLUETOOTH:
-		ret = __copy_to_user(&arg, info.bluetooth, 40);
+		ret = __copy_to_user(&arg, mzhw_info.bluetooth, 40);
 		break;
 	case -MEIZUHW_IOC_WIFI:
-		ret = __copy_to_user(&arg, info.wifi, 40);
+		ret = __copy_to_user(&arg, mzhw_info.wifi, 40);
 		break;
 	case -MEIZUHW_IOC_GPS:
-		ret = __copy_to_user(&arg, info.gps, 40);
+		ret = __copy_to_user(&arg, mzhw_info.gps, 40);
 		break;
 	case -MEIZUHW_IOC_FM:
-		ret = __copy_to_user(&arg, info.fm, 40);
+		ret = __copy_to_user(&arg, mzhw_info.fm, 40);
 		break;
 	case -MEIZUHW_IOC_BATTERY:
-		ret = __copy_to_user(&arg, info.battery, 40);
+		ret = __copy_to_user(&arg, mzhw_info.battery, 40);
 		break;
 	case -MEIZUHW_IOC_MASTERB_CAMERA:
-		ret = __copy_to_user(&arg, info.masterb_camera, 40);
+		ret = __copy_to_user(&arg, mzhw_info.masterb_camera, 40);
 		break;
 	case -MEIZUHW_IOC_SLAVEB_CAMERA:
-		ret = __copy_to_user(&arg, info.slaveb_camera, 40);
+		ret = __copy_to_user(&arg, mzhw_info.slaveb_camera, 40);
 		break;
 	default:
 		mz_warn("command 0x%02x not implemented\n", cmd);

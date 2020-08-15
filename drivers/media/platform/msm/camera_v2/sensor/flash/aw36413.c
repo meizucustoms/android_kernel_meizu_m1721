@@ -249,7 +249,109 @@ static struct led_classdev msm_torch_led = {
     .brightness	    = LED_OFF,
 };
 
-static int aw36413_led_bullet(struct msm_led_flash_ctrl_t *fctrl) {
+static int aw36413_led_breath1(struct msm_led_flash_ctrl_t *fctrl) {
+    int torch_op_current_0, torch_op_current_1;
+    int reg_current_0, reg_current_1;
+    int temp_led1_brightness, temp_led2_brightness;
+    int led1_brightness, led2_brightness, enable;
+	int i;
+    
+    aw_info("enter\n");
+    if (!fctrl || !fctrl->flashdata) {
+        aw_err("fctrl not found\n");
+        return -EINVAL;
+    }
+    
+    if (fctrl->cci_i2c_master) {
+        aw_info("cci_master = %d\n", fctrl->cci_i2c_master);
+    }
+    
+    torch_op_current_0 = fctrl->flash_op_current[0];
+    torch_op_current_1 = fctrl->flash_op_current[1];
+    if ( torch_op_current_0 <= 3000 ) {
+        if ( torch_op_current_0 > 300 )
+            reg_current_0 = 300;
+        else
+            reg_current_0 = torch_op_current_0;
+    }
+    reg_current_1 = 200;
+    if ( torch_op_current_1 <= 3000 ) {
+        if ( torch_op_current_1 > 300 )
+            reg_current_1 = 300;
+        else
+            reg_current_1 = torch_op_current_1;
+    }
+    
+    if (aw36413->ready) {
+        aw36413_hwen(AW36413_SECOND, AW36413_HWEN_ON);
+        mdelay(10);
+        if (aw36413->vendor == 1) {
+            temp_led1_brightness = (100 * reg_current_0 + 280) / 560;
+            temp_led2_brightness = (100 * reg_current_1 + 280) / 560;
+        } else {
+            temp_led1_brightness = (100 * reg_current_0 + 291) / 582;
+            temp_led2_brightness = (100 * reg_current_1 + 291) / 582;
+        }
+        if (temp_led1_brightness)
+            led1_brightness = temp_led1_brightness - 1;
+        else
+            led1_brightness = 0;
+        
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED1_TORCH, 0);
+        
+        if (temp_led2_brightness)
+            led2_brightness = temp_led2_brightness - 1;
+        else
+            led2_brightness = 0;
+        
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED2_TORCH, 0);
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_TIMING, AW36413_TIMING_COUNT);
+        
+        if (temp_led1_brightness)
+            enable = 11;
+        else
+            enable = 10;
+        if (!temp_led2_brightness)
+            enable &= 253;
+        
+        aw36413_reg_write(AW36413_BOTH, REG_AW36413_ENABLE, enable);
+		
+		for (i=0;i<48;i++) {
+			aw_info("i=%d\n", i);
+			aw36413_reg_write(AW36413_FIRST, REG_AW36413_LED2_TORCH, i);
+			aw36413_reg_write(AW36413_SECOND, REG_AW36413_LED2_TORCH, i);
+			mdelay(25);
+		}
+		
+		for (i=48;i>0;i--) {
+			aw_info("i=%d\n", i);
+			aw36413_reg_write(AW36413_FIRST, REG_AW36413_LED2_TORCH, i);
+			aw36413_reg_write(AW36413_SECOND, REG_AW36413_LED2_TORCH, i);
+			mdelay(25);
+		}
+		
+		for (i=0;i<48;i++) {
+			aw_info("i=%d\n", i);
+			aw36413_reg_write(AW36413_FIRST, REG_AW36413_LED1_TORCH, i);
+			aw36413_reg_write(AW36413_SECOND, REG_AW36413_LED1_TORCH, i);
+			mdelay(25);
+		}
+		
+		for (i=48;i>0;i--) {
+			aw_info("i=%d\n", i);
+			aw36413_reg_write(AW36413_FIRST, REG_AW36413_LED1_TORCH, i);
+			aw36413_reg_write(AW36413_SECOND, REG_AW36413_LED1_TORCH, i);
+			mdelay(25);
+		}
+		
+		aw36413_reg_write(AW36413_BOTH, REG_AW36413_ENABLE, 0);
+    } else {
+		aw_info("aw36413 not ready\n");
+	}
+    return 0;
+}
+
+static int aw36413_led_breath(struct msm_led_flash_ctrl_t *fctrl) {
     int torch_op_current_0, torch_op_current_1;
     int reg_current_0, reg_current_1;
     int temp_led1_brightness, temp_led2_brightness;
@@ -375,7 +477,7 @@ static ssize_t aw36413_proc_write2(struct file *filp, const char __user *buff,
 	fctrl.func_tbl->flash_led_init(&fctrl);
 	fctrl.flash_op_current[0] = 300;
 	fctrl.flash_op_current[1] = 300;
-	aw36413_led_bullet(&fctrl);
+	aw36413_led_breath(&fctrl);
 	fctrl.func_tbl->flash_led_off(&fctrl);
 	aw_info("Enable LED done\n");
 	return len;
@@ -384,6 +486,23 @@ static ssize_t aw36413_proc_write2(struct file *filp, const char __user *buff,
 static const struct file_operations aw36413_fops2 = {
     .owner          = THIS_MODULE,
     .write          = aw36413_proc_write2,
+};
+
+static ssize_t aw36413_proc_write3(struct file *filp, const char __user *buff,
+    size_t len, loff_t *data) {
+	aw_info("Enable LED\n");
+	fctrl.func_tbl->flash_led_init(&fctrl);
+	fctrl.flash_op_current[0] = 300;
+	fctrl.flash_op_current[1] = 300;
+	aw36413_led_breath1(&fctrl);
+	fctrl.func_tbl->flash_led_off(&fctrl);
+	aw_info("Enable LED done\n");
+	return len;
+}
+
+static const struct file_operations aw36413_fops3 = {
+    .owner          = THIS_MODULE,
+    .write          = aw36413_proc_write3,
 };
 
 static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
@@ -443,6 +562,10 @@ static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
 		aw_err("proc entry create error!\n");
 	}
 	proc_entry = proc_create_data("aw36413_effect1", 0660, NULL, &aw36413_fops2, NULL);
+	if (!proc_entry) {
+		aw_err("proc entry create error!\n");
+	}
+	proc_entry = proc_create_data("aw36413_effect2", 0660, NULL, &aw36413_fops3, NULL);
 	if (!proc_entry) {
 		aw_err("proc entry create error!\n");
 	}

@@ -19,7 +19,7 @@
 #include "msm_eeprom.h"
 
 #undef CDBG
-#define CDBG(fmt, args...) pr_debug(fmt, ##args)
+#define CDBG(fmt, args...) pr_warn(fmt, ##args)
 
 DEFINE_MSM_MUTEX(msm_eeprom_mutex);
 #ifdef CONFIG_COMPAT
@@ -425,8 +425,6 @@ static int eeprom_parse_memory_map(struct msm_eeprom_ctrl_t *e_ctrl,
 		}
 	}
 	memptr = e_ctrl->cal_data.mapdata;
-	for (i = 0; i < e_ctrl->cal_data.num_data; i++)
-		CDBG("memory_data[%d] = 0x%X\n", i, memptr[i]);
 	return rc;
 
 clean_up:
@@ -668,7 +666,6 @@ static int msm_eeprom_config(struct msm_eeprom_ctrl_t *e_ctrl,
 		if (e_ctrl->userspace_probe == 0) {
 			pr_err("%s:%d Eeprom already probed at kernel boot",
 				__func__, __LINE__);
-			rc = -EINVAL;
 			break;
 		}
 		if (e_ctrl->cal_data.num_data == 0) {
@@ -711,12 +708,16 @@ static long msm_eeprom_subdev_ioctl(struct v4l2_subdev *sd,
 {
 	struct msm_eeprom_ctrl_t *e_ctrl = v4l2_get_subdevdata(sd);
 	void __user *argp = (void __user *)arg;
+    struct msm_eeprom_cfg_data *cdata =
+		(struct msm_eeprom_cfg_data *)argp;
 	CDBG("%s E\n", __func__);
 	CDBG("%s:%d a_ctrl %pK argp %pK\n", __func__, __LINE__, e_ctrl, argp);
 	switch (cmd) {
 	case VIDIOC_MSM_SENSOR_GET_SUBDEV_ID:
+        CDBG("msm_eeprom_get_subdev_id ioctl call with cfg command 0x%02x\n", cdata->cfgtype);
 		return msm_eeprom_get_subdev_id(e_ctrl, argp);
 	case VIDIOC_MSM_EEPROM_CFG:
+        CDBG("msm_eeprom_config ioctl call with cfg command 0x%02x\n", cdata->cfgtype);
 		return msm_eeprom_config(e_ctrl, argp);
 	default:
 		return -ENOIOCTLCMD;
@@ -1555,13 +1556,19 @@ static long msm_eeprom_subdev_ioctl32(struct v4l2_subdev *sd,
 {
 	struct msm_eeprom_ctrl_t *e_ctrl = v4l2_get_subdevdata(sd);
 	void __user *argp = (void __user *)arg;
+    struct msm_eeprom_cfg_data *cdata =
+		(struct msm_eeprom_cfg_data *)argp;
+    
+    CDBG("%s:ioctl32 command 0x%02x\n", __func__, cmd);
 
 	CDBG("%s E\n", __func__);
 	CDBG("%s:%d a_ctrl %pK argp %pK\n", __func__, __LINE__, e_ctrl, argp);
 	switch (cmd) {
 	case VIDIOC_MSM_SENSOR_GET_SUBDEV_ID:
+        CDBG("msm_eeprom_get_subdev_id ioctl32 call with cfg command 0x%02x\n", cdata->cfgtype);
 		return msm_eeprom_get_subdev_id(e_ctrl, argp);
 	case VIDIOC_MSM_EEPROM_CFG32:
+        CDBG("msm_eeprom_config32 ioctl32 call with cfg command 0x%02x\n", cdata->cfgtype);
 		return msm_eeprom_config32(e_ctrl, argp);
 	default:
 		return -ENOIOCTLCMD;
@@ -1590,7 +1597,6 @@ static long msm_eeprom_subdev_fops_ioctl32(struct file *file, unsigned int cmd,
 static int msm_eeprom_platform_probe(struct platform_device *pdev)
 {
 	int rc = 0;
-	int j = 0;
 	uint32_t temp;
 
 	struct msm_camera_cci_client *cci_client = NULL;
@@ -1732,9 +1738,6 @@ static int msm_eeprom_platform_probe(struct platform_device *pdev)
 			pr_err("%s read_eeprom_memory failed\n", __func__);
 			goto power_down;
 		}
-		for (j = 0; j < e_ctrl->cal_data.num_data; j++)
-			CDBG("memory_data[%d] = 0x%X\n", j,
-				e_ctrl->cal_data.mapdata[j]);
 
 		e_ctrl->is_supported |= msm_eeprom_match_crc(&e_ctrl->cal_data);
 
