@@ -48,18 +48,12 @@ static int msm_sensor_wait_for_probe_done(struct msm_sensor_init_t *s_init)
 		CDBG("msm_cam_get_module_init_status -2\n");
 		return 0;
 	}
-	#if 0
 	rc = wait_event_timeout(s_init->state_wait,
 		(s_init->module_init_status == 1), msecs_to_jiffies(tm));
 	if (rc == 0) {
 		pr_err("%s:%d wait timeout\n", __func__, __LINE__);
 		rc = -1;
 	}
-	#else
-	tm = 0;
-	 wait_event(s_init->state_wait,
-						 (s_init->module_init_status == 1));
-	#endif
 	return rc;
 }
 
@@ -122,9 +116,8 @@ static long msm_sensor_init_subdev_ioctl(struct v4l2_subdev *sd,
 	case VIDIOC_MSM_SENSOR_INIT_CFG:
 		rc = msm_sensor_driver_cmd(s_init, arg);
 		break;
-
 	default:
-		pr_err_ratelimited("default 0x%02x\n", cmd);
+		pr_err("default 0x%02x\n", cmd);
 		break;
 	}
 

@@ -46,9 +46,9 @@ int msm_camera_fill_vreg_params(struct camera_vreg_t *cam_vreg,
 	}
 
 	for (i = 0; i < power_setting_size; i++) {
-		if (power_setting[i].seq_type != SENSOR_VREG)
+		/*if (power_setting[i].seq_type != SENSOR_VREG)
             pr_err("seq type != sensor vreg\n");
-			continue;
+			continue;*/
 
 		switch (power_setting[i].seq_val) {
 		case CAM_VDIG:
@@ -497,8 +497,10 @@ int msm_camera_get_dt_power_setting_data(struct device_node *of_node,
 	uint16_t *power_setting_size, size = 0;
 	bool need_reverse = 0;
 
-	if (!power_info)
+	if (!power_info) {
+        pr_err("%s no power_info\n", __func__);
 		return -EINVAL;
+    }
 
 	power_setting = power_info->power_setting;
 	power_setting_size = &power_info->power_setting_size;
@@ -1011,23 +1013,65 @@ int msm_camera_init_gpio_pin_tbl(struct device_node *of_node,
 		rc = 0;
 	}
 
-	rc = of_property_read_u32(of_node, "qcom,gpio-flash-now", &val);
+	rc = of_property_read_u32(of_node, "qcom,gpio-flash-en-2", &val);
 	if (rc != -EINVAL) {
 		if (rc < 0) {
-			pr_err("%s:%d read qcom,gpio-flash-now failed rc %d\n",
+			pr_err("%s:%d read qcom,gpio-flash-en-2 failed rc %d\n",
 				__func__, __LINE__, rc);
 			goto ERROR;
 		} else if (val >= gpio_array_size) {
-			pr_err("%s:%d qcom,gpio-flash-now invalid %d\n",
+			pr_err("%s:%d qcom,gpio-flash-en-2 invalid %d\n",
 				__func__, __LINE__, val);
 			rc = -EINVAL;
 			goto ERROR;
 		}
-		gconf->gpio_num_info->gpio_num[SENSOR_GPIO_FL_NOW] =
+		gconf->gpio_num_info->gpio_num[SENSOR_GPIO_FL_EN_2] =
 			gpio_array[val];
-		gconf->gpio_num_info->valid[SENSOR_GPIO_FL_NOW] = 1;
-		CDBG("%s qcom,gpio-flash-now %d\n", __func__,
-			gconf->gpio_num_info->gpio_num[SENSOR_GPIO_FL_NOW]);
+		gconf->gpio_num_info->valid[SENSOR_GPIO_FL_EN_2] = 1;
+		CDBG("%s qcom,gpio-flash-en-2 %d\n", __func__,
+			gconf->gpio_num_info->gpio_num[SENSOR_GPIO_FL_EN_2]);
+	} else {
+		rc = 0;
+	}
+	
+	rc = of_property_read_u32(of_node, "qcom,gpio-flash-strobe", &val);
+	if (rc != -EINVAL) {
+		if (rc < 0) {
+			pr_err("%s:%d read qcom,gpio-flash-strobe failed rc %d\n",
+				__func__, __LINE__, rc);
+			goto ERROR;
+		} else if (val >= gpio_array_size) {
+			pr_err("%s:%d qcom,gpio-flash-strobe invalid %d\n",
+				__func__, __LINE__, val);
+			rc = -EINVAL;
+			goto ERROR;
+		}
+		gconf->gpio_num_info->gpio_num[SENSOR_GPIO_FL_STROBE] =
+			gpio_array[val];
+		gconf->gpio_num_info->valid[SENSOR_GPIO_FL_STROBE] = 1;
+		CDBG("%s qcom,gpio-flash-strobe %d\n", __func__,
+			gconf->gpio_num_info->gpio_num[SENSOR_GPIO_FL_STROBE]);
+	} else {
+		rc = 0;
+	}
+	
+	rc = of_property_read_u32(of_node, "qcom,gpio-flash-strobe-2", &val);
+	if (rc != -EINVAL) {
+		if (rc < 0) {
+			pr_err("%s:%d read qcom,gpio-flash-strobe-2 failed rc %d\n",
+				__func__, __LINE__, rc);
+			goto ERROR;
+		} else if (val >= gpio_array_size) {
+			pr_err("%s:%d qcom,gpio-flash-strobe-2 invalid %d\n",
+				__func__, __LINE__, val);
+			rc = -EINVAL;
+			goto ERROR;
+		}
+		gconf->gpio_num_info->gpio_num[SENSOR_GPIO_FL_STROBE_2] =
+			gpio_array[val];
+		gconf->gpio_num_info->valid[SENSOR_GPIO_FL_STROBE_2] = 1;
+		CDBG("%s qcom,gpio-flash-strobe-2 %d\n", __func__,
+			gconf->gpio_num_info->gpio_num[SENSOR_GPIO_FL_STROBE_2]);
 	} else {
 		rc = 0;
 	}
