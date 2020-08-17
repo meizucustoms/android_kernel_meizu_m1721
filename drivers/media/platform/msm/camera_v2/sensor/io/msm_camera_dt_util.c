@@ -46,9 +46,9 @@ int msm_camera_fill_vreg_params(struct camera_vreg_t *cam_vreg,
 	}
 
 	for (i = 0; i < power_setting_size; i++) {
-		/*if (power_setting[i].seq_type != SENSOR_VREG)
+		if (power_setting[i].seq_type != SENSOR_VREG)
             pr_err("seq type != sensor vreg\n");
-			continue;*/
+			continue;
 
 		switch (power_setting[i].seq_val) {
 		case CAM_VDIG:
