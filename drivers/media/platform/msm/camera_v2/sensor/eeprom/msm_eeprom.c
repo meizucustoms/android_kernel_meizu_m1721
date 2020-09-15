@@ -19,7 +19,7 @@
 #include "msm_eeprom.h"
 
 #undef CDBG
-#define CDBG(fmt, args...) pr_warn(fmt, ##args)
+#define CDBG(fmt, args...) pr_err("MM-DEBUG: " fmt, ##args)
 
 DEFINE_MSM_MUTEX(msm_eeprom_mutex);
 #ifdef CONFIG_COMPAT
@@ -628,7 +628,7 @@ static int msm_eeprom_config(struct msm_eeprom_ctrl_t *e_ctrl,
 	int rc = 0;
 	size_t length = 0;
 
-	CDBG("%s E\n", __func__);
+	CDBG("%s ENTER: config val 0x%02x\n", __func__, cdata->cfgtype);
 	switch (cdata->cfgtype) {
 	case CFG_EEPROM_GET_INFO:
 		if (e_ctrl->userspace_probe == 1) {
@@ -1534,7 +1534,11 @@ static int msm_eeprom_config32(struct msm_eeprom_ctrl_t *e_ctrl,
 			break;
 		}
 		if (e_ctrl->cal_data.num_data == 0) {
+            CDBG("%s:%d EEPROM_INIT start...\n\n\n",
+				__func__, __LINE__);
 			rc = eeprom_init_config32(e_ctrl, argp);
+            CDBG("%s:%d EEPROM_INIT end! rc = %d\n\n\n",
+				__func__, __LINE__, rc);
 			if (rc < 0)
 				pr_err("%s:%d Eeprom init failed\n",
 					__func__, __LINE__);
@@ -1544,6 +1548,7 @@ static int msm_eeprom_config32(struct msm_eeprom_ctrl_t *e_ctrl,
 		}
 		break;
 	default:
+        pr_err("MM-ERROR: msm_eeprom_config32: command 0x%02x not found.\n", cdata->cfgtype);
 		break;
 	}
 
@@ -1571,6 +1576,9 @@ static long msm_eeprom_subdev_ioctl32(struct v4l2_subdev *sd,
         CDBG("msm_eeprom_config32 ioctl32 call with cfg command 0x%02x\n", cdata->cfgtype);
 		return msm_eeprom_config32(e_ctrl, argp);
 	default:
+        pr_err("msm_eeprom_subdev_ioctl32: default 0x%02x\n", cmd);
+        pr_err("msm_eeprom_subdev_ioctl32: VIDIOC_MSM_SENSOR_GET_SUBDEV_ID 0x%02x\n", (unsigned int)VIDIOC_MSM_SENSOR_GET_SUBDEV_ID);
+        pr_err("msm_eeprom_subdev_ioctl32: VIDIOC_MSM_EEPROM_CFG32 0x%02x\n", (unsigned int)VIDIOC_MSM_EEPROM_CFG32);
 		return -ENOIOCTLCMD;
 	}
 
