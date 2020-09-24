@@ -218,10 +218,9 @@ int msm_sensor_get_sub_module_index(struct device_node *of_node,
 			pr_err("%s failed %d\n", __func__, __LINE__);
 			goto ERROR;
 		}
-		if (of_device_is_available(src_node))
-			sensor_info->subdev_id[SUB_MODULE_ACTUATOR] = val;
-		else
-			CDBG("%s:%d actuator disabled!\n", __func__, __LINE__);
+		
+		sensor_info->subdev_id[SUB_MODULE_ACTUATOR] = val;
+		
 		of_node_put(src_node);
 		src_node = NULL;
 	}
@@ -1417,22 +1416,19 @@ int32_t msm_sensor_driver_get_gpio_data(
 
 	gpio_array_size = of_count_phandle_with_args(of_node, "gpios", "#gpio-cells");
 	CDBG("gpio count %d\n", gpio_array_size);
-    CDBG("1");
+	if (gpio_array_size <= 0)
+		return 0;
 
 	gconf = kzalloc(sizeof(struct msm_camera_gpio_conf),
 		GFP_KERNEL);
     *gpio_conf = gconf;
 
 	gpio_array = kcalloc(gpio_array_size, sizeof(uint16_t), GFP_KERNEL);
-    
-    CDBG("5");
 
 	for (i = 0; i < gpio_array_size; i++) {
 		gpio_array[i] = of_get_gpio(of_node, i);
 		CDBG("gpio_array[%d] = %d", i, gpio_array[i]);
 	}
-	
-	CDBG("6");
 
 	rc = msm_camera_get_dt_gpio_req_tbl(of_node, gconf, gpio_array,
 		gpio_array_size);
@@ -1440,8 +1436,6 @@ int32_t msm_sensor_driver_get_gpio_data(
 		pr_err("failed in msm_camera_get_dt_gpio_req_tbl\n");
 		goto FREE_GPIO_CONF;
 	}
-	
-	CDBG("8");
 
 	rc = msm_camera_init_gpio_pin_tbl(of_node, gconf, gpio_array,
 		gpio_array_size);
@@ -1450,7 +1444,6 @@ int32_t msm_sensor_driver_get_gpio_data(
 		goto FREE_GPIO_REQ_TBL;
 	}
 	
-	CDBG("9");
 	kfree(gpio_array);
 	return rc;
 FREE_GPIO_REQ_TBL:
