@@ -133,6 +133,7 @@ static int32_t msm_sensor_driver_create_v4l_subdev
 		return rc;
 	}
 	CDBG("rc %d session_id %d", rc, session_id);
+	CDBG("created file: /dev/video%d", session_id);
 	s_ctrl->sensordata->sensor_info->session_id = session_id;
 
 	/* Create /dev/v4l-subdevX device */
@@ -977,9 +978,11 @@ CSID_TG:
 	else
 		rc = msm_sensor_driver_create_i2c_v4l_subdev(s_ctrl);
 	if (rc < 0) {
-		pr_err("failed: camera creat v4l2 rc %d", rc);
+		pr_err("failed: camera create v4l2 rc %d", rc);
 		goto camera_power_down;
 	}
+	
+	pr_warn("v4l2 device for %s was created\n", slave_info->sensor_name);
 
 	/* Power down */
 	s_ctrl->func_tbl->sensor_power_down(s_ctrl);
