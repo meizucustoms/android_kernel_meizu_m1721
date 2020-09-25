@@ -291,7 +291,6 @@ int32_t msm_camera_qup_i2c_write_table(struct msm_camera_i2c_client *client,
 			reg_setting->reg_data, write_setting->data_type);
 		if (rc < 0)
 			break;
-		retry = 0;
 		reg_setting++;
 	}
 	if (write_setting->delay > 20)
