@@ -20,7 +20,7 @@
 #include <linux/regulator/consumer.h>
 
 #undef CDBG
-#define CDBG(fmt, args...) pr_warn(fmt, ##args)
+#define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
 extern struct meizu_hw_info mzhw_info;
 
@@ -135,7 +135,6 @@ int msm_sensor_power_down(struct msm_sensor_ctrl_t *s_ctrl)
 			__func__, __LINE__, power_info, sensor_i2c_client);
 		return -EINVAL;
 	}
-
 	return msm_camera_power_down(power_info, sensor_device_type,
 		sensor_i2c_client);
 }
@@ -173,6 +172,12 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 
 	if (s_ctrl->set_mclk_23880000)
 		msm_sensor_adjust_mclk(power_info);
+
+	if (!strcmp(sensor_name, "c5490"))
+	{
+	    power_info->cam_vreg[CAM_VANA].max_voltage = 3300000;
+	    power_info->cam_vreg[CAM_VANA].min_voltage = 3300000;
+	}
 
 	for (retry = 0; retry < 3; retry++) {
 		rc = msm_camera_power_up(power_info, s_ctrl->sensor_device_type,
@@ -244,14 +249,14 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 		return rc;
 	}
 
-	pr_warn("%s: read id: 0x%x expected id 0x%x:\n",
+	pr_debug("%s: read id: 0x%x expected id 0x%x:\n",
 			__func__, chipid, slave_info->sensor_id);
 	if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
 		pr_err("%s chip id %x does not match %x\n",
 				__func__, chipid, slave_info->sensor_id);
 		return -ENODEV;
 	}
-	
+
 	switch (chipid) {
     case 0x362:
         strcpy(mzhw_info.masterb_camera, "12M-Camera IMX362-QTECH");
@@ -282,7 +287,7 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
                 break;
             }
         }
-        
+
         switch (camid) {
         case 1:
             strcpy(mzhw_info.masterb_camera, "12M-Camera S5K2l7-SUNNY");
@@ -297,7 +302,7 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
             pr_err("mzhw: %s: id %d not found\n", __func__, camid);
             break;
         }
-        
+
         pr_warn("mzhw: %s: read back main camera info: %s\n", __func__, mzhw_info.front_camera);
         break;
     case 0x4E8:

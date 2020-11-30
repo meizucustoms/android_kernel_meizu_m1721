@@ -15,8 +15,8 @@
 
 #undef CDBG
 #ifdef CONFIG_MSMB_CAMERA_DEBUG
-#define CDBG(fmt, args...) pr_warn(fmt, ##args)
-#define S_I2C_DBG(fmt, args...) pr_warn(fmt, ##args)
+#define CDBG(fmt, args...) pr_debug(fmt, ##args)
+#define S_I2C_DBG(fmt, args...) pr_debug(fmt, ##args)
 #else
 #define CDBG(fmt, args...) do { } while (0)
 #define S_I2C_DBG(fmt, args...) do { } while (0)
@@ -82,14 +82,14 @@ int32_t msm_camera_qup_i2c_read(struct msm_camera_i2c_client *client,
 		return rc;
 
 	if (client->addr_type > UINT_MAX - data_type) {
-		pr_err("%s: integer overflow prevented\n", __func__);
-		return rc;
+			pr_err("%s: integer overflow prevented\n", __func__);
+			return rc;
 	}
 
 	buf = kzalloc(client->addr_type+data_type, GFP_KERNEL);
 	if (!buf) {
-		pr_err("%s:%d no memory\n", __func__, __LINE__);
-		return -ENOMEM;
+			pr_err("%s:%d no memory\n", __func__, __LINE__);
+			return -ENOMEM;
 	}
 
 	if (client->addr_type == MSM_CAMERA_I2C_BYTE_ADDR) {
@@ -130,19 +130,19 @@ int32_t msm_camera_qup_i2c_read_seq(struct msm_camera_i2c_client *client,
 		return rc;
 
 	if (num_byte > I2C_REG_DATA_MAX) {
-		pr_err("%s: Error num_byte:0x%x exceeds 8K max supported:0x%x\n",
+			pr_err("%s: Error num_byte:0x%x exceeds 8K max supported:0x%x\n",
 					__func__, num_byte, I2C_REG_DATA_MAX);
-		return rc;
+			return rc;
 	}
 	if (client->addr_type > UINT_MAX - num_byte) {
-		pr_err("%s: integer overflow prevented\n", __func__);
-		return rc;
+			pr_err("%s: integer overflow prevented\n", __func__);
+			return rc;
 	}
 
 	buf = kzalloc(client->addr_type+num_byte, GFP_KERNEL);
 	if (!buf) {
-		S_I2C_DBG("%s:%d no memory\n", __func__, __LINE__);
-		return -ENOMEM;
+			pr_err("%s:%d no memory\n", __func__, __LINE__);
+			return -ENOMEM;
 	}
 
 	if (client->addr_type == MSM_CAMERA_I2C_BYTE_ADDR) {

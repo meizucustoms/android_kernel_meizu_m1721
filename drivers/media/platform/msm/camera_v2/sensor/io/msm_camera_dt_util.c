@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -17,13 +17,13 @@
 
 #define CAM_SENSOR_PINCTRL_STATE_SLEEP "cam_suspend"
 #define CAM_SENSOR_PINCTRL_STATE_DEFAULT "cam_default"
-#define CONFIG_MSM_CAMERA_DT_DEBUG
+/*#define CONFIG_MSM_CAMERA_DT_DEBUG*/
 
 #define VALIDATE_VOLTAGE(min, max, config_val) ((config_val) && \
 	(config_val >= min) && (config_val <= max))
 
 #undef CDBG
-#define CDBG(fmt, args...) pr_warn(fmt, ##args)
+#define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
 int msm_camera_fill_vreg_params(struct camera_vreg_t *cam_vreg,
 	int num_vreg, struct msm_sensor_power_setting *power_setting,
@@ -47,7 +47,6 @@ int msm_camera_fill_vreg_params(struct camera_vreg_t *cam_vreg,
 
 	for (i = 0; i < power_setting_size; i++) {
 		if (power_setting[i].seq_type != SENSOR_VREG)
-            pr_err("seq type != sensor vreg\n");
 			continue;
 
 		switch (power_setting[i].seq_val) {
@@ -218,9 +217,7 @@ int msm_sensor_get_sub_module_index(struct device_node *of_node,
 			pr_err("%s failed %d\n", __func__, __LINE__);
 			goto ERROR;
 		}
-		
 		sensor_info->subdev_id[SUB_MODULE_ACTUATOR] = val;
-		
 		of_node_put(src_node);
 		src_node = NULL;
 	}
@@ -496,10 +493,8 @@ int msm_camera_get_dt_power_setting_data(struct device_node *of_node,
 	uint16_t *power_setting_size, size = 0;
 	bool need_reverse = 0;
 
-	if (!power_info) {
-        pr_err("%s no power_info\n", __func__);
+	if (!power_info)
 		return -EINVAL;
-    }
 
 	power_setting = power_info->power_setting;
 	power_setting_size = &power_info->power_setting_size;
@@ -1032,7 +1027,7 @@ int msm_camera_init_gpio_pin_tbl(struct device_node *of_node,
 	} else {
 		rc = 0;
 	}
-	
+
 	rc = of_property_read_u32(of_node, "qcom,gpio-flash-strobe", &val);
 	if (rc != -EINVAL) {
 		if (rc < 0) {
@@ -1053,7 +1048,7 @@ int msm_camera_init_gpio_pin_tbl(struct device_node *of_node,
 	} else {
 		rc = 0;
 	}
-	
+
 	rc = of_property_read_u32(of_node, "qcom,gpio-flash-strobe-2", &val);
 	if (rc != -EINVAL) {
 		if (rc < 0) {
@@ -1406,30 +1401,32 @@ int32_t msm_sensor_driver_get_gpio_data(
 	int16_t                     gpio_array_size = 0;
 	struct msm_camera_gpio_conf *gconf = NULL;
 
-    pr_warn("%s enter", __func__);
-    
 	/* Validate input parameters */
 	if (!of_node) {
 		pr_err("failed: invalid param of_node %pK", of_node);
 		return -EINVAL;
 	}
 
-	gpio_array_size = of_count_phandle_with_args(of_node, "gpios", "#gpio-cells");
+	gpio_array_size = of_gpio_count(of_node);
 	CDBG("gpio count %d\n", gpio_array_size);
 	if (gpio_array_size <= 0)
 		return 0;
 
 	gconf = kzalloc(sizeof(struct msm_camera_gpio_conf),
 		GFP_KERNEL);
-    *gpio_conf = gconf;
+	if (!gconf)
+		return -ENOMEM;
+
+	*gpio_conf = gconf;
 
 	gpio_array = kcalloc(gpio_array_size, sizeof(uint16_t), GFP_KERNEL);
+	if (!gpio_array)
+		goto FREE_GPIO_CONF;
 
 	for (i = 0; i < gpio_array_size; i++) {
 		gpio_array[i] = of_get_gpio(of_node, i);
 		CDBG("gpio_array[%d] = %d", i, gpio_array[i]);
 	}
-
 	rc = msm_camera_get_dt_gpio_req_tbl(of_node, gconf, gpio_array,
 		gpio_array_size);
 	if (rc < 0) {
@@ -1443,9 +1440,9 @@ int32_t msm_sensor_driver_get_gpio_data(
 		pr_err("failed in msm_camera_init_gpio_pin_tbl\n");
 		goto FREE_GPIO_REQ_TBL;
 	}
-	
 	kfree(gpio_array);
 	return rc;
+
 FREE_GPIO_REQ_TBL:
 	kfree(gconf->cam_gpio_req_tbl);
 FREE_GPIO_CONF:
@@ -1789,4 +1786,3 @@ int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 	CDBG("%s exit\n", __func__);
 	return 0;
 }
-
