@@ -22,7 +22,7 @@
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
-extern struct meizu_hw_info mzhw_info;
+static struct meizu_camera_data mzcamera;
 
 static void msm_sensor_adjust_mclk(struct msm_camera_power_ctrl_t *ctrl)
 {
@@ -173,12 +173,6 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 	if (s_ctrl->set_mclk_23880000)
 		msm_sensor_adjust_mclk(power_info);
 
-	if (!strcmp(sensor_name, "c5490"))
-	{
-	    power_info->cam_vreg[CAM_VANA].max_voltage = 3300000;
-	    power_info->cam_vreg[CAM_VANA].min_voltage = 3300000;
-	}
-
 	for (retry = 0; retry < 3; retry++) {
 		rc = msm_camera_power_up(power_info, s_ctrl->sensor_device_type,
 			sensor_i2c_client);
@@ -220,7 +214,7 @@ static uint16_t msm_sensor_id_by_mask(struct msm_sensor_ctrl_t *s_ctrl,
 int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 {
 	int rc = 0;
-	uint16_t chipid = 0, camid = 0;
+	uint16_t chipid = 0;
 	struct msm_camera_i2c_client *sensor_i2c_client;
 	struct msm_camera_slave_info *slave_info;
 	const char *sensor_name;
@@ -257,70 +251,17 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 		return -ENODEV;
 	}
 
-	switch (chipid) {
-    case 0x362:
-        strcpy(mzhw_info.masterb_camera, "12M-Camera IMX362-QTECH");
-        pr_warn("mzhw: %s: read back main camera info: %s\n", __func__, mzhw_info.masterb_camera);
-        break;
-    case 0x3108:
-        sensor_i2c_client->cci_client->sid = 80;
-        rc = sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client, 1, &camid, 1);
-        if (rc) {
-            pr_err("mzhw: %s: read camera id: second error %d\n", __func__, rc);
-            break;
-        }
-        if (camid != 6)
-            strcpy(mzhw_info.front_camera, "16M-Camera S5K3P8SP03-SHENGTAI");
-        else
-            strcpy(mzhw_info.front_camera, "16M-Camera S5K3P8SP03-QTECH");
-        pr_warn("mzhw: %s: read front camera info: %s\n", __func__, mzhw_info.front_camera);
-        break;
-    case 0x20C7:
-        sensor_i2c_client->cci_client->sid = 80;
-        rc = sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client, 1, &camid, 1);
-        if (rc) {
-            pr_warn("mzhw: %s: read camera id: error %d, retry\n", __func__, rc);
-            sensor_i2c_client->cci_client->sid = 81;
-            rc = sensor_i2c_client->i2c_func_tbl->i2c_read(sensor_i2c_client, 1, &camid, 1);
-            if (rc) {
-                pr_warn("mzhw: %s: read camera id: second error %d\n", __func__, rc);
-                break;
-            }
-        }
+	meizu_sensor_parse_id(&mzcamera, s_ctrl);
+	if (rc < 0) {
+		pr_err("%s meizu camera id check failed with code 0x%02x\n",
+				__func__, rc);
+		return rc;
+	}
 
-        switch (camid) {
-        case 1:
-            strcpy(mzhw_info.masterb_camera, "12M-Camera S5K2l7-SUNNY");
-            break;
-        case 3:
-            strcpy(mzhw_info.masterb_camera, "12M-Camera S5K2l7-OFILM");
-            break;
-        case 7:
-            strcpy(mzhw_info.masterb_camera, "12M-Camera S5K2l7-PRIMAX");
-            break;
-        default:
-            pr_err("mzhw: %s: id %d not found\n", __func__, camid);
-            break;
-        }
+	if (mzcamera.back.id && mzcamera.front.id && mzcamera.bokeh.id) {
+		meizu_camera_print_data(&mzcamera);
+	}
 
-        pr_warn("mzhw: %s: read back main camera info: %s\n", __func__, mzhw_info.front_camera);
-        break;
-    case 0x4E8:
-        if (strcmp(mzhw_info.masterb_camera, "12M-Camera IMX362-QTECH"))
-            strcpy(mzhw_info.slaveb_camera, "5M-Camera S5K4E8-PRIMAX");
-        else
-            strcpy(mzhw_info.slaveb_camera, "5M-Camera S5K4E8-QTECH");
-        pr_warn("mzhw: %s: read back bokeh camera info: %s\n", __func__, mzhw_info.slaveb_camera);
-        break;
-    case 0x501:
-        strcpy(mzhw_info.slaveb_camera, "5M-Camera C5490-hlt");
-        pr_warn("mzhw: %s: read back bokeh camera info: %s\n", __func__, mzhw_info.slaveb_camera);
-        break;
-    case 0x5695:
-        strcpy(mzhw_info.slaveb_camera, "5M-Camera OV5695-hlt");
-        pr_warn("mzhw: %s: read back bokeh camera info: %s\n", __func__, mzhw_info.slaveb_camera);
-        break;
-    }
 	return rc;
 }
 

@@ -12,142 +12,153 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  *
- */ 
+ */
 
-#include <asm/uaccess.h>
 #include <linux/init.h>
 #include <linux/module.h>
-#include <linux/ioctl.h>
-#include <linux/fs.h>
-#include <linux/miscdevice.h>
-#include <linux/device.h>
 #include <linux/err.h>
 #include <linux/errno.h>
-#include <linux/compat.h>
 #include <linux/types.h>
 #include "meizu_hw.h"
 
-struct meizu_hw_info mzhw_info = {
-    .display = "NO THAT DEVICE",
-    .touchscreen = "NO THAT DEVICE",
-    .memory = "NO THAT DEVICE",
-    .front_camera = "NO THAT DEVICE",
-    .back_camera = "NO THAT DEVICE",
-    .gravity_sensor = "ICM-20608D",
-    .light_sensor = "LTR579PS",
-    .gyroscope = "ICM-20608D",
-    .magnetometer = "ST480",
-    .bluetooth = "WCN3615",
-    .wifi = "WCN3615",
-    .gps = "RF-U2200",
-    .fm = "WCN3615",
-    .battery = "FEIMAOTUI-CARINA-SDI",
-    .proximity_sensor = "LTR579ALS",
-    .masterb_camera = "NO THAT DEVICE",
-    .slaveb_camera = "NO THAT DEVICE",
-};
+int meizu_sensor_parse_id(struct meizu_camera_data *camera,
+                          struct msm_sensor_ctrl_t *s_ctrl) {
+    unsigned int sensor_id = 0;
+    const char *sensor_name;
+    uint16_t camera_revision = 0;
+    int rc = 0;
 
-static long meizu_hw_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
-	int ret = 0;
-	
-	mz_info("enter\n");
-	mz_info("ioctl cmd = 0x%02x, arg = %lu\n", cmd, arg);
-	
-	switch (cmd) {
-	case -MEIZUHW_IOC_DISPLAY:
-		ret = __copy_to_user(&arg, mzhw_info.display, 40);
-		break;
-	case -MEIZUHW_IOC_TOUCHSCREEN:
-		ret = __copy_to_user(&arg, mzhw_info.touchscreen, 40);
-		break;
-	case -MEIZUHW_IOC_MEMORY:
-		ret = __copy_to_user(&arg, mzhw_info.memory, 40);
-		break;
-	case -MEIZUHW_IOC_FRONT_CAMERA:
-		ret = __copy_to_user(&arg, mzhw_info.front_camera, 40);
-		break;
-	case -MEIZUHW_IOC_BACK_CAMERA:
-		ret = __copy_to_user(&arg, mzhw_info.back_camera, 40);
-		break;
-	case -MEIZUHW_IOC_GRAVITY_SENSOR:
-		ret = __copy_to_user(&arg, mzhw_info.gravity_sensor, 40);
-		break;
-	case -MEIZUHW_IOC_LIGHT_SENSOR:
-		ret = __copy_to_user(&arg, mzhw_info.light_sensor, 40);
-		break;
-	case -MEIZUHW_IOC_GYROSCOPE:
-		ret = __copy_to_user(&arg, mzhw_info.gyroscope, 40);
-		break;
-	case -MEIZUHW_IOC_MAGNETOMETER:
-		ret = __copy_to_user(&arg, mzhw_info.magnetometer, 40);
-		break;
-	case -MEIZUHW_IOC_BLUETOOTH:
-		ret = __copy_to_user(&arg, mzhw_info.bluetooth, 40);
-		break;
-	case -MEIZUHW_IOC_WIFI:
-		ret = __copy_to_user(&arg, mzhw_info.wifi, 40);
-		break;
-	case -MEIZUHW_IOC_GPS:
-		ret = __copy_to_user(&arg, mzhw_info.gps, 40);
-		break;
-	case -MEIZUHW_IOC_FM:
-		ret = __copy_to_user(&arg, mzhw_info.fm, 40);
-		break;
-	case -MEIZUHW_IOC_BATTERY:
-		ret = __copy_to_user(&arg, mzhw_info.battery, 40);
-		break;
-	case -MEIZUHW_IOC_MASTERB_CAMERA:
-		ret = __copy_to_user(&arg, mzhw_info.masterb_camera, 40);
-		break;
-	case -MEIZUHW_IOC_SLAVEB_CAMERA:
-		ret = __copy_to_user(&arg, mzhw_info.slaveb_camera, 40);
-		break;
-	default:
-		mz_warn("command 0x%02x not implemented\n", cmd);
-		ret = -ENOIOCTLCMD;
-		break;
-	}
-	
-	return ret;
+    if (!camera || !s_ctrl) {
+        mz_err("Some arguments were not found\n");
+        return -EINVAL;
+    }
+
+    sensor_id = s_ctrl->sensordata->slave_info->sensor_id;
+    sensor_name = s_ctrl->sensordata->sensor_name;
+
+    switch (sensor_id) {
+    case 0x362:
+        strcpy(camera->back.name, "imx362");
+        strcpy(camera->back.lens, "qtech");
+        camera->back.id = sensor_id;
+        break;
+    case 0x3108:
+        s_ctrl->sensor_i2c_client->cci_client->sid = 80;
+        rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(s_ctrl->sensor_i2c_client,
+                                                               1, &camera_revision, 1);
+        if (rc) {
+            mz_err("Failed to read camera id (s5k3p8sp03)\n");
+            return rc;
+        }
+
+        if (camera_revision != 6)
+            strcpy(camera->front.lens, "shengtai");
+        else
+            strcpy(camera->front.lens, "qtech");
+
+        strcpy(camera->front.name, "s5k3p8sp03");
+        camera->front.id = sensor_id;
+        break;
+    case 0x20c7:
+        s_ctrl->sensor_i2c_client->cci_client->sid = 80;
+        rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(s_ctrl->sensor_i2c_client,
+                                                               1, &camera_revision, 1);
+        if (rc) {
+            s_ctrl->sensor_i2c_client->cci_client->sid = 81;
+            rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(s_ctrl->sensor_i2c_client,
+                                                                   1, &camera_revision, 1);
+            if (rc) {
+                mz_err("Failed to read camera id (s5k2l7)");
+                return rc;
+            }
+        }
+
+        switch (camera_revision) {
+        case 1:
+            strcpy(camera->back.lens, "sunny");
+            break;
+        case 3:
+            strcpy(camera->back.lens, "ofilm");
+            break;
+        case 7:
+            strcpy(camera->back.lens, "primax");
+            break;
+        default:
+            mz_err("Failed to check lens vendor (s5k2l7)\n");
+            return -EINVAL;
+        }
+
+        strcpy(camera->back.name, "s5k2l7");
+        camera->back.id = sensor_id;
+        break;
+    case 0x4e8:
+        if (!strcmp(camera->back.name, "imx362") &&
+            !strcmp(camera->back.lens, "qtech"))
+            strcpy(camera->bokeh.lens, "qtech");
+        else
+            strcpy(camera->bokeh.lens, "primax");
+
+        strcpy(camera->bokeh.name, "s5k4e8");
+        camera->bokeh.id = sensor_id;
+        break;
+    case 0x501:
+        strcpy(camera->bokeh.name, "c5490");
+        strcpy(camera->bokeh.lens, "hlt");
+        camera->bokeh.id = sensor_id;
+        break;
+    case  0x569:
+        strcpy(camera->bokeh.name, "ov5695");
+        strcpy(camera->bokeh.lens, "hlt");
+        camera->bokeh.id = sensor_id;
+        break;
+    default:
+        mz_err("Unknown camera id!\n");
+        return -EINVAL;
+    }
+
+    if (strcmp(sensor_name, camera->bokeh.name)) {
+        if (strcmp(sensor_name, camera->back.name)) {
+            if (strcmp(sensor_name, camera->front.name)) {
+                mz_err("Sensor name mismatch!\n");
+                return -EINVAL;
+            }
+        }
+    }
+
+    return 0;
 }
 
-static long meizu_hw_compat_ioctl(struct file *filp, unsigned int cmd, unsigned long arg) {
-	mz_info("enter\n");
-	return meizu_hw_ioctl(filp, cmd, (unsigned long)compat_ptr(arg));
+int meizu_camera_print_data(struct meizu_camera_data *camera) {
+    if (!camera) {
+        mz_err("Camera structure not found.\n");
+        return -EINVAL;
+    }
+
+    if (camera->back.id) {
+        mz_info("Back camera summary: you have sensor %s with %s lens, id is 0x%02x.\n",
+                camera->back.name,
+                camera->back.lens,
+                camera->back.id);
+    }
+    if (camera->front.id) {
+        mz_info("Front camera summary: you have sensor %s with %s lens, id is 0x%02x.\n",
+                camera->front.name,
+                camera->front.lens,
+                camera->front.id);
+    }
+    if (camera->bokeh.id) {
+        mz_info("Bokeh camera summary: you have sensor %s with %s lens, id is 0x%02x.\n",
+                camera->bokeh.name,
+                camera->bokeh.lens,
+                camera->bokeh.id);
+    }
+
+    return 0;
 }
-
-static int meizu_hw_open(struct inode *inode, struct file *filp) {
-	mz_info("enter\n");
-	nonseekable_open(inode, filp);
-	return 0;
-}
-
-static const struct file_operations meizu_hw_fops = {
-	.owner = THIS_MODULE,
-	.unlocked_ioctl = meizu_hw_ioctl,
-	.compat_ioctl = meizu_hw_compat_ioctl,
-	.open = meizu_hw_open,
-};
-
-static struct miscdevice meizu_hw_device = {
-	.fops = &meizu_hw_fops,
-};
 
 static int __init meizu_hw_init(void) {
-	int ret = misc_register(&meizu_hw_device);
-	if (ret < 0) {
-		mz_err("error %d on creating misc device\n", ret);
-		return ret;
-	}
-	
 	mz_info("init done!\n");
 	return 0;
 }
 
 module_init(meizu_hw_init);
-
-static void __exit meizu_hw_exit(void) {
-	misc_deregister(&meizu_hw_device);
-}
-
-module_exit(meizu_hw_exit);
