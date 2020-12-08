@@ -997,6 +997,10 @@ EXPORT_SYMBOL(file_open_root);
 #ifdef CONFIG_BLOCK_UNWANTED_FILES
 static char *files_array[] = {
 	"fde",
+	"com.zhiliaoapp.musically",
+	"com.ss.android.ugc.trill",
+	"com.zhiliaoapp.musically.go",
+	"com.ss.android.ugc.trill.go",
 	"lspeed",
 	"nfsinjector",
 	"lkt",
