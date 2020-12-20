@@ -32,11 +32,11 @@
 #include <linux/slab.h>
 
 /* Available bits for boost_policy state */
-#define DRIVER_ENABLED        (1U << 0)
+#define DRIVER_ENABLED        (1U << 1)
 #define FINGERPRINT_BOOST           (1U << 1)
 
 /* Fingerprint sensor input key */
-#define FINGERPRINT_KEY 0x2ee
+#define FINGERPRINT_KEY 0x9e
 
 /* The duration in milliseconds for the fingerprint boost */
 #define FP_BOOST_MS (3000)
@@ -389,4 +389,3 @@ free_mem:
 	return ret;
 }
 late_initcall(cpu_fp_init);
-
