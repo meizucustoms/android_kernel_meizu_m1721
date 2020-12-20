@@ -55,6 +55,8 @@
 #include "mdss_smmu.h"
 #include "mdss_mdp.h"
 
+#define BACKLIGHT_DIMMER_MDSS
+
 #ifdef CONFIG_FB_MSM_TRIPLE_BUFFER
 #define MDSS_FB_NUM 3
 #else
@@ -73,6 +75,12 @@
 #else
 #define BLANK_FLAG_LP	FB_BLANK_VSYNC_SUSPEND
 #define BLANK_FLAG_ULP	FB_BLANK_NORMAL
+#endif
+
+#ifdef BACKLIGHT_DIMMER_MDSS
+#define MDSS_BRIGHT_TO_BL_DIM(out, v) do {\
+			out = (12*v*v+1393*v+3060)/4465;\
+			} while (0)
 #endif
 
 static struct fb_info *fbi_list[MAX_FBI_LIST];
@@ -271,10 +279,14 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 	if (value > mfd->panel_info->brightness_max)
 		value = mfd->panel_info->brightness_max;
 
-	/* This maps android backlight level 0 to 255 into
-	   driver backlight level 0 to bl_max with rounding */
-	MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
-				mfd->panel_info->brightness_max);
+#ifdef BACKLIGHT_DIMMER_MDSS
+		MDSS_BRIGHT_TO_BL_DIM(bl_lvl, value);
+#else
+		/* This maps android backlight level 0 to 255 into
+		   driver backlight level 0 to bl_max with rounding */
+		MDSS_BRIGHT_TO_BL(bl_lvl, value, mfd->panel_info->bl_max,
+					mfd->panel_info->brightness_max);
+#endif
 
 	if (!bl_lvl && value)
 		bl_lvl = 1;
