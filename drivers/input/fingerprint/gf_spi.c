@@ -48,6 +48,7 @@
 #include <net/sock.h>
 #include <net/netlink.h>
 #include "gf_spi.h"
+#include "../../platform/msm/qpnp-hap_mback.h"
 
 static DECLARE_BITMAP(minors, N_SPI_MINORS);
 static LIST_HEAD(device_list);
@@ -322,6 +323,9 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 	if (GF_KEY_HOME == gf_key->key) {
 		input_report_key(gf_dev->input, key_input, gf_key->value);
 		input_sync(gf_dev->input);
+
+		// Vibrate for 60ms on mBack light press
+		qpnp_hap_mback_worker(60);
 	}
 }
 
