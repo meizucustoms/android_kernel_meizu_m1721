@@ -1176,12 +1176,7 @@ config TOUCHSCREEN_TD4310
 
 source "drivers/input/touchscreen/gt9xx/Kconfig"
 
-if MACH_XIAOMI_TISSOT
-source "drivers/input/touchscreen/ft8716/Kconfig"
-endif
-if !MACH_XIAOMI_TISSOT
 source "drivers/input/touchscreen/focaltech_touch/Kconfig"
-endif
 
 config TOUCHSCREEN_HIMAX_CHIPSET
 	bool "Himax touchpanel CHIPSET"

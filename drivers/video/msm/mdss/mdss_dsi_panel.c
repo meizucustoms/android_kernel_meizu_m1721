@@ -344,11 +344,6 @@ disp_en_gpio_err:
 	return rc;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-extern int ft8716_suspend;
-extern int panel_suspend_reset_flag;
-#endif
-
 int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 {
 	struct mdss_dsi_ctrl_pdata *ctrl_pdata = NULL;
@@ -493,21 +488,8 @@ int mdss_dsi_panel_reset(struct mdss_panel_data *pdata, int enable)
 			usleep_range(100, 110);
 			gpio_free(ctrl_pdata->disp_en_gpio);
 		}
-
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-		if (panel_suspend_reset_flag == 2 || (panel_suspend_reset_flag == 3 && ft8716_gesture_func_on == 0)
-			|| ft8716_suspend) {
-				gpio_set_value((ctrl_pdata->rst_gpio), 1);
-				mdelay(10);
-				gpio_set_value((ctrl_pdata->rst_gpio), 0);
-				mdelay(10);
-				gpio_set_value((ctrl_pdata->rst_gpio), 1);
-				mdelay(10);
-				gpio_set_value((ctrl_pdata->rst_gpio), 0);
-				mdelay(10);
-		} else
-#endif
-				gpio_set_value((ctrl_pdata->rst_gpio), 0);
+		
+		gpio_set_value((ctrl_pdata->rst_gpio), 0);
 
 		gpio_free(ctrl_pdata->rst_gpio);
 		if (gpio_is_valid(ctrl_pdata->mode_gpio))
@@ -1965,10 +1947,6 @@ static void mdss_dsi_parse_esd_params(struct device_node *np,
 				pr_err("TE-ESD not valid for video mode\n");
 				goto error;
 			}
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-		} else if (!strcmp(string, "TE_check_NT35596")) {
-			ctrl->status_mode = ESD_TE_NT35596;
-#endif
 		} else {
 			pr_err("No valid panel-status-check-mode string\n");
 			goto error;
