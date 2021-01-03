@@ -23,17 +23,6 @@
 	qcom,board-id= <0x0b 0>;
 };
 
-&soc {
-	led_flash0: qcom,camera-flash {
-		cell-index = <0>;
-		compatible = "qcom,camera-flash";
-		qcom,flash-type = <1>;
-		qcom,flash-source = <&pmi8950_flash0 &pmi8950_flash1>;
-		qcom,torch-source = <&pmi8950_torch0 &pmi8950_torch1>;
-		qcom,switch-source = <&pmi8950_switch>;
-	};
-};
-
 #include "msm8953-qrd-sku3.dtsi"
 
 &usb3 {
@@ -43,6 +32,24 @@
 &mdss_dsi1 {
 	lab-supply = <&lab_regulator>;
 	ibb-supply = <&ibb_regulator>;
+};
+
+&mdss_mdp {
+	/delete-node/ qcom,mdss_dsi_sim_video;
+	/delete-node/ qcom,mdss_dsi_dual_sim_video;
+	/delete-node/ qcom,mdss_dsi_sim_cmd;
+	/delete-node/ qcom,mdss_dsi_dual_sim_cmd;
+	/delete-node/ qcom,mdss_dsi_truly_1080p_video;
+	/delete-node/ qcom,mdss_dsi_truly_1080p_cmd;
+	/delete-node/ qcom,mdss_dsi_adv7533_1080p;
+	/delete-node/ qcom,mdss_dsi_adv7533_720p;
+	/delete-node/ qcom,mdss_dsi_r69006_1080p_video;
+	/delete-node/ qcom,mdss_dsi_r69006_1080p_cmd;
+	/delete-node/ qcom,mdss_dsi_truly_wuxga_video;
+	/delete-node/ qcom,mdss_dsi_lt8912_480p_video;
+	/delete-node/ qcom,mdss_dsi_lt8912_1080p_video;
+	/delete-node/ qcom,mdss_dsi_lgd_incell_sw49106_fhd_video;
+	/delete-node/ qcom,mdss_dsi_boyi_hx83100a_800p_video;
 };
 
 &dsi_panel_pwr_supply {
@@ -66,5 +73,4 @@
 	};
 };
 
-#include "mido/msm8953-mido.dtsi"
-#include "msm8953-qrd-sku3-xiaomi-common.dtsi"
+#include "m1721/msm8953-m1721.dtsi"
