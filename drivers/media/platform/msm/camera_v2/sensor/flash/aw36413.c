@@ -913,4 +913,4 @@ module_init(msm_flash_aw36413_init);
 module_exit(msm_flash_aw36413_exit);
 MODULE_DESCRIPTION("AW36413 (x2) LED driver");
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Roman Rihter <teledurak@msucks.space>");
+MODULE_AUTHOR("Roman Rihter <teledurak@msucks.space>"); 

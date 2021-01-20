@@ -1049,27 +1049,6 @@ int msm_camera_init_gpio_pin_tbl(struct device_node *of_node,
 		rc = 0;
 	}
 
-	rc = of_property_read_u32(of_node, "qcom,gpio-flash-strobe-2", &val);
-	if (rc != -EINVAL) {
-		if (rc < 0) {
-			pr_err("%s:%d read qcom,gpio-flash-strobe-2 failed rc %d\n",
-				__func__, __LINE__, rc);
-			goto ERROR;
-		} else if (val >= gpio_array_size) {
-			pr_err("%s:%d qcom,gpio-flash-strobe-2 invalid %d\n",
-				__func__, __LINE__, val);
-			rc = -EINVAL;
-			goto ERROR;
-		}
-		gconf->gpio_num_info->gpio_num[SENSOR_GPIO_FL_STROBE_2] =
-			gpio_array[val];
-		gconf->gpio_num_info->valid[SENSOR_GPIO_FL_STROBE_2] = 1;
-		CDBG("%s qcom,gpio-flash-strobe-2 %d\n", __func__,
-			gconf->gpio_num_info->gpio_num[SENSOR_GPIO_FL_STROBE_2]);
-	} else {
-		rc = 0;
-	}
-
 	rc = of_property_read_u32(of_node, "qcom,gpio-flash-reset", &val);
 	if (rc != -EINVAL) {
 		if (rc < 0) {
@@ -1786,3 +1765,4 @@ int msm_camera_power_down(struct msm_camera_power_ctrl_t *ctrl,
 	CDBG("%s exit\n", __func__);
 	return 0;
 }
+

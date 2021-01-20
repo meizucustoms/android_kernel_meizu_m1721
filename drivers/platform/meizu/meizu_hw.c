@@ -19,7 +19,7 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/types.h>
-#include "meizu_hw.h"
+#include <media/meizu_hw.h>
 
 int meizu_sensor_parse_id(struct meizu_camera_data *camera,
                           struct msm_sensor_ctrl_t *s_ctrl) {
