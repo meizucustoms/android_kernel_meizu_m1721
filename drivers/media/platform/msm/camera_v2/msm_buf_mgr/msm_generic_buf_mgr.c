@@ -188,6 +188,7 @@ static int32_t msm_buf_mngr_put_buf(struct msm_buf_mngr_device *buf_mngr_dev,
 		}
 	}
 	spin_unlock_irqrestore(&buf_mngr_dev->buf_q_spinlock, flags);
+	pr_err("%s: PUT_BUFF rc = %d\n", __func__, ret);
 	return ret;
 }
 
