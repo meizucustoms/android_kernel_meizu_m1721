@@ -177,6 +177,7 @@ int msm_sensor_power_up(struct msm_sensor_ctrl_t *s_ctrl)
 		rc = msm_camera_power_up(power_info, s_ctrl->sensor_device_type,
 			sensor_i2c_client);
 		if (rc < 0)
+			pr_err("%s: msm_camera_power_up failed!", __func__);
 			return rc;
 		rc = msm_sensor_check_id(s_ctrl);
 		if (rc < 0) {
@@ -243,13 +244,8 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 		return rc;
 	}
 
-	pr_debug("%s: read id: 0x%x expected id 0x%x:\n",
+	pr_err("%s: read id: 0x%x expected id 0x%x: (att: 1)\n",
 			__func__, chipid, slave_info->sensor_id);
-	if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
-		pr_err("%s chip id %x does not match %x\n",
-				__func__, chipid, slave_info->sensor_id);
-		return -ENODEV;
-	}
 
 	meizu_sensor_parse_id(&mzcamera, s_ctrl);
 	if (rc < 0) {
@@ -260,6 +256,26 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 
 	if (mzcamera.back.id && mzcamera.front.id && mzcamera.bokeh.id) {
 		meizu_camera_print_data(&mzcamera);
+	}
+
+	if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
+		pr_err("%s chip id %x does not match %x (%s) | try again\n",
+				__func__, chipid, slave_info->sensor_id, sensor_name);
+		rc = sensor_i2c_client->i2c_func_tbl->i2c_read(
+		 	 sensor_i2c_client, slave_info->sensor_id_reg_addr,
+		 	 &chipid, MSM_CAMERA_I2C_WORD_DATA);
+		if (rc < 0) {
+			pr_err("%s: %s: read id failed\n", __func__, sensor_name);
+			return rc;
+		}
+
+		pr_err("%s: read id: 0x%x expected id 0x%x: (att: 2)\n",
+				__func__, chipid, slave_info->sensor_id);
+		if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
+			pr_err("%s chip id %x does not match %x (%s) | att 2, return.\n",
+				__func__, chipid, slave_info->sensor_id, sensor_name);
+			return rc;
+		}
 	}
 	return rc;
 }
@@ -370,9 +386,21 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 	struct sensorb_cfg_data32 *cdata = (struct sensorb_cfg_data32 *)argp;
 	int32_t rc = 0;
 	int32_t i = 0;
+	const char *sensor_name;
+	unsigned int sensor_sid;
 	mutex_lock(s_ctrl->msm_sensor_mutex);
 	CDBG("%s:%d %s cfgtype = %d\n", __func__, __LINE__,
 		s_ctrl->sensordata->sensor_name, cdata->cfgtype);
+
+	if (!s_ctrl->sensordata->sensor_name) {
+		sensor_name = "N/A";
+	} else {
+		sensor_name = s_ctrl->sensordata->sensor_name;
+	}
+	sensor_sid = s_ctrl->sensor_i2c_client->cci_client->sid;
+
+	pr_err("%s: sensor: %s, sid: %d\n", __func__, sensor_name, sensor_sid);
+
 	switch (cdata->cfgtype) {
 	case CFG_GET_SENSOR_INFO:
 		memcpy(cdata->cfg.sensor_info.sensor_name,
@@ -434,8 +462,8 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 			goto DONE;
 
 		if (s_ctrl->sensor_state != MSM_SENSOR_POWER_UP) {
-			pr_err("%s:%d failed: invalid state %d\n", __func__,
-				__LINE__, s_ctrl->sensor_state);
+			pr_err("%s:%d failed: invalid state %d [sensor:%s|sid:%d]\n", __func__,
+				__LINE__, s_ctrl->sensor_state, sensor_name, sensor_sid);
 			rc = -EFAULT;
 			break;
 		}
@@ -443,7 +471,7 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 		if (copy_from_user(&conf_array32,
 			(void *)compat_ptr(cdata->cfg.setting),
 			sizeof(struct msm_camera_i2c_reg_setting32))) {
-			pr_err("%s:%d failed\n", __func__, __LINE__);
+			pr_err("%s:%d failed [sensor:%s|sid:%d]\n", __func__, __LINE__, sensor_name, sensor_sid);
 			rc = -EFAULT;
 			break;
 		}
@@ -456,7 +484,7 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 
 		if (!conf_array.size ||
 			conf_array.size > I2C_REG_DATA_MAX) {
-			pr_err("%s:%d failed\n", __func__, __LINE__);
+			pr_err("%s:%d failed [sensor:%s|sid:%d]\n", __func__, __LINE__, sensor_name, sensor_sid);
 			rc = -EFAULT;
 			break;
 		}
@@ -464,7 +492,7 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 		reg_setting = kzalloc(conf_array.size *
 			(sizeof(struct msm_camera_i2c_reg_array)), GFP_KERNEL);
 		if (!reg_setting) {
-			pr_err("%s:%d failed\n", __func__, __LINE__);
+			pr_err("%s:%d failed [sensor:%s|sid:%d]\n", __func__, __LINE__, sensor_name, sensor_sid);
 			rc = -ENOMEM;
 			break;
 		}
@@ -472,7 +500,7 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 			(void *)(conf_array.reg_setting),
 			conf_array.size *
 			sizeof(struct msm_camera_i2c_reg_array))) {
-			pr_err("%s:%d failed\n", __func__, __LINE__);
+			pr_err("%s:%d failed [sensor:%s|sid:%d]\n", __func__, __LINE__, sensor_name, sensor_sid);
 			kfree(reg_setting);
 			rc = -EFAULT;
 			break;
@@ -497,6 +525,8 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 			rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
 				i2c_write_table_sync(s_ctrl->sensor_i2c_client,
 				&conf_array);
+
+		pr_err("%s: [sensor:%s|sid:%d] exit; rc = %d (ARRAY_WRITE)\n", __func__, sensor_name, sensor_sid, rc);
 
 		kfree(reg_setting);
 		break;
@@ -565,6 +595,8 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 
 		pr_debug("slave_read %x %x %x\n", read_slave_addr,
 			read_config.reg_addr, local_data);
+
+		pr_err("%s: [sensor:%s|sid:%d] exit; rc = %d (SLAVE_READ)\n", __func__, sensor_name, sensor_sid, rc);
 
 		if (rc < 0) {
 			pr_err("%s:%d: i2c_read failed\n", __func__, __LINE__);
@@ -678,6 +710,9 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 			rc = -EFAULT;
 			break;
 		}
+
+		pr_err("%s: [sensor:%s|sid:%d] exit; rc = %d (SLAVE_WRITE_ARRAY)\n", __func__, sensor_name, sensor_sid, rc);
+
 		kfree(reg_setting);
 		break;
 	}
@@ -703,9 +738,6 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 			rc = -EFAULT;
 			break;
 		}
-
-		conf_array.addr_type = conf_array32.addr_type;
-		conf_array.delay = conf_array32.delay;
 		conf_array.size = conf_array32.size;
 		conf_array.reg_setting = compat_ptr(conf_array32.reg_setting);
 
@@ -737,6 +769,8 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->
 			i2c_write_seq_table(s_ctrl->sensor_i2c_client,
 			&conf_array);
+
+		pr_err("%s: [sensor:%s|sid:%d] exit; rc = %d (WRITE_SEQ_ARRAY)\n", __func__, sensor_name, sensor_sid, rc);
 		kfree(reg_setting);
 		break;
 	}
@@ -748,7 +782,7 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 		if (s_ctrl->sensor_state != MSM_SENSOR_POWER_DOWN) {
 			pr_err("%s:%d failed: invalid state %d\n", __func__,
 				__LINE__, s_ctrl->sensor_state);
-			rc = -EFAULT;
+			rc = 0;
 			break;
 		}
 		if (s_ctrl->func_tbl->sensor_power_up) {
@@ -777,7 +811,7 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 		if (s_ctrl->sensor_state != MSM_SENSOR_POWER_UP) {
 			pr_err("%s:%d failed: invalid state %d\n", __func__,
 				__LINE__, s_ctrl->sensor_state);
-			rc = -EFAULT;
+			rc = 0;
 			break;
 		}
 		if (s_ctrl->func_tbl->sensor_power_down) {
@@ -882,7 +916,7 @@ static int msm_sensor_config32(struct msm_sensor_ctrl_t *s_ctrl,
 	}
 
 	default:
-		rc = -EFAULT;
+		rc = 0;
 		break;
 	}
 

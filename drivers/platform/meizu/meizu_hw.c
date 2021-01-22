@@ -51,6 +51,8 @@ int meizu_sensor_parse_id(struct meizu_camera_data *camera,
             return rc;
         }
 
+        mz_info("s5k3p8sp03 sid = %d\n", s_ctrl->sensor_i2c_client->cci_client->sid);
+
         if (camera_revision != 6)
             strcpy(camera->front.lens, "shengtai");
         else
@@ -72,6 +74,8 @@ int meizu_sensor_parse_id(struct meizu_camera_data *camera,
                 return rc;
             }
         }
+
+        mz_info("s5k2l7 sid = %d\n", s_ctrl->sensor_i2c_client->cci_client->sid);
 
         switch (camera_revision) {
         case 1:
@@ -106,7 +110,7 @@ int meizu_sensor_parse_id(struct meizu_camera_data *camera,
         strcpy(camera->bokeh.lens, "hlt");
         camera->bokeh.id = sensor_id;
         break;
-    case  0x569:
+    case 0x569:
         strcpy(camera->bokeh.name, "ov5695");
         strcpy(camera->bokeh.lens, "hlt");
         camera->bokeh.id = sensor_id;
@@ -116,13 +120,9 @@ int meizu_sensor_parse_id(struct meizu_camera_data *camera,
         return -EINVAL;
     }
 
-    if (strcmp(sensor_name, camera->bokeh.name)) {
-        if (strcmp(sensor_name, camera->back.name)) {
-            if (strcmp(sensor_name, camera->front.name)) {
-                mz_err("Sensor name mismatch!\n");
-                return -EINVAL;
-            }
-        }
+    if (strcmp(sensor_name, camera->back.name) && strcmp(sensor_name, camera->front.name) && strcmp(sensor_name, camera->bokeh.name)) {
+        mz_err("Sensor name mismatch!\n");
+        return -EINVAL;
     }
 
     return 0;
