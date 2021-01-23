@@ -81,10 +81,8 @@ void signal_irsc_completion(void)
  */
 int check_permissions(void)
 {
-	int rc = 0;
-	if (capable(CAP_NET_RAW) || capable(CAP_NET_BIND_SERVICE))
-		rc = 1;
-	return rc;
+	// THIS IS HACK AND CAN CAUSE BIG SECURITY PROBLEMS.
+	return 1;
 }
 EXPORT_SYMBOL(check_permissions);
 
