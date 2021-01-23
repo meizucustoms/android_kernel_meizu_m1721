@@ -24,7 +24,6 @@
 #include <linux/err.h>
 #include <linux/delay.h>
 #include <linux/qpnp/qpnp-haptic.h>
-#include "qpnp-hap_mback.h"
 #include "../../staging/android/timed_output.h"
 
 #define QPNP_IRQ_FLAGS	(IRQF_TRIGGER_RISING | \
@@ -1789,22 +1788,6 @@ static void qpnp_timed_enable_worker(struct work_struct *work)
 		hrtimer_start(&hap->hap_timer,
 			      ktime_set(value / 1000, (value % 1000) * 1000000),
 			      HRTIMER_MODE_REL);
-}
-
-int qpnp_hap_mback_worker(int timeout) {
-	struct qpnp_hap *hap = ghap;
-	int ret = 0;
-
-	hap->vmax_mv = QPNP_HAP_VMAX_MAX_MV;
-
-	pr_err("qpnp-haptics: mback-worker: enter, timeout: %d ms\n", timeout);
-
-	qpnp_hap_set(hap, 1);
-	msleep(timeout);
-	qpnp_hap_set(hap, 0);
-
-	pr_err("qpnp-haptics: mback-worker: exit with code %d\n", ret);
-	return ret;
 }
 
 /* enable interface from timed output class */
