@@ -351,7 +351,9 @@ int msm_flash_i2c_probe(struct i2c_client *client,
 	printk("%s %d,allenyao\n", __func__,__LINE__);
 	/* Assign name for sub device */
 	snprintf(fctrl->msm_sd.sd.name, sizeof(fctrl->msm_sd.sd.name),
-		"%s", id->name);
+		"i2c");
+
+	pr_err("FLASH-DEBUG: flash subdev name is %s\n", fctrl->msm_sd.sd.name);
 
 	rc = msm_led_get_dt_data(client->dev.of_node, fctrl);
 	if (rc < 0) {
