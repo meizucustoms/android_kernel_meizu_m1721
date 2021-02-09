@@ -31,7 +31,7 @@
 #ifdef CONFIG_USE_DEV_CTRL_VOLUME
 #include <linux/qdsp6v2/audio_dev_ctl.h>
 #endif /*CONFIG_USE_DEV_CTRL_VOLUME*/
-DEFINE_MUTEX(lock);
+static DEFINE_MUTEX(lock);
 #ifdef CONFIG_DEBUG_FS
 
 int audio_aio_debug_open(struct inode *inode, struct file *file)

@@ -97,6 +97,9 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	 * We need to tell the secondary core where to find its stack and the
 	 * page tables.
 	 */
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	secondary_data.task = idle;
+#endif
 	secondary_data.stack = task_stack_page(idle) + THREAD_START_SP;
 	__flush_dcache_area(&secondary_data, sizeof(secondary_data));
 
@@ -120,6 +123,9 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 		pr_err("CPU%u: failed to boot: %d\n", cpu, ret);
 	}
 
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	secondary_data.task = NULL;
+#endif
 	secondary_data.stack = NULL;
 
 	return ret;
@@ -187,6 +193,8 @@ asmlinkage void secondary_start_kernel(void)
 	 * the CPU migration code to notice that the CPU is online
 	 * before we continue.
 	 */
+	pr_info("CPU%u: Booted secondary processor [%08x]\n",
+					 cpu, read_cpuid_id());
 	set_cpu_online(cpu, true);
 	complete(&cpu_running);
 
@@ -324,11 +332,12 @@ void __init smp_cpus_done(unsigned int max_cpus)
 {
 	pr_info("SMP: Total of %d processors activated.\n", num_online_cpus());
 	setup_cpu_features();
-	apply_alternatives();
+	apply_alternatives_all();
 }
 
 void __init smp_prepare_boot_cpu(void)
 {
+	cpuinfo_store_boot_cpu();
 	set_my_cpu_offset(per_cpu_offset(smp_processor_id()));
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015,2017,2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -77,6 +77,17 @@ struct compat_fastrpc_ioctl_init {
 	compat_int_t memfd;	/* ION fd for the mem */
 };
 
+#define FASTRPC_CONTROL_LATENCY		(1)
+struct compat_fastrpc_ctrl_latency {
+	compat_uint_t enable;		/* !latency control enable */
+	compat_uint_t level;		/* !level of control */
+};
+
+#define FASTRPC_CONTROL_SMMU		(2)
+struct compat_fastrpc_ctrl_smmu {
+	compat_uint_t sharedcb;
+};
+
 #define FASTRPC_CONTROL_KALLOC		(3)
 struct compat_fastrpc_ctrl_kalloc {
 	compat_uint_t kalloc_support; /* Remote memory allocation from kernel */
@@ -85,10 +96,11 @@ struct compat_fastrpc_ctrl_kalloc {
 struct compat_fastrpc_ioctl_control {
 	compat_uint_t req;
 	union {
+		struct compat_fastrpc_ctrl_latency lp;
+		struct compat_fastrpc_ctrl_smmu smmu;
 		struct compat_fastrpc_ctrl_kalloc kalloc;
 	};
 };
-
 static int compat_get_fastrpc_ioctl_invoke(
 			struct compat_fastrpc_ioctl_invoke_fd __user *inv32,
 			struct fastrpc_ioctl_invoke_fd __user **inva,
@@ -345,6 +357,26 @@ long compat_fastrpc_device_ioctl(struct file *filp, unsigned int cmd,
 			return err;
 		return filp->f_op->unlocked_ioctl(filp, FASTRPC_IOCTL_INIT,
 							(unsigned long)init);
+	}
+	case FASTRPC_IOCTL_GETINFO:
+	{
+		compat_uptr_t __user *info32;
+		uint32_t __user *info;
+		compat_uint_t u;
+		long ret;
+
+		info32 = compat_ptr(arg);
+		VERIFY(err, NULL != (info = compat_alloc_user_space(
+							sizeof(*info))));
+		if (err)
+			return -EFAULT;
+		ret = filp->f_op->unlocked_ioctl(filp, FASTRPC_IOCTL_GETINFO,
+							(unsigned long)info);
+		if (ret)
+			return ret;
+		err = get_user(u, info);
+		err |= put_user(u, info32);
+		return err;
 	}
 	case FASTRPC_IOCTL_SETMODE:
 		return filp->f_op->unlocked_ioctl(filp, cmd,

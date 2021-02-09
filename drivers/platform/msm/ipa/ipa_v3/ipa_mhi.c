@@ -1,4 +1,4 @@
-/* Copyright (c) 2015, 2016 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2015-2018 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -56,9 +56,9 @@
 
 
 #define IPA_MHI_FUNC_ENTRY() \
-	IPA_MHI_DBG_LOW("ENTRY\n")
+	IPA_MHI_DBG("ENTRY\n")
 #define IPA_MHI_FUNC_EXIT() \
-	IPA_MHI_DBG_LOW("EXIT\n")
+	IPA_MHI_DBG("EXIT\n")
 
 #define IPA_MHI_MAX_UL_CHANNELS 1
 #define IPA_MHI_MAX_DL_CHANNELS 1
@@ -153,10 +153,16 @@ int ipa3_mhi_reset_channel_internal(enum ipa_client_type client)
 int ipa3_mhi_start_channel_internal(enum ipa_client_type client)
 {
 	int res;
+	int ipa_ep_idx;
 
 	IPA_MHI_FUNC_ENTRY();
 
-	res = ipa3_enable_data_path(ipa3_get_ep_mapping(client));
+	ipa_ep_idx = ipa3_get_ep_mapping(client);
+	if (ipa_ep_idx < 0) {
+		IPA_MHI_ERR("Invalid client %d\n", client);
+		return -EINVAL;
+	}
+	res = ipa3_enable_data_path(ipa_ep_idx);
 	if (res) {
 		IPA_MHI_ERR("ipa3_enable_data_path failed %d\n", res);
 		return res;
@@ -185,20 +191,21 @@ static int ipa3_mhi_get_ch_poll_cfg(enum ipa_client_type client,
 static int ipa_mhi_start_gsi_channel(enum ipa_client_type client,
 	int ipa_ep_idx, struct start_gsi_channel *params)
 {
-	int res;
+	int res = 0;
 	struct gsi_evt_ring_props ev_props;
 	struct ipa_mhi_msi_info *msi;
 	struct gsi_chan_props ch_props;
 	union __packed gsi_channel_scratch ch_scratch;
 	struct ipa3_ep_context *ep;
-	struct ipa_gsi_ep_config *ep_cfg;
+	const struct ipa_gsi_ep_config *ep_cfg;
+	struct ipa_ep_cfg_ctrl ep_cfg_ctrl;
 
 	IPA_MHI_FUNC_ENTRY();
 
 	ep = &ipa3_ctx->ep[ipa_ep_idx];
 
 	msi = params->msi;
-	ep_cfg = ipa_get_gsi_ep_info(ipa_ep_idx);
+	ep_cfg = ipa3_get_gsi_ep_info(client);
 	if (!ep_cfg) {
 		IPA_MHI_ERR("Wrong parameter, ep_cfg is NULL\n");
 		return -EPERM;
@@ -235,7 +242,6 @@ static int ipa_mhi_start_gsi_channel(enum ipa_client_type client,
 		if (res) {
 			IPA_MHI_ERR("gsi_alloc_evt_ring failed %d\n", res);
 			goto fail_alloc_evt;
-			return res;
 		}
 		IPA_MHI_DBG("client %d, caching event ring hdl %lu\n",
 				client,
@@ -247,6 +253,22 @@ static int ipa_mhi_start_gsi_channel(enum ipa_client_type client,
 		IPA_MHI_DBG("event ring already exists: evt_ring_hdl=%lu\n",
 			*params->cached_gsi_evt_ring_hdl);
 		ep->gsi_evt_ring_hdl = *params->cached_gsi_evt_ring_hdl;
+	}
+
+	if (params->ev_ctx_host->wp == params->ev_ctx_host->rbase) {
+		IPA_MHI_ERR("event ring wp is not updated. base=wp=0x%llx\n",
+			params->ev_ctx_host->wp);
+		goto fail_alloc_ch;
+	}
+
+	IPA_MHI_DBG("Ring event db: evt_ring_hdl=%lu host_wp=0x%llx\n",
+		ep->gsi_evt_ring_hdl, params->ev_ctx_host->wp);
+	res = gsi_ring_evt_ring_db(ep->gsi_evt_ring_hdl,
+		params->ev_ctx_host->wp);
+	if (res) {
+		IPA_MHI_ERR("fail to ring evt ring db %d. hdl=%lu wp=0x%llx\n",
+			res, ep->gsi_evt_ring_hdl, params->ev_ctx_host->wp);
+		goto fail_alloc_ch;
 	}
 
 	memset(&ch_props, 0, sizeof(ch_props));
@@ -302,6 +324,20 @@ static int ipa_mhi_start_gsi_channel(enum ipa_client_type client,
 
 	*params->mhi = ch_scratch.mhi;
 
+	if (IPA_CLIENT_IS_PROD(ep->client) && ep->skip_ep_cfg) {
+		memset(&ep_cfg_ctrl, 0 , sizeof(struct ipa_ep_cfg_ctrl));
+		ep_cfg_ctrl.ipa_ep_delay = true;
+		ep->ep_delay_set = true;
+		res = ipa3_cfg_ep_ctrl(ipa_ep_idx, &ep_cfg_ctrl);
+		if (res)
+			IPA_MHI_ERR("client (ep: %d) failed result=%d\n",
+			ipa_ep_idx, res);
+		else
+			IPA_MHI_DBG("client (ep: %d) success\n", ipa_ep_idx);
+	} else {
+		ep->ep_delay_set = false;
+	}
+
 	IPA_MHI_DBG("Starting channel\n");
 	res = gsi_start_channel(ep->gsi_chan_hdl);
 	if (res) {
@@ -326,7 +362,7 @@ int ipa3_mhi_init_engine(struct ipa_mhi_init_engine *params)
 {
 	int res;
 	struct gsi_device_scratch gsi_scratch;
-	struct ipa_gsi_ep_config *gsi_ep_info;
+	const struct ipa_gsi_ep_config *gsi_ep_info;
 
 	IPA_MHI_FUNC_ENTRY();
 
@@ -336,8 +372,7 @@ int ipa3_mhi_init_engine(struct ipa_mhi_init_engine *params)
 	}
 
 	/* Initialize IPA MHI engine */
-	gsi_ep_info = ipa_get_gsi_ep_info(
-		ipa_get_ep_mapping(IPA_CLIENT_MHI_PROD));
+	gsi_ep_info = ipa3_get_gsi_ep_info(IPA_CLIENT_MHI_PROD);
 	if (!gsi_ep_info) {
 		IPAERR("MHI PROD has no ep allocated\n");
 		BUG();
@@ -476,6 +511,7 @@ int ipa3_disconnect_mhi_pipe(u32 clnt_hdl)
 {
 	struct ipa3_ep_context *ep;
 	int res;
+	struct ipa_ep_cfg_ctrl ep_cfg_ctrl;
 
 	IPA_MHI_FUNC_ENTRY();
 
@@ -490,6 +526,23 @@ int ipa3_disconnect_mhi_pipe(u32 clnt_hdl)
 	}
 
 	ep = &ipa3_ctx->ep[clnt_hdl];
+	IPA_MHI_ERR("Debug --> Remove ep_delay start");
+	if (ep->ep_delay_set == true) {
+		memset(&ep_cfg_ctrl, 0 , sizeof(struct ipa_ep_cfg_ctrl));
+		ep_cfg_ctrl.ipa_ep_delay = false;
+		res = ipa3_cfg_ep_ctrl(clnt_hdl,
+			&ep_cfg_ctrl);
+		if (res) {
+			IPAERR
+			("client(ep:%d) failed to remove delay res=%d\n",
+				clnt_hdl, res);
+		} else {
+			IPADBG("client (ep: %d) delay removed\n",
+				clnt_hdl);
+			ep->ep_delay_set = false;
+		}
+	}
+	IPA_MHI_ERR("Debug --> Remov ep_delay end");
 
 	if (ipa3_ctx->transport_prototype == IPA_TRANSPORT_TYPE_GSI) {
 		res = gsi_dealloc_channel(ep->gsi_chan_hdl);
@@ -517,21 +570,49 @@ int ipa3_mhi_resume_channels_internal(enum ipa_client_type client,
 	int res;
 	int ipa_ep_idx;
 	struct ipa3_ep_context *ep;
+	union __packed gsi_channel_scratch gsi_ch_scratch;
 
 	IPA_MHI_FUNC_ENTRY();
 
 	ipa_ep_idx = ipa3_get_ep_mapping(client);
+	if (ipa_ep_idx < 0) {
+		IPA_MHI_ERR("Invalid client %d\n", client);
+		return -EINVAL;
+	}
 	ep = &ipa3_ctx->ep[ipa_ep_idx];
 
 	if (brstmode_enabled && !LPTransitionRejected) {
 		/*
 		 * set polling mode bit to DB mode before
 		 * resuming the channel
+		 *
+		 * For MHI-->IPA pipes:
+		 * when resuming due to transition to M0,
+		 * set the polling mode bit to 0.
+		 * In other cases, restore it's value form
+		 * when you stopped the channel.
+		 * Here, after successful resume client move to M0 state.
+		 * So, by default setting polling mode bit to 0.
+		 *
+		 * For IPA-->MHI pipe:
+		 * always restore the polling mode bit.
 		 */
-		res = gsi_write_channel_scratch(
-			ep->gsi_chan_hdl, ch_scratch);
+
+		res = gsi_read_channel_scratch(
+			ep->gsi_chan_hdl, &gsi_ch_scratch);
 		if (res) {
-			IPA_MHI_ERR("write ch scratch fail %d\n"
+			IPA_MHI_ERR("Read ch scratch fail %d\n"
+				, res);
+			return res;
+		}
+
+		if (IPA_CLIENT_IS_PROD(client))
+			gsi_ch_scratch.mhi.polling_mode = false;
+
+		res = gsi_write_channel_scratch(
+			ep->gsi_chan_hdl, gsi_ch_scratch);
+		if (res) {
+			IPA_MHI_ERR("Write ch scratch fail %d\n"
 				, res);
 			return res;
 		}
@@ -557,11 +638,14 @@ int ipa3_mhi_query_ch_info(enum ipa_client_type client,
 	IPA_MHI_FUNC_ENTRY();
 
 	ipa_ep_idx = ipa3_get_ep_mapping(client);
-
+	if (ipa_ep_idx < 0) {
+		IPA_MHI_ERR("Invalid client %d\n", client);
+		return -EINVAL;
+	}
 	ep = &ipa3_ctx->ep[ipa_ep_idx];
 	res = gsi_query_channel_info(ep->gsi_chan_hdl, ch_info);
 	if (res) {
-		IPAERR("gsi_query_channel_info failed\n");
+		IPA_MHI_ERR("gsi_query_channel_info failed\n");
 		return res;
 	}
 
@@ -596,8 +680,13 @@ int ipa3_mhi_destroy_channel(enum ipa_client_type client)
 	struct ipa3_ep_context *ep;
 
 	ipa_ep_idx = ipa3_get_ep_mapping(client);
-
+	if (ipa_ep_idx < 0) {
+		IPA_MHI_ERR("Invalid client %d\n", client);
+		return -EINVAL;
+	}
 	ep = &ipa3_ctx->ep[ipa_ep_idx];
+
+	IPA_ACTIVE_CLIENTS_INC_EP(client);
 
 	IPA_MHI_DBG("reset event ring (hdl: %lu, ep: %d)\n",
 		ep->gsi_evt_ring_hdl, ipa_ep_idx);
@@ -620,8 +709,10 @@ int ipa3_mhi_destroy_channel(enum ipa_client_type client)
 		goto fail;
 	}
 
+	IPA_ACTIVE_CLIENTS_DEC_EP(client);
 	return 0;
 fail:
+	IPA_ACTIVE_CLIENTS_DEC_EP(client);
 	return res;
 }
 

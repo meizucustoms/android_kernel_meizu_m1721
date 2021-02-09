@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -86,6 +86,7 @@ static const int ep_mapping[3][IPA_CLIENT_MAX] = {
 	[IPA_1_1][IPA_CLIENT_A5_WLAN_AMPDU_PROD] = 15,
 	[IPA_1_1][IPA_CLIENT_A2_EMBEDDED_PROD]   =  8,
 	[IPA_1_1][IPA_CLIENT_A2_TETHERED_PROD]   =  6,
+	[IPA_1_1][IPA_CLIENT_APPS_LAN_PROD]      = -1,
 	[IPA_1_1][IPA_CLIENT_APPS_LAN_WAN_PROD]  =  2,
 	[IPA_1_1][IPA_CLIENT_APPS_CMD_PROD]      =  1,
 	[IPA_1_1][IPA_CLIENT_ODU_PROD]           = -1,
@@ -93,6 +94,7 @@ static const int ep_mapping[3][IPA_CLIENT_MAX] = {
 	[IPA_1_1][IPA_CLIENT_Q6_LAN_PROD]        =  5,
 	[IPA_1_1][IPA_CLIENT_Q6_WAN_PROD]        = -1,
 	[IPA_1_1][IPA_CLIENT_Q6_CMD_PROD]        = -1,
+	[IPA_1_1][IPA_CLIENT_ETHERNET_PROD]      = -1,
 
 	[IPA_1_1][IPA_CLIENT_HSIC1_CONS]         = 14,
 	[IPA_1_1][IPA_CLIENT_WLAN1_CONS]         = -1,
@@ -118,6 +120,7 @@ static const int ep_mapping[3][IPA_CLIENT_MAX] = {
 	[IPA_1_1][IPA_CLIENT_MHI_CONS]           = -1,
 	[IPA_1_1][IPA_CLIENT_Q6_LAN_CONS]        =  4,
 	[IPA_1_1][IPA_CLIENT_Q6_WAN_CONS]        = -1,
+	[IPA_1_1][IPA_CLIENT_ETHERNET_CONS]      = -1,
 
 
 	[IPA_2_0][IPA_CLIENT_HSIC1_PROD]         = 12,
@@ -133,6 +136,7 @@ static const int ep_mapping[3][IPA_CLIENT_MAX] = {
 	[IPA_2_0][IPA_CLIENT_A5_WLAN_AMPDU_PROD] = -1,
 	[IPA_2_0][IPA_CLIENT_A2_EMBEDDED_PROD]   = -1,
 	[IPA_2_0][IPA_CLIENT_A2_TETHERED_PROD]   = -1,
+	[IPA_2_0][IPA_CLIENT_APPS_LAN_PROD]      = -1,
 	[IPA_2_0][IPA_CLIENT_APPS_LAN_WAN_PROD]  =  4,
 	[IPA_2_0][IPA_CLIENT_APPS_CMD_PROD]      =  3,
 	[IPA_2_0][IPA_CLIENT_ODU_PROD]           = 12,
@@ -146,6 +150,7 @@ static const int ep_mapping[3][IPA_CLIENT_MAX] = {
 						 =  12,
 	[IPA_2_0][IPA_CLIENT_MEMCPY_DMA_ASYNC_PROD]
 						 =  19,
+	[IPA_2_0][IPA_CLIENT_ETHERNET_PROD]      = 12,
 	/* Only for test purpose */
 	[IPA_2_0][IPA_CLIENT_TEST_PROD]          = 19,
 	[IPA_2_0][IPA_CLIENT_TEST1_PROD]         = 19,
@@ -186,12 +191,14 @@ static const int ep_mapping[3][IPA_CLIENT_MAX] = {
 						 =  16,
 	[IPA_2_0][IPA_CLIENT_Q6_LTE_WIFI_AGGR_CONS]
 						 =  10,
+	[IPA_2_0][IPA_CLIENT_ETHERNET_CONS]      = 1,
 	/* Only for test purpose */
 	[IPA_2_0][IPA_CLIENT_TEST_CONS]          = 1,
 	[IPA_2_0][IPA_CLIENT_TEST1_CONS]         = 1,
 	[IPA_2_0][IPA_CLIENT_TEST2_CONS]         = 16,
 	[IPA_2_0][IPA_CLIENT_TEST3_CONS]         = 13,
 	[IPA_2_0][IPA_CLIENT_TEST4_CONS]         = 15,
+	[IPA_2_0][IPA_CLIENT_DUMMY_CONS]         = -1,
 
 
 	[IPA_2_6L][IPA_CLIENT_HSIC1_PROD]         = -1,
@@ -207,6 +214,7 @@ static const int ep_mapping[3][IPA_CLIENT_MAX] = {
 	[IPA_2_6L][IPA_CLIENT_A5_WLAN_AMPDU_PROD] = -1,
 	[IPA_2_6L][IPA_CLIENT_A2_EMBEDDED_PROD]   = -1,
 	[IPA_2_6L][IPA_CLIENT_A2_TETHERED_PROD]   = -1,
+	[IPA_2_6L][IPA_CLIENT_APPS_LAN_PROD]      = -1,
 	[IPA_2_6L][IPA_CLIENT_APPS_LAN_WAN_PROD]  =  4,
 	[IPA_2_6L][IPA_CLIENT_APPS_CMD_PROD]      =  3,
 	[IPA_2_6L][IPA_CLIENT_ODU_PROD]           = -1,
@@ -220,6 +228,7 @@ static const int ep_mapping[3][IPA_CLIENT_MAX] = {
 						 =  -1,
 	[IPA_2_6L][IPA_CLIENT_MEMCPY_DMA_ASYNC_PROD]
 						 =  -1,
+	[IPA_2_6L][IPA_CLIENT_ETHERNET_PROD]      = -1,
 	/* Only for test purpose */
 	[IPA_2_6L][IPA_CLIENT_TEST_PROD]          = 11,
 	[IPA_2_6L][IPA_CLIENT_TEST1_PROD]         = 11,
@@ -260,12 +269,14 @@ static const int ep_mapping[3][IPA_CLIENT_MAX] = {
 						 =  -1,
 	[IPA_2_6L][IPA_CLIENT_Q6_LTE_WIFI_AGGR_CONS]
 						 =  -1,
+	[IPA_2_6L][IPA_CLIENT_ETHERNET_CONS]      = -1,
 	/* Only for test purpose */
 	[IPA_2_6L][IPA_CLIENT_TEST_CONS]          = 15,
 	[IPA_2_6L][IPA_CLIENT_TEST1_CONS]         = 15,
 	[IPA_2_6L][IPA_CLIENT_TEST2_CONS]         = 0,
 	[IPA_2_6L][IPA_CLIENT_TEST3_CONS]         = 1,
 	[IPA_2_6L][IPA_CLIENT_TEST4_CONS]         = 10,
+	[IPA_2_6L][IPA_CLIENT_DUMMY_CONS]         = -1,
 };
 
 static struct msm_bus_vectors ipa_init_vectors_v1_1[]  = {
@@ -450,6 +461,13 @@ int ipa_get_clients_from_rm_resource(
 	case IPA_RM_RESOURCE_MHI_CONS:
 		clients->names[i++] = IPA_CLIENT_MHI_CONS;
 		break;
+	case IPA_RM_RESOURCE_ODU_ADAPT_CONS:
+		clients->names[i++] = IPA_CLIENT_ODU_EMB_CONS;
+		clients->names[i++] = IPA_CLIENT_ODU_TETH_CONS;
+		break;
+	case IPA_RM_RESOURCE_ETHERNET_CONS:
+		clients->names[i++] = IPA_CLIENT_ETHERNET_CONS;
+		break;
 	case IPA_RM_RESOURCE_USB_PROD:
 		clients->names[i++] = IPA_CLIENT_USB_PROD;
 		break;
@@ -458,6 +476,12 @@ int ipa_get_clients_from_rm_resource(
 		break;
 	case IPA_RM_RESOURCE_MHI_PROD:
 		clients->names[i++] = IPA_CLIENT_MHI_PROD;
+		break;
+	case IPA_RM_RESOURCE_ODU_ADAPT_PROD:
+		clients->names[i++] = IPA_CLIENT_ODU_PROD;
+		break;
+	case IPA_RM_RESOURCE_ETHERNET_PROD:
+		clients->names[i++] = IPA_CLIENT_ETHERNET_PROD;
 		break;
 	default:
 		break;
@@ -490,13 +514,16 @@ bool ipa_should_pipe_be_suspended(enum ipa_client_type client)
 	if (ep->keep_ipa_awake)
 		return false;
 
-	if (client == IPA_CLIENT_USB_CONS   ||
-	    client == IPA_CLIENT_MHI_CONS   ||
-	    client == IPA_CLIENT_HSIC1_CONS ||
-	    client == IPA_CLIENT_WLAN1_CONS ||
-	    client == IPA_CLIENT_WLAN2_CONS ||
-	    client == IPA_CLIENT_WLAN3_CONS ||
-	    client == IPA_CLIENT_WLAN4_CONS)
+	if (client == IPA_CLIENT_USB_CONS     ||
+	    client == IPA_CLIENT_MHI_CONS     ||
+	    client == IPA_CLIENT_HSIC1_CONS   ||
+	    client == IPA_CLIENT_WLAN1_CONS   ||
+	    client == IPA_CLIENT_WLAN2_CONS   ||
+	    client == IPA_CLIENT_WLAN3_CONS   ||
+	    client == IPA_CLIENT_WLAN4_CONS   ||
+	    client == IPA_CLIENT_ODU_EMB_CONS ||
+	    client == IPA_CLIENT_ODU_TETH_CONS ||
+	    client == IPA_CLIENT_ETHERNET_CONS)
 		return true;
 
 	return false;
@@ -935,7 +962,7 @@ int ipa2_get_ep_mapping(enum ipa_client_type client)
 
 void ipa2_set_client(int index, enum ipacm_client_enum client, bool uplink)
 {
-	if (client >= IPACM_CLIENT_MAX || client < IPACM_CLIENT_USB) {
+	if (client > IPACM_CLIENT_MAX || client < IPACM_CLIENT_USB) {
 		IPAERR("Bad client number! client =%d\n", client);
 	} else if (index >= IPA_MAX_NUM_PIPES || index < 0) {
 		IPAERR("Bad pipe index! index =%d\n", index);
@@ -1736,6 +1763,7 @@ int ipa_generate_hw_rule(enum ipa_ip_type ip,
 	 * OFFSET_MEQ32_0 with mask of 0 and val of 0 and offset 0
 	 */
 	if (attrib->attrib_mask == 0) {
+		IPADBG_LOW("building default rule\n");
 		if (ipa_ofst_meq32[ofst_meq32] == -1) {
 			IPAERR("ran out of meq32 eq\n");
 			return -EPERM;
@@ -3660,7 +3688,8 @@ int ipa2_write_qmap_id(struct ipa_ioc_write_qmapid *param_in)
 	meta.qmap_id = param_in->qmap_id;
 	if (param_in->client == IPA_CLIENT_USB_PROD ||
 	    param_in->client == IPA_CLIENT_HSIC1_PROD ||
-	    param_in->client == IPA_CLIENT_ODU_PROD) {
+	    param_in->client == IPA_CLIENT_ODU_PROD ||
+	    param_in->client == IPA_CLIENT_ETHERNET_PROD) {
 		result = ipa2_cfg_ep_metadata(ipa_ep_idx, &meta);
 	} else if (param_in->client == IPA_CLIENT_WLAN1_PROD) {
 		ipa_ctx->ep[ipa_ep_idx].cfg.meta = meta;
@@ -4536,6 +4565,7 @@ int ipa_tag_process(struct ipa_desc desc[],
 	int res;
 	struct ipa_tag_completion *comp;
 	int ep_idx;
+	gfp_t flag = GFP_KERNEL | (ipa_ctx->use_dma_zone ? GFP_DMA : 0);
 
 	/* Not enough room for the required descriptors for the tag process */
 	if (IPA_TAG_MAX_DESC - descs_num < REQUIRED_TAG_PROCESS_DESCRIPTORS) {
@@ -4553,7 +4583,7 @@ int ipa_tag_process(struct ipa_desc desc[],
 	}
 	sys = ipa_ctx->ep[ep_idx].sys;
 
-	tag_desc = kzalloc(sizeof(*tag_desc) * IPA_TAG_MAX_DESC, GFP_KERNEL);
+	tag_desc = kzalloc(sizeof(*tag_desc) * IPA_TAG_MAX_DESC, flag);
 	if (!tag_desc) {
 		IPAERR("failed to allocate memory\n");
 		res = -ENOMEM;
@@ -4960,7 +4990,8 @@ int ipa2_disable_apps_wan_cons_deaggr(uint32_t agg_size, uint32_t agg_count)
 	return res;
 }
 
-static struct ipa_gsi_ep_config *ipa2_get_gsi_ep_info(int ipa_ep_idx)
+static const struct ipa_gsi_ep_config *ipa2_get_gsi_ep_info
+	(enum ipa_client_type client)
 {
 	IPAERR("Not supported for IPA 2.x\n");
 	return NULL;
@@ -4974,13 +5005,17 @@ static int ipa2_stop_gsi_channel(u32 clnt_hdl)
 
 static void *ipa2_get_ipc_logbuf(void)
 {
-	/* no support for IPC logging in IPAv2 */
+	if (ipa_ctx)
+		return ipa_ctx->logbuf;
+
 	return NULL;
 }
 
 static void *ipa2_get_ipc_logbuf_low(void)
 {
-	/* no support for IPC logging in IPAv2 */
+	if (ipa_ctx)
+		return ipa_ctx->logbuf_low;
+
 	return NULL;
 }
 
@@ -5169,6 +5204,9 @@ int ipa2_bind_api_controller(enum ipa_hw_type ipa_hw_type,
 	api_ctrl->ipa_setup_uc_ntn_pipes = ipa2_setup_uc_ntn_pipes;
 	api_ctrl->ipa_tear_down_uc_offload_pipes =
 		ipa2_tear_down_uc_offload_pipes;
+	api_ctrl->ipa_get_pdev = ipa2_get_pdev;
+	api_ctrl->ipa_ntn_uc_reg_rdyCB = ipa2_ntn_uc_reg_rdyCB;
+	api_ctrl->ipa_ntn_uc_dereg_rdyCB = ipa2_ntn_uc_dereg_rdyCB;
 
 	return 0;
 }
@@ -5247,4 +5285,18 @@ void ipa_suspend_apps_pipes(bool suspend)
 				ep->sys->sps_callback(&notify);
 		}
 	}
+}
+
+/**
+ * ipa2_get_pdev() - return a pointer to IPA dev struct
+ *
+ * Return value: a pointer to IPA dev struct
+ *
+ */
+struct device *ipa2_get_pdev(void)
+{
+	if (!ipa_ctx)
+		return NULL;
+
+	return ipa_ctx->pdev;
 }

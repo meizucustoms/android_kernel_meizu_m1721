@@ -36,7 +36,7 @@
 
 #define DIAG_MAX_REQ_SIZE	(16 * 1024)
 #define DIAG_MAX_RSP_SIZE	(16 * 1024)
-#define APF_DIAG_PADDING	256
+#define APF_DIAG_PADDING	0
 /*
  * In the worst case, the HDLC buffer can be atmost twice the size of the
  * original packet. Add 3 bytes for 16 bit CRC (2 bytes) and a delimiter
@@ -468,6 +468,7 @@ struct diagchar_dev {
 	int ref_count;
 	int mask_clear;
 	struct mutex diag_maskclear_mutex;
+	struct mutex diag_notifier_mutex;
 	struct mutex diagchar_mutex;
 	struct mutex diag_file_mutex;
 	wait_queue_head_t wait_q;
@@ -602,6 +603,7 @@ struct diagchar_dev {
 #endif
 	int time_sync_enabled;
 	uint8_t uses_time_api;
+	struct platform_device *pdev;
 };
 
 extern struct diagchar_dev *driver;
@@ -631,6 +633,7 @@ void diag_cmd_remove_reg(struct diag_cmd_reg_entry_t *entry, uint8_t proc);
 void diag_cmd_remove_reg_by_pid(int pid);
 void diag_cmd_remove_reg_by_proc(int proc);
 int diag_cmd_chk_polling(struct diag_cmd_reg_entry_t *entry);
+int diag_mask_param(void);
 void diag_clear_masks(int pid);
 
 void diag_record_stats(int type, int flag);

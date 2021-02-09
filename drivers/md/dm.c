@@ -1300,11 +1300,62 @@ void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors)
 }
 EXPORT_SYMBOL_GPL(dm_accept_partial_bio);
 
+/*
+ * Flush current->bio_list when the target map method blocks.
+ * This fixes deadlocks in snapshot and possibly in other targets.
+ */
+struct dm_offload {
+	struct blk_plug plug;
+	struct blk_plug_cb cb;
+};
+
+static void flush_current_bio_list(struct blk_plug_cb *cb, bool from_schedule)
+{
+	struct dm_offload *o = container_of(cb, struct dm_offload, cb);
+	struct bio_list list;
+	struct bio *bio;
+
+	INIT_LIST_HEAD(&o->cb.list);
+
+	if (unlikely(!current->bio_list))
+		return;
+
+	list = *current->bio_list;
+	bio_list_init(current->bio_list);
+
+	while ((bio = bio_list_pop(&list))) {
+		struct bio_set *bs = bio->bi_pool;
+		if (unlikely(!bs) || bs == fs_bio_set) {
+			bio_list_add(current->bio_list, bio);
+			continue;
+		}
+
+		spin_lock(&bs->rescue_lock);
+		bio_list_add(&bs->rescue_list, bio);
+		queue_work(bs->rescue_workqueue, &bs->rescue_work);
+		spin_unlock(&bs->rescue_lock);
+	}
+}
+
+static void dm_offload_start(struct dm_offload *o)
+{
+	blk_start_plug(&o->plug);
+	o->cb.callback = flush_current_bio_list;
+	list_add(&o->cb.list, &current->plug->cb_list);
+}
+
+static void dm_offload_end(struct dm_offload *o)
+{
+	list_del(&o->cb.list);
+	blk_finish_plug(&o->plug);
+}
+
 static void __map_bio(struct dm_target_io *tio)
 {
 	int r;
 	sector_t sector;
 	struct mapped_device *md;
+	struct dm_offload o;
 	struct bio *clone = &tio->clone;
 	struct dm_target *ti = tio->ti;
 
@@ -1317,7 +1368,11 @@ static void __map_bio(struct dm_target_io *tio)
 	 */
 	atomic_inc(&tio->io->io_count);
 	sector = clone->bi_iter.bi_sector;
+
+	dm_offload_start(&o);
 	r = ti->type->map(ti, clone);
+	dm_offload_end(&o);
+
 	if (r == DM_MAPIO_REMAPPED) {
 		/* the bio has been remapped so dispatch it */
 
@@ -1372,13 +1427,13 @@ static void clone_bio(struct dm_target_io *tio, struct bio *bio,
 }
 
 static struct dm_target_io *alloc_tio(struct clone_info *ci,
-				      struct dm_target *ti,
+				      struct dm_target *ti, int nr_iovecs,
 				      unsigned target_bio_nr)
 {
 	struct dm_target_io *tio;
 	struct bio *clone;
 
-	clone = bio_alloc_bioset(GFP_NOIO, 0, ci->md->bs);
+	clone = bio_alloc_bioset(GFP_NOIO, nr_iovecs, ci->md->bs);
 	tio = container_of(clone, struct dm_target_io, clone);
 
 	tio->io = ci->io;
@@ -1392,12 +1447,18 @@ static void __clone_and_map_simple_bio(struct clone_info *ci,
 				       struct dm_target *ti,
 				       unsigned target_bio_nr, unsigned *len)
 {
-	struct dm_target_io *tio = alloc_tio(ci, ti, target_bio_nr);
+	struct dm_target_io *tio = alloc_tio(ci, ti, ci->bio->bi_max_vecs,
+							target_bio_nr);
 	struct bio *clone = &tio->clone;
 
 	tio->len_ptr = len;
 
-	__bio_clone_fast(clone, ci->bio);
+	/*
+	 * Discard requests require the bio's inline iovecs be initialized.
+	 * ci->bio->bi_max_vecs is BIO_INLINE_VECS anyway, for both flush
+	 * and discard, so no need for concern about wasted bvec allocations.
+	 */
+	 __bio_clone_fast(clone, ci->bio);
 	if (len)
 		bio_setup_sector(clone, ci->sector, *len);
 
@@ -1440,7 +1501,7 @@ static void __clone_and_map_data_bio(struct clone_info *ci, struct dm_target *ti
 		num_target_bios = ti->num_write_bios(ti, bio);
 
 	for (target_bio_nr = 0; target_bio_nr < num_target_bios; target_bio_nr++) {
-		tio = alloc_tio(ci, ti, target_bio_nr);
+		tio = alloc_tio(ci, ti, 0, target_bio_nr);
 		tio->len_ptr = len;
 		clone_bio(tio, bio, sector, *len);
 		__map_bio(tio);
@@ -2966,6 +3027,7 @@ struct gendisk *dm_disk(struct mapped_device *md)
 {
 	return md->disk;
 }
+EXPORT_SYMBOL_GPL(dm_disk);
 
 struct kobject *dm_kobject(struct mapped_device *md)
 {
@@ -3035,7 +3097,7 @@ struct dm_md_mempools *dm_alloc_md_mempools(unsigned type, unsigned integrity, u
 	if (!pools->io_pool)
 		goto out;
 
-	pools->bs = bioset_create_nobvec(pool_size, front_pad);
+	pools->bs = bioset_create(pool_size, front_pad);
 	if (!pools->bs)
 		goto out;
 

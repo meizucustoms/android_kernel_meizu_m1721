@@ -472,7 +472,7 @@ static int skcipher_recvmsg(struct kiocb *unused, struct socket *sock,
 			sg = sgl->sg;
 
 			while (!sg->length)
-			sg++;
+				sg++;
 
 			ablkcipher_request_set_crypt(&ctx->req, sg,
 						     ctx->rsgl.sg, used,

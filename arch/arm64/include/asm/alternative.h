@@ -6,6 +6,7 @@
 
 #ifndef __ASSEMBLY__
 
+#include <linux/init.h>
 #include <linux/kconfig.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
@@ -19,7 +20,8 @@ struct alt_instr {
 	u8  alt_len;		/* size of new instruction(s), <= orig_len */
 };
 
-void apply_alternatives(void);
+void __init apply_alternatives_all(void);
+void apply_alternatives(void *start, size_t length);
 void free_alternatives_memory(void);
 
 #define ALTINSTR_ENTRY(feature)						      \

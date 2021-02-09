@@ -44,6 +44,9 @@
 #include <linux/personality.h>
 #include <linux/notifier.h>
 
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+#include <linux/percpu.h>
+#endif
 #include <asm/alternative.h>
 #include <asm/compat.h>
 #include <asm/cacheflush.h>
@@ -57,14 +60,6 @@
 unsigned long __stack_chk_guard __read_mostly;
 EXPORT_SYMBOL(__stack_chk_guard);
 #endif
-
-void soft_restart(unsigned long addr)
-{
-	setup_mm_for_reboot();
-	cpu_soft_restart(virt_to_phys(cpu_reset), addr);
-	/* Should never get here */
-	BUG();
-}
 
 /*
  * Function pointers to optional machine specific functions
@@ -146,9 +141,7 @@ void machine_power_off(void)
 
 /*
  * Restart requires that the secondary CPUs stop performing any activity
- * while the primary CPU resets the system. Systems with a single CPU can
- * use soft_restart() as their machine descriptor's .restart hook, since that
- * will cause the only available CPU to reset. Systems with multiple CPUs must
+ * while the primary CPU resets the system. Systems with multiple CPUs must
  * provide a HW restart implementation, to ensure that all CPUs reset at once.
  * This is required so that any code running after reset on the primary CPU
  * doesn't have to co-ordinate with other CPUs to ensure they aren't still
@@ -401,6 +394,22 @@ static void uao_thread_switch(struct task_struct *next)
 	}
 }
 
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+/*
+ * We store our current task in sp_el0, which is clobbered by userspace. Keep a
+ * shadow copy so that we can restore this upon entry from userspace.
+ *
+ * This is *only* for exception entry from EL0, and is not valid until we
+ * __switch_to() a user task.
+ */
+DEFINE_PER_CPU(struct task_struct *, __entry_task);
+
+static void entry_task_switch(struct task_struct *next)
+{
+	__this_cpu_write(__entry_task, next);
+}
+#endif
+
 /*
  * Thread switching.
  */
@@ -413,6 +422,9 @@ struct task_struct *__switch_to(struct task_struct *prev,
 	tls_thread_switch(next);
 	hw_breakpoint_thread_switch(next);
 	contextidr_thread_switch(next);
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	entry_task_switch(next);
+#endif
 	uao_thread_switch(next);
 
 	/*

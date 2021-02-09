@@ -142,20 +142,6 @@ static inline void mem_text_address_restore(u64 addr) {};
 static inline void mem_text_writeable_spinunlock(unsigned long *flags) {};
 #endif
 
-void mem_text_write_kernel_word(u32 *addr, u32 word)
-{
-	unsigned long flags;
-
-	mem_text_writeable_spinlock(&flags);
-	mem_text_address_writeable((u64)addr);
-	*addr = word;
-	flush_icache_range((unsigned long)addr,
-			   ((unsigned long)addr + sizeof(long)));
-	mem_text_address_restore((u64)addr);
-	mem_text_writeable_spinunlock(&flags);
-}
-EXPORT_SYMBOL(mem_text_write_kernel_word);
-
 pgprot_t phys_mem_access_prot(struct file *file, unsigned long pfn,
 			      unsigned long size, pgprot_t vma_prot)
 {
@@ -751,16 +737,6 @@ void __init paging_init(void)
 	set_kernel_text_ro();
 	local_flush_tlb_all();
 	cpu_set_default_tcr_t0sz();
-}
-
-/*
- * Enable the identity mapping to allow the MMU disabling.
- */
-void setup_mm_for_reboot(void)
-{
-	cpu_set_reserved_ttbr0();
-	flush_tlb_all();
-	cpu_switch_mm(idmap_pg_dir, &init_mm);
 }
 
 /*

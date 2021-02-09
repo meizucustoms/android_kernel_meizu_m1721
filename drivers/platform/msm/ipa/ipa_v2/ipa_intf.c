@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2015, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2019, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -372,6 +372,11 @@ int ipa_query_intf_ext_props(struct ipa_ioc_query_intf_ext_props *ext)
 	return result;
 }
 
+static void ipa2_send_msg_free(void *buff, u32 len, u32 type)
+{
+	kfree(buff);
+}
+
 /**
  * ipa2_send_msg() - Send "message" from kernel client to IPA driver
  * @meta: [in] message meta-data
@@ -391,6 +396,7 @@ int ipa2_send_msg(struct ipa_msg_meta *meta, void *buff,
 		  ipa_msg_free_fn callback)
 {
 	struct ipa_push_msg *msg;
+	void *data = NULL;
 
 	if (unlikely(!ipa_ctx)) {
 		IPAERR("IPA driver was not initialized\n");
@@ -416,8 +422,17 @@ int ipa2_send_msg(struct ipa_msg_meta *meta, void *buff,
 	}
 
 	msg->meta = *meta;
-	msg->buff = buff;
-	msg->callback = callback;
+	if (meta->msg_len > 0 && buff) {
+		data = kmalloc(meta->msg_len, GFP_KERNEL);
+		if (data == NULL) {
+			IPAERR("fail to alloc data container\n");
+			kfree(msg);
+			return -ENOMEM;
+		}
+		memcpy(data, buff, meta->msg_len);
+		msg->buff = data;
+		msg->callback = ipa2_send_msg_free;
+	}
 
 	mutex_lock(&ipa_ctx->msg_lock);
 	list_add_tail(&msg->link, &ipa_ctx->msg_list);
@@ -425,6 +440,8 @@ int ipa2_send_msg(struct ipa_msg_meta *meta, void *buff,
 	IPA_STATS_INC_CNT(ipa_ctx->stats.msg_w[meta->msg_type]);
 
 	wake_up(&ipa_ctx->msg_waitq);
+	if (buff)
+		callback(buff, meta->msg_len, meta->msg_type);
 
 	return 0;
 }
@@ -524,14 +541,13 @@ ssize_t ipa_read(struct file *filp, char __user *buf, size_t count,
 	char __user *start;
 	struct ipa_push_msg *msg = NULL;
 	int ret;
-	DEFINE_WAIT(wait);
+	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 	int locked;
 
 	start = buf;
 
+	add_wait_queue(&ipa_ctx->msg_waitq, &wait);
 	while (1) {
-		prepare_to_wait(&ipa_ctx->msg_waitq, &wait, TASK_INTERRUPTIBLE);
-
 		mutex_lock(&ipa_ctx->msg_lock);
 		locked = 1;
 		if (!list_empty(&ipa_ctx->msg_list)) {
@@ -540,11 +556,16 @@ ssize_t ipa_read(struct file *filp, char __user *buf, size_t count,
 			list_del(&msg->link);
 		}
 
-		IPADBG("msg=%p\n", msg);
-
 		if (msg) {
+			IPADBG("msg=%pK\n", msg);
 			locked = 0;
 			mutex_unlock(&ipa_ctx->msg_lock);
+			if (count < sizeof(struct ipa_msg_meta)) {
+				kfree(msg);
+				msg = NULL;
+				ret = -EFAULT;
+				break;
+			}
 			if (copy_to_user(buf, &msg->meta,
 					  sizeof(struct ipa_msg_meta))) {
 				kfree(msg);
@@ -555,8 +576,15 @@ ssize_t ipa_read(struct file *filp, char __user *buf, size_t count,
 			buf += sizeof(struct ipa_msg_meta);
 			count -= sizeof(struct ipa_msg_meta);
 			if (msg->buff) {
-				if (copy_to_user(buf, msg->buff,
-						  msg->meta.msg_len)) {
+				if (count >= msg->meta.msg_len) {
+					if (copy_to_user(buf, msg->buff,
+							  msg->meta.msg_len)) {
+						kfree(msg);
+						msg = NULL;
+						ret = -EFAULT;
+						break;
+					}
+				} else {
 					kfree(msg);
 					msg = NULL;
 					ret = -EFAULT;
@@ -570,6 +598,7 @@ ssize_t ipa_read(struct file *filp, char __user *buf, size_t count,
 			IPA_STATS_INC_CNT(
 				ipa_ctx->stats.msg_r[msg->meta.msg_type]);
 			kfree(msg);
+			msg = NULL;
 		}
 
 		ret = -EAGAIN;
@@ -585,10 +614,10 @@ ssize_t ipa_read(struct file *filp, char __user *buf, size_t count,
 
 		locked = 0;
 		mutex_unlock(&ipa_ctx->msg_lock);
-		schedule();
+		wait_woken(&wait, TASK_INTERRUPTIBLE, MAX_SCHEDULE_TIMEOUT);
 	}
 
-	finish_wait(&ipa_ctx->msg_waitq, &wait);
+	remove_wait_queue(&ipa_ctx->msg_waitq, &wait);
 	if (start != buf && ret != -EFAULT)
 		ret = buf - start;
 

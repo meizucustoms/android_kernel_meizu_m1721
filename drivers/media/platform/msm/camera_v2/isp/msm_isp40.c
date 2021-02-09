@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -370,15 +370,24 @@ static void msm_vfe40_clear_status_reg(struct vfe_device *vfe_dev)
 static void msm_vfe40_process_reset_irq(struct vfe_device *vfe_dev,
 	uint32_t irq_status0, uint32_t irq_status1)
 {
-	if (irq_status0 & (1 << 31))
+	unsigned long flags;
+
+	if (irq_status0 & (1 << 31)) {
+		spin_lock_irqsave(&vfe_dev->reset_completion_lock, flags);
 		complete(&vfe_dev->reset_complete);
+		spin_unlock_irqrestore(&vfe_dev->reset_completion_lock, flags);
+	}
 }
 
 static void msm_vfe40_process_halt_irq(struct vfe_device *vfe_dev,
 	uint32_t irq_status0, uint32_t irq_status1)
 {
+	unsigned long flags;
+
 	if (irq_status1 & (1 << 8)) {
+		spin_lock_irqsave(&vfe_dev->halt_completion_lock, flags);
 		complete(&vfe_dev->halt_complete);
+		spin_unlock_irqrestore(&vfe_dev->halt_completion_lock, flags);
 		msm_camera_io_w(0x0, vfe_dev->vfe_base + 0x2C0);
 	}
 }
@@ -571,7 +580,7 @@ static void msm_vfe40_process_error_status(struct vfe_device *vfe_dev)
 		msm_isp_update_last_overflow_ab_ib(vfe_dev);
 }
 
-static void msm_vfe40_read_irq_status(struct vfe_device *vfe_dev,
+static void msm_vfe40_read_irq_status_and_clear(struct vfe_device *vfe_dev,
 	uint32_t *irq_status0, uint32_t *irq_status1)
 {
 	*irq_status0 = msm_camera_io_r(vfe_dev->vfe_base + 0x38);
@@ -607,6 +616,13 @@ static void msm_vfe40_read_irq_status(struct vfe_device *vfe_dev,
 		vfe_dev->error_info.violation_status |=
 		msm_camera_io_r(vfe_dev->vfe_base + 0x48);
 
+}
+
+static void msm_vfe40_read_irq_status(struct vfe_device *vfe_dev,
+	uint32_t *irq_status0, uint32_t *irq_status1)
+{
+	*irq_status0 = msm_camera_io_r(vfe_dev->vfe_base + 0x38);
+	*irq_status1 = msm_camera_io_r(vfe_dev->vfe_base + 0x3C);
 }
 
 static void msm_vfe40_process_reg_update(struct vfe_device *vfe_dev,
@@ -761,7 +777,11 @@ static long msm_vfe40_reset_hardware(struct vfe_device *vfe_dev,
 	uint32_t first_start, uint32_t blocking_call)
 {
 	long rc = 0;
+	unsigned long flags;
+
+	spin_lock_irqsave(&vfe_dev->reset_completion_lock, flags);
 	init_completion(&vfe_dev->reset_complete);
+	spin_unlock_irqrestore(&vfe_dev->reset_completion_lock, flags);
 
 	if (first_start) {
 		msm_camera_io_w_mb(0x1FF, vfe_dev->vfe_base + 0xC);
@@ -861,6 +881,12 @@ static void msm_vfe40_axi_clear_wm_irq_mask(struct vfe_device *vfe_dev,
 				MSM_ISP_IRQ_DISABLE);
 }
 
+static void msm_vfe40_axi_clear_irq_mask(struct vfe_device *vfe_dev)
+{
+	msm_camera_io_w_mb(0x0, vfe_dev->vfe_base + 0x28);
+	msm_camera_io_w_mb(0x0, vfe_dev->vfe_base + 0x2C);
+}
+
 static void msm_vfe40_cfg_framedrop(void __iomem *vfe_base,
 	struct msm_vfe_axi_stream *stream_info, uint32_t framedrop_pattern,
 	uint32_t framedrop_period)
@@ -876,8 +902,6 @@ static void msm_vfe40_cfg_framedrop(void __iomem *vfe_base,
 		msm_camera_io_w(temp | (framedrop_period - 1) << 2,
 		vfe_base + VFE40_WM_BASE(stream_info->wm[i]) + 0xC);
 	}
-
-	msm_camera_io_w_mb(0x1, vfe_base + 0x378);
 }
 
 static void msm_vfe40_clear_framedrop(struct vfe_device *vfe_dev,
@@ -1211,6 +1235,10 @@ static void msm_vfe40_cfg_fetch_engine(struct vfe_device *vfe_dev,
 	case V4L2_PIX_FMT_P16GBRG10:
 	case V4L2_PIX_FMT_P16GRBG10:
 	case V4L2_PIX_FMT_P16RGGB10:
+	case V4L2_PIX_FMT_P16BGGR12:
+	case V4L2_PIX_FMT_P16GBRG12:
+	case V4L2_PIX_FMT_P16GRBG12:
+	case V4L2_PIX_FMT_P16RGGB12:
 		main_unpack_pattern = 0xB210;
 		break;
 	default:
@@ -1717,6 +1745,7 @@ static int msm_vfe40_axi_halt(struct vfe_device *vfe_dev,
 {
 	int rc = 0;
 	enum msm_vfe_input_src i;
+	unsigned long flags;
 
 	/* Keep only halt and restart mask */
 	msm_vfe40_set_halt_restart_mask(vfe_dev);
@@ -1751,7 +1780,9 @@ static int msm_vfe40_axi_halt(struct vfe_device *vfe_dev,
 	}
 
 	if (blocking) {
+		spin_lock_irqsave(&vfe_dev->halt_completion_lock, flags);
 		init_completion(&vfe_dev->halt_complete);
+		spin_unlock_irqrestore(&vfe_dev->halt_completion_lock, flags);
 		/* Halt AXI Bus Bridge */
 		msm_camera_io_w_mb(0x1, vfe_dev->vfe_base + 0x2C0);
 		rc = wait_for_completion_interruptible_timeout(
@@ -1786,11 +1817,18 @@ static int msm_vfe40_axi_restart(struct vfe_device *vfe_dev,
 	memset(&vfe_dev->error_info, 0, sizeof(vfe_dev->error_info));
 	atomic_set(&vfe_dev->error_info.overflow_state, NO_OVERFLOW);
 
-	if (enable_camif) {
+	if (enable_camif &&
+		vfe_dev->axi_data.src_info[VFE_PIX_0].input_mux
+		!= EXTERNAL_READ){
 		vfe_dev->hw_info->vfe_ops.core_ops.
 		update_camif_state(vfe_dev, ENABLE_CAMIF);
 	}
-
+	if (vfe_dev->fetch_engine_info.is_busy == 1) {
+		vfe_dev->fetch_engine_info.is_busy = 0;
+		msm_camera_io_w_mb(0x1, vfe_dev->vfe_base + 0x378);
+		msm_camera_io_w_mb(0x10000, vfe_dev->vfe_base + 0x4C);
+		msm_camera_io_w_mb(0x20000, vfe_dev->vfe_base + 0x4C);
+	}
 	return 0;
 }
 
@@ -2188,6 +2226,8 @@ struct msm_vfe_hardware_info vfe40_hw_info = {
 	.vfe_ops = {
 		.irq_ops = {
 			.read_irq_status = msm_vfe40_read_irq_status,
+			.read_irq_status_and_clear =
+				msm_vfe40_read_irq_status_and_clear,
 			.process_camif_irq = msm_vfe40_process_input_irq,
 			.process_reset_irq = msm_vfe40_process_reset_irq,
 			.process_halt_irq = msm_vfe40_process_halt_irq,
@@ -2207,6 +2247,8 @@ struct msm_vfe_hardware_info vfe40_hw_info = {
 			.clear_comp_mask = msm_vfe40_axi_clear_comp_mask,
 			.cfg_wm_irq_mask = msm_vfe40_axi_cfg_wm_irq_mask,
 			.clear_wm_irq_mask = msm_vfe40_axi_clear_wm_irq_mask,
+			.clear_irq_mask =
+				msm_vfe40_axi_clear_irq_mask,
 			.cfg_framedrop = msm_vfe40_cfg_framedrop,
 			.clear_framedrop = msm_vfe40_clear_framedrop,
 			.cfg_wm_reg = msm_vfe40_axi_cfg_wm_reg,

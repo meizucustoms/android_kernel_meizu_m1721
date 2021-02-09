@@ -57,7 +57,6 @@
 #define TZ_PIL_CLEAR_PROTECT_MEM_SUBSYS_ID 0x0D
 #define TZ_PIL_AUTH_QDSP6_PROC 1
 #define ADSP_MMAP_HEAP_ADDR 4
-#define ADSP_MMAP_REMOTE_HEAP_ADDR 8
 #define ADSP_MMAP_ADD_PAGES 0x1000
 
 #define FASTRPC_ENOSUCH 39
@@ -65,6 +64,7 @@
 #define VMID_ADSP_Q6    6
 
 #define RPC_TIMEOUT	(5 * HZ)
+#define OPEN_TIMEOUT    (0.5 * HZ)
 #define BALIGN		128
 #define NUM_CHANNELS	3		/*1 compute 1 cpz 1 mdsp*/
 #define NUM_SESSIONS	8		/*8 compute*/
@@ -1143,7 +1143,6 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 	args = (uintptr_t)ctx->buf->virt + metalen;
 	for (i = 0; i < bufs; ++i) {
 		size_t len = lpra[i].buf.len;
-
 		list[i].num = 0;
 		list[i].pgidx = 0;
 		if (!len)
@@ -1157,7 +1156,6 @@ static int get_args(uint32_t kernel, struct smq_invoke_ctx *ctx)
 		struct fastrpc_mmap *map = ctx->maps[i];
 		uint64_t buf = ptr_to_uint64(lpra[i].buf.pv);
 		size_t len = lpra[i].buf.len;
-
 		rpra[i].buf.pv = 0;
 		rpra[i].buf.len = len;
 		if (!len)
@@ -1483,6 +1481,13 @@ static int fastrpc_internal_invoke(struct fastrpc_file *fl, uint32_t mode,
 	int interrupted = 0;
 	int err = 0;
 
+	VERIFY(err, fl->sctx != NULL);
+	if (err)
+		goto bail;
+	VERIFY(err, fl->cid >= 0 && fl->cid < NUM_CHANNELS);
+	if (err)
+		goto bail;
+
 	if (!kernel) {
 		VERIFY(err, 0 == context_restore_interrupted(fl, invokefd,
 								&ctx));
@@ -1577,14 +1582,15 @@ static int fastrpc_init_process(struct fastrpc_file *fl,
 		inbuf.pgid = current->tgid;
 		inbuf.namelen = strlen(current->comm) + 1;
 		inbuf.filelen = init->filelen;
-		VERIFY(err, access_ok(0, (void __user *)init->file,
-			init->filelen));
-		if (err)
+		if (!access_ok(VERIFY_READ, (void const __user *)init->file,
+							init->filelen))
 			goto bail;
-		VERIFY(err, !fastrpc_mmap_create(fl, init->filefd, init->file,
-					init->filelen, mflags, &file));
-		if (err)
-			goto bail;
+		if (init->filelen) {
+			VERIFY(err, !fastrpc_mmap_create(fl, init->filefd,
+				init->file, init->filelen, mflags, &file));
+			if (err)
+				goto bail;
+		}
 		inbuf.pageslen = 1;
 
 		VERIFY(err, !init->mem);
@@ -1932,8 +1938,7 @@ static int fastrpc_internal_mmap(struct fastrpc_file *fl,
 		if (err)
 			goto bail;
 
-		if (ud->flags == ADSP_MMAP_HEAP_ADDR ||
-				ud->flags == ADSP_MMAP_REMOTE_HEAP_ADDR)
+		if (ud->flags == ADSP_MMAP_HEAP_ADDR)
 			va_to_dsp = 0;
 		else
 			va_to_dsp = (uintptr_t)map->va;
@@ -1987,9 +1992,8 @@ static int fastrpc_file_free(struct fastrpc_file *fl)
 	hlist_del_init(&fl->hn);
 	spin_unlock(&fl->apps->hlock);
 
-	if (!fl->sctx) {
+	if (!fl->sctx)
 		goto bail;
-	}
 
 	(void)fastrpc_release_current_dsp_process(fl);
 	if (!IS_ERR_OR_NULL(fl->init_mem))
@@ -2030,7 +2034,7 @@ static int fastrpc_session_alloc(struct fastrpc_channel_ctx *chan, int *session)
 		chan->session[0].dev = me->dev;
 		break;
 	case SMD_APPS_MODEM:
-		VERIFY(err, me->dev != NULL);
+		VERIFY(err, me->modem_cma_dev != NULL);
 		if (err)
 			goto bail;
 		chan->session[0].dev = me->modem_cma_dev;
@@ -2162,8 +2166,10 @@ static int fastrpc_device_release(struct inode *inode, struct file *file)
 		file->private_data = NULL;
 	}
 bail:
-	if (err)
+	if (err) {
+		fastrpc_file_free(fl);
 		kfree(pfl);
+	}
 	return err;
 }
 
@@ -2258,9 +2264,9 @@ static int fastrpc_device_open(struct inode *inode, struct file *filp)
 
 	if (me->pending_free) {
 		event = wait_event_interruptible_timeout(wait_queue,
-						me->pending_free, RPC_TIMEOUT);
+				!me->pending_free, OPEN_TIMEOUT);
 		if (event == 0)
-			pr_err("timed out..list is still not empty\n");
+			pr_err("fastrpc:timed out..list is still not empty\n");
 	}
 
 	VERIFY(err, fl = kzalloc(sizeof(*fl), GFP_KERNEL));
@@ -2332,6 +2338,42 @@ bail:
 	return err;
 }
 
+static int fastrpc_get_info(struct fastrpc_file *fl, uint32_t *info)
+{
+	int err = 0;
+
+	VERIFY(err, fl && fl->sctx);
+	if (err)
+		goto bail;
+	if (fl->sctx)
+		*info = (fl->sctx->smmu.enabled ? 1 : 0);
+bail:
+	return err;
+}
+
+static int fastrpc_internal_control(struct fastrpc_file *fl,
+					struct fastrpc_ioctl_control *cp)
+{
+	int err = 0;
+
+	VERIFY(err, !IS_ERR_OR_NULL(fl) && !IS_ERR_OR_NULL(fl->apps));
+	if (err)
+		goto bail;
+	VERIFY(err, !IS_ERR_OR_NULL(cp));
+	if (err)
+		goto bail;
+
+	switch (cp->req) {
+	case FASTRPC_CONTROL_KALLOC:
+		cp->kalloc.kalloc_support = 1;
+		break;
+	default:
+		err = -ENOTTY;
+		break;
+	}
+bail:
+	return err;
+}
 
 static int fastrpc_internal_control(struct fastrpc_file *fl,
 					struct fastrpc_ioctl_control *cp)
@@ -2370,6 +2412,7 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 	void *param = (char *)ioctl_param;
 	struct fastrpc_file *fl = (struct fastrpc_file *)file->private_data;
 	int size = 0, err = 0;
+	uint32_t info;
 
 	switch (ioctl_num) {
 	case FASTRPC_IOCTL_INVOKE_FD:
@@ -2431,6 +2474,17 @@ static long fastrpc_device_ioctl(struct file *file, unsigned int ioctl_num,
 			if (err)
 				goto bail;
 		}
+		break;
+	case FASTRPC_IOCTL_GETINFO:
+	    K_COPY_FROM_USER(err, 0, &info, param, sizeof(info));
+		if (err)
+			goto bail;
+		VERIFY(err, 0 == (err = fastrpc_get_info(fl, &info)));
+		if (err)
+			goto bail;
+		K_COPY_TO_USER(err, 0, param, &info, sizeof(info));
+		if (err)
+			goto bail;
 		break;
 	case FASTRPC_IOCTL_INIT:
 		VERIFY(err, 0 == copy_from_user(&p.init, param,

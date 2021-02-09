@@ -1,8 +1,8 @@
-/* 
- * Goodix GT9xx touchscreen driver
- * 
- * Copyright  (C)  2010 - 2016 Goodix. Ltd.
- * 
+/* drivers/input/touchscreen/goodix_tool.c
+ *
+ * 2010 - 2012 Goodix Technology.
+ * Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
@@ -22,41 +22,29 @@
 #include "gt9xx.h"
 
 #define DATA_LENGTH_UINT    512
-#define CMD_HEAD_LENGTH     (sizeof(st_cmd_head) - sizeof(u8*))
+#define CMD_HEAD_LENGTH     (sizeof(struct st_cmd_head))
 static char procname[20] = {0};
 
-#define UPDATE_FUNCTIONS
+struct st_cmd_head {
+	u8  wr;		/* write read flag 0:R 1:W 2:PID 3: */
+	u8  flag;	/* 0:no need flag/int 1: need flag  2:need int */
+	u8 flag_addr[2];/* flag address */
+	u8  flag_val;	/* flag val */
+	u8  flag_relation; /* flag_val:flag 0:not equal 1:equal 2:> 3:< */
+	u16 circle;	/* polling cycle */
+	u8  times;	/* plling times */
+	u8  retry;	/* I2C retry times */
+	u16 delay;	/* delay before read or after write */
+	u16 data_len;	/* data length */
+	u8  addr_len;	/* address length */
+	u8  addr[2];	/* address */
+	u8  res[3];	/* reserved */
+} __packed;
 
-#ifdef UPDATE_FUNCTIONS
-extern s32 gup_enter_update_mode(struct i2c_client *client);
-extern void gup_leave_update_mode(void);
-extern s32 gup_update_proc(void *dir);
-#endif
+static struct st_cmd_head cmd_head;
+static u8 *cmd_data;
 
-extern void gtp_irq_disable(struct goodix_ts_data *);
-extern void gtp_irq_enable(struct goodix_ts_data *);
-
-#pragma pack(1)
-typedef struct{
-    u8  wr;         //write read flag��0:R  1:W  2:PID 3:
-    u8  flag;       //0:no need flag/int 1: need flag  2:need int
-    u8 flag_addr[2];  //flag address
-    u8  flag_val;   //flag val
-    u8  flag_relation;  //flag_val:flag 0:not equal 1:equal 2:> 3:<
-    u16 circle;     //polling cycle 
-    u8  times;      //plling times
-    u8  retry;      //I2C retry times
-    u16 delay;      //delay befor read or after write
-    u16 data_len;   //data length
-    u8  addr_len;   //address length
-    u8  addr[2];    //address
-    u8  res[3];     //reserved
-    u8* data;       //data pointer
-}st_cmd_head;
-#pragma pack()
-st_cmd_head cmd_head;
-
-static struct i2c_client *gt_client = NULL;
+static struct i2c_client *gt_client;
 
 static struct proc_dir_entry *goodix_proc_entry;
 
@@ -266,10 +254,9 @@ s32 init_wr_node(struct i2c_client *client)
 
 void uninit_wr_node(void)
 {
-    kfree(cmd_head.data);
-    cmd_head.data = NULL;
-    unregister_i2c_func();
-    remove_proc_entry(procname, NULL);
+	cmd_data = NULL;
+	unregister_i2c_func();
+	proc_remove(goodix_proc_entry);
 }
 
 static u8 relation(u8 src, u8 dst, u8 rlt)
@@ -360,148 +347,174 @@ Input:
 Output:
     Return write length.
 ********************************************************/
-//static s32 goodix_tool_write(struct file *filp, const char __user *buff, unsigned long len, void *data)
-ssize_t goodix_tool_write(struct file *filp, const char __user *buff, size_t len, loff_t *off)
+static ssize_t goodix_tool_write(struct file *filp, const char __user *userbuf,
+						size_t count, loff_t *ppos)
 {
-    s32 ret = 0;
-    
-    GTP_DEBUG_FUNC();
-    GTP_DEBUG_ARRAY((u8*)buff, len);
-    
-    ret = copy_from_user(&cmd_head, buff, CMD_HEAD_LENGTH);
-    if(ret)
-    {
-        GTP_ERROR("copy_from_user failed.");
-        return -EPERM;
-    }
+	s32 ret = 0;
 
-    
-    GTP_DEBUG("[Operation]wr: %02X", cmd_head.wr);
-    GTP_DEBUG("[Flag]flag: %02X, addr: %02X%02X, value: %02X, relation: %02X", cmd_head.flag, cmd_head.flag_addr[0], 
-                        cmd_head.flag_addr[1], cmd_head.flag_val, cmd_head.flag_relation);
-    GTP_DEBUG("[Retry]circle: %d, times: %d, retry: %d, delay: %d", (s32)cmd_head.circle, (s32)cmd_head.times, 
-                        (s32)cmd_head.retry, (s32)cmd_head.delay);
-    GTP_DEBUG("[Data]data len: %d, addr len: %d, addr: %02X%02X, buffer len: %d, data[0]: %02X", (s32)cmd_head.data_len, 
-                        (s32)cmd_head.addr_len, cmd_head.addr[0], cmd_head.addr[1], (s32)len, buff[CMD_HEAD_LENGTH]);
-                        
-    if (1 == cmd_head.wr)
-    {
-        ret = copy_from_user(&cmd_head.data[GTP_ADDR_LENGTH], &buff[CMD_HEAD_LENGTH], cmd_head.data_len);
-        if(ret)
-        {
-            GTP_ERROR("copy_from_user failed.");
-            return -EPERM;
-        }
-        memcpy(&cmd_head.data[GTP_ADDR_LENGTH - cmd_head.addr_len], cmd_head.addr, cmd_head.addr_len);
+	mutex_lock(&lock);
+	ret = copy_from_user(&cmd_head, userbuf, CMD_HEAD_LENGTH);
+	if (ret) {
+		dev_err(&gt_client->dev, "copy_from_user failed.");
+		ret = -EACCES;
+		goto exit;
+	}
 
-        GTP_DEBUG_ARRAY(cmd_head.data, cmd_head.data_len + cmd_head.addr_len);
-        GTP_DEBUG_ARRAY((u8*)&buff[CMD_HEAD_LENGTH], cmd_head.data_len);
+	dev_dbg(&gt_client->dev,
+		"wr: 0x%02x, flag:0x%02x, flag addr:0x%02x%02x\n", cmd_head.wr,
+		cmd_head.flag, cmd_head.flag_addr[0], cmd_head.flag_addr[1]);
+	dev_dbg(&gt_client->dev,
+		"flag val:0x%02x, flag rel:0x%02x,\n", cmd_head.flag_val,
+		cmd_head.flag_relation);
+	dev_dbg(&gt_client->dev, "circle:%u, times:%u, retry:%u, delay:%u\n",
+		(s32) cmd_head.circle, (s32) cmd_head.times,
+		(s32) cmd_head.retry, (s32)cmd_head.delay);
+	dev_dbg(&gt_client->dev,
+		"data len:%u, addr len:%u, addr:0x%02x%02x, write len: %u\n",
+		(s32)cmd_head.data_len,	(s32)cmd_head.addr_len,
+		cmd_head.addr[0], cmd_head.addr[1], (s32)count);
 
-        if (1 == cmd_head.flag)
-        {
-            if (FAIL == comfirm())
-            {
-                GTP_ERROR("[WRITE]Comfirm fail!");
-                return -EPERM;
-            }
-        }
-        else if (2 == cmd_head.flag)
-        {
-            //Need interrupt!
-        }
-        if (tool_i2c_write(&cmd_head.data[GTP_ADDR_LENGTH - cmd_head.addr_len],
-            cmd_head.data_len + cmd_head.addr_len) <= 0)
-        {
-            GTP_ERROR("[WRITE]Write data failed!");
-            return -EPERM;
-        }
+	if (cmd_head.data_len > (data_length - GTP_ADDR_LENGTH)) {
+		dev_err(&gt_client->dev, "data len %u > data buff %d, rejected!\n",
+			cmd_head.data_len, (data_length - GTP_ADDR_LENGTH));
+		ret = -EINVAL;
+		goto exit;
+	}
+	if (cmd_head.addr_len > GTP_ADDR_LENGTH) {
+		dev_err(&gt_client->dev, "addr len %u > data buff %d, rejected!\n",
+			cmd_head.addr_len, GTP_ADDR_LENGTH);
+		ret = -EINVAL;
+		goto exit;
+	}
 
-        GTP_DEBUG_ARRAY(&cmd_head.data[GTP_ADDR_LENGTH - cmd_head.addr_len],cmd_head.data_len + cmd_head.addr_len);
-        if (cmd_head.delay)
-        {
-            msleep(cmd_head.delay);
-        }
-    }
-    else if (3 == cmd_head.wr)  //Write ic type
-    {
-        ret = copy_from_user(&cmd_head.data[0], &buff[CMD_HEAD_LENGTH], cmd_head.data_len);
-        if(ret)
-        {
-            GTP_ERROR("copy_from_user failed.");
-            return -EPERM;
-        }
-        memcpy(IC_TYPE1, cmd_head.data, cmd_head.data_len);
+	if (cmd_head.wr == GTP_RW_WRITE) {
+		ret = copy_from_user(&cmd_data[GTP_ADDR_LENGTH],
+				&userbuf[CMD_HEAD_LENGTH], cmd_head.data_len);
+		if (ret) {
+			dev_err(&gt_client->dev, "copy_from_user failed.");
+			goto exit;
+		}
 
-        register_i2c_func();
-    }
-    else if (5 == cmd_head.wr)
-    {
-        //memcpy(IC_TYPE, cmd_head.data, cmd_head.data_len);
-    }
-    else if (7 == cmd_head.wr)//disable irq!
-    {
-        gtp_irq_disable(i2c_get_clientdata(gt_client));
-        
-    #if GTP_ESD_PROTECT
-        gtp_esd_switch(gt_client, SWITCH_OFF);
-    #endif
-    }
-    else if (9 == cmd_head.wr) //enable irq!
-    {
-        gtp_irq_enable(i2c_get_clientdata(gt_client));
+		memcpy(&cmd_data[GTP_ADDR_LENGTH - cmd_head.addr_len],
+					cmd_head.addr, cmd_head.addr_len);
 
-    #if GTP_ESD_PROTECT
-        gtp_esd_switch(gt_client, SWITCH_ON);
-    #endif
-    }
-    else if(17 == cmd_head.wr)
-    {
-        struct goodix_ts_data *ts = i2c_get_clientdata(gt_client);
-        ret = copy_from_user(&cmd_head.data[GTP_ADDR_LENGTH], &buff[CMD_HEAD_LENGTH], cmd_head.data_len);
-        if(ret)
-        {
-            GTP_DEBUG("copy_from_user failed.");
-            return -EPERM;
-        }
-        if(cmd_head.data[GTP_ADDR_LENGTH])
-        {
-            GTP_INFO("gtp enter rawdiff.");
-            ts->gtp_rawdiff_mode = true;
-        }
-        else
-        {
-            ts->gtp_rawdiff_mode = false;
-            GTP_INFO("gtp leave rawdiff.");
-        }
-    }
-#ifdef UPDATE_FUNCTIONS
-    else if (11 == cmd_head.wr)//Enter update mode!
-    {
-        if (FAIL == gup_enter_update_mode(gt_client))
-        {
-            return -EPERM;
-        }
-    }
-    else if (13 == cmd_head.wr)//Leave update mode!
-    {
-        gup_leave_update_mode();
-    }
-    else if (15 == cmd_head.wr) //Update firmware!
-    {
-        show_len = 0;
-        total_len = 0;
-        memset(cmd_head.data, 0, cmd_head.data_len + 1);
-        memcpy(cmd_head.data, &buff[CMD_HEAD_LENGTH], cmd_head.data_len);
+		if (cmd_head.flag == GTP_NEED_FLAG) {
+			if (comfirm() ==  FAIL) {
+				dev_err(&gt_client->dev, "Comfirm fail!");
+				ret = -EINVAL;
+				goto exit;
+			}
+		} else if (cmd_head.flag == GTP_NEED_INTERRUPT) {
+			/* Need interrupt! */
+		}
+		if (tool_i2c_write(
+		&cmd_data[GTP_ADDR_LENGTH - cmd_head.addr_len],
+		cmd_head.data_len + cmd_head.addr_len) <= 0) {
+			dev_err(&gt_client->dev, "Write data failed!");
+			ret = -EIO;
+			goto exit;
+		}
 
-        if (FAIL == gup_update_proc((void*)cmd_head.data))
-        {
-            return -EPERM;
-        }
-    }
+		if (cmd_head.delay)
+			msleep(cmd_head.delay);
 
-#endif
+		ret = cmd_head.data_len + CMD_HEAD_LENGTH;
+		goto exit;
+	} else if (cmd_head.wr == GTP_RW_WRITE_IC_TYPE) {  /* Write ic type */
+		ret = copy_from_user(&cmd_data[0],
+				&userbuf[CMD_HEAD_LENGTH],
+				cmd_head.data_len);
+		if (ret) {
+			dev_err(&gt_client->dev, "copy_from_user failed.");
+			goto exit;
+		}
 
-    return len;
+		if (cmd_head.data_len > sizeof(ic_type)) {
+			dev_err(&gt_client->dev,
+				"data len %u > data buff %zu, rejected!\n",
+				cmd_head.data_len, sizeof(ic_type));
+			ret = -EINVAL;
+			goto exit;
+		}
+		memcpy(ic_type, cmd_data, cmd_head.data_len);
+
+		register_i2c_func();
+
+		ret = cmd_head.data_len + CMD_HEAD_LENGTH;
+		goto exit;
+	} else if (cmd_head.wr == GTP_RW_NO_WRITE) {
+		ret = cmd_head.data_len + CMD_HEAD_LENGTH;
+		goto exit;
+	} else if (cmd_head.wr == GTP_RW_DISABLE_IRQ) { /* disable irq! */
+		gtp_irq_disable(i2c_get_clientdata(gt_client));
+
+		#if GTP_ESD_PROTECT
+		gtp_esd_switch(gt_client, SWITCH_OFF);
+		#endif
+		ret = CMD_HEAD_LENGTH;
+		goto exit;
+	} else if (cmd_head.wr == GTP_RW_ENABLE_IRQ) { /* enable irq! */
+		gtp_irq_enable(i2c_get_clientdata(gt_client));
+
+		#if GTP_ESD_PROTECT
+		gtp_esd_switch(gt_client, SWITCH_ON);
+		#endif
+		ret = CMD_HEAD_LENGTH;
+		goto exit;
+	} else if (cmd_head.wr == GTP_RW_CHECK_RAWDIFF_MODE) {
+		struct goodix_ts_data *ts = i2c_get_clientdata(gt_client);
+
+		ret = copy_from_user(&cmd_data[GTP_ADDR_LENGTH],
+				&userbuf[CMD_HEAD_LENGTH], cmd_head.data_len);
+		if (ret) {
+			pr_debug("copy_from_user failed.");
+			goto exit;
+		}
+		if (cmd_data[GTP_ADDR_LENGTH]) {
+			pr_debug("gtp enter rawdiff.");
+			ts->gtp_rawdiff_mode = true;
+		} else {
+			ts->gtp_rawdiff_mode = false;
+			pr_debug("gtp leave rawdiff.");
+		}
+		ret = CMD_HEAD_LENGTH;
+		goto exit;
+	} else if (cmd_head.wr == GTP_RW_ENTER_UPDATE_MODE) {
+		/* Enter update mode! */
+		if (gup_enter_update_mode(gt_client) ==  FAIL) {
+			ret = -EBUSY;
+			goto exit;
+		}
+	} else if (cmd_head.wr == GTP_RW_LEAVE_UPDATE_MODE) {
+		/* Leave update mode! */
+		gup_leave_update_mode(gt_client);
+	} else if (cmd_head.wr == GTP_RW_UPDATE_FW) {
+		/* Update firmware! */
+		show_len = 0;
+		total_len = 0;
+		if (cmd_head.data_len + 1 > data_length) {
+			dev_err(&gt_client->dev, "data len %u > data buff %d, rejected!\n",
+			cmd_head.data_len + 1, data_length);
+			ret = -EINVAL;
+			goto exit;
+		}
+		memset(cmd_data, 0, cmd_head.data_len + 1);
+		memcpy(cmd_data, &userbuf[CMD_HEAD_LENGTH],
+					cmd_head.data_len);
+
+		if (gup_update_proc((void *)cmd_data) == FAIL) {
+			ret = -EBUSY;
+			goto exit;
+		}
+	}
+	ret = CMD_HEAD_LENGTH;
+
+exit:
+	memset(&cmd_head, 0, sizeof(cmd_head));
+	cmd_head.wr = 0xFF;
+
+	mutex_unlock(&lock);
+	return ret;
 }
 
 /*******************************************************    
@@ -512,111 +525,126 @@ Input:
 Output:
     Return read length.
 ********************************************************/
-ssize_t goodix_tool_read(struct file *file, char __user *page, size_t size, loff_t *ppos)
+static ssize_t goodix_tool_read(struct file *file, char __user *user_buf,
+					size_t count, loff_t *ppos)
 {
-    s32 ret = 0;
-    
-    GTP_DEBUG_FUNC();
-    
-    if (*ppos)      // ADB call again
-    {
-        //GTP_DEBUG("[HEAD]wr: %d", cmd_head.wr);
-        //GTP_DEBUG("[PARAM]size: %d, *ppos: %d", size, (int)*ppos);
-        //GTP_DEBUG("[TOOL_READ]ADB call again, return it.");
-        *ppos = 0;
-        return 0;
-    }
-    
-    if (cmd_head.wr % 2)
-    {
-        return -EPERM;
-    }
-    else if (!cmd_head.wr)
-    {
-        u16 len = 0;
-        s16 data_len = 0;
-        u16 loc = 0;
-        
-        if (1 == cmd_head.flag)
-        {
-            if (FAIL == comfirm())
-            {
-                GTP_ERROR("[READ]Comfirm fail!");
-                return -EPERM;
-            }
-        }
-        else if (2 == cmd_head.flag)
-        {
-            //Need interrupt!
-        }
+	u16 data_len = 0;
+	s32 ret;
+	u8 buf[32];
 
-        memcpy(cmd_head.data, cmd_head.addr, cmd_head.addr_len);
+	mutex_lock(&lock);
+	if (cmd_head.wr & 0x1) {
+		dev_err(&gt_client->dev, "command head wrong\n");
+		ret = -EINVAL;
+		goto exit;
+	}
 
-        GTP_DEBUG("[CMD HEAD DATA] ADDR:0x%02x%02x.", cmd_head.data[0], cmd_head.data[1]);
-        GTP_DEBUG("[CMD HEAD ADDR] ADDR:0x%02x%02x.", cmd_head.addr[0], cmd_head.addr[1]);
-        
-        if (cmd_head.delay)
-        {
-            msleep(cmd_head.delay);
-        }
-        
-        data_len = cmd_head.data_len;
+	switch (cmd_head.wr) {
+	case GTP_RW_READ:
+		if (cmd_head.flag == GTP_NEED_FLAG) {
+			if (comfirm() == FAIL) {
+				dev_err(&gt_client->dev, "Comfirm fail!");
+				ret = -EINVAL;
+				goto exit;
+			}
+		} else if (cmd_head.flag == GTP_NEED_INTERRUPT) {
+			/* Need interrupt! */
+		}
 
-        while(data_len > 0)
-        {
-            if (data_len > DATA_LENGTH)
-            {
-                len = DATA_LENGTH;
-            }
-            else
-            {
-                len = data_len;
-            }
-            data_len -= len;
+		memcpy(cmd_data, cmd_head.addr, cmd_head.addr_len);
 
-            if (tool_i2c_read(cmd_head.data, len) <= 0)
-            {
-                GTP_ERROR("[READ]Read data failed!");
-                return -EPERM;
-            }
+		pr_debug("[CMD HEAD DATA] ADDR:0x%02x%02x.", cmd_data[0],
+							cmd_data[1]);
+		pr_debug("[CMD HEAD ADDR] ADDR:0x%02x%02x.", cmd_head.addr[0],
+							cmd_head.addr[1]);
 
-            //memcpy(&page[loc], &cmd_head.data[GTP_ADDR_LENGTH], len);
-            ret = simple_read_from_buffer(&page[loc], size, ppos, &cmd_head.data[GTP_ADDR_LENGTH], len);
-            if (ret < 0)
-            {
-                return ret;
-            }
-            loc += len;
+		if (cmd_head.delay)
+			msleep(cmd_head.delay);
 
-            GTP_DEBUG_ARRAY(&cmd_head.data[GTP_ADDR_LENGTH], len);
-            GTP_DEBUG_ARRAY(page, len);
-        }
-        return cmd_head.data_len; 
-    }
-    else if (2 == cmd_head.wr)
-    {
-        ret = simple_read_from_buffer(page, size, ppos, IC_TYPE1, sizeof(IC_TYPE1));
-        return ret;
-    }
-    else if (4 == cmd_head.wr)
-    {
-        u8 progress_buf[4];
-        progress_buf[0] = show_len >> 8;
-        progress_buf[1] = show_len & 0xff;
-        progress_buf[2] = total_len >> 8;
-        progress_buf[3] = total_len & 0xff;
-        
-        ret = simple_read_from_buffer(page, size, ppos, progress_buf, 4);
-        return ret;
-    }
-    else if (6 == cmd_head.wr)
-    {
-        //Read error code!
-    }
-    else if (8 == cmd_head.wr)  //Read driver version
-    {
-        ret = simple_read_from_buffer(page, size, ppos, GTP_DRIVER_VERSION, strlen(GTP_DRIVER_VERSION));
-        return ret;
-    }
-    return -EPERM;
+		data_len = cmd_head.data_len;
+		if (data_len <= 0 || (data_len > data_length)) {
+			dev_err(&gt_client->dev, "Invalid data length %d\n",
+				data_len);
+			ret = -EINVAL;
+			goto exit;
+		}
+		if (data_len > count)
+			data_len = count;
+
+		if (tool_i2c_read(cmd_data, data_len) <= 0) {
+			dev_err(&gt_client->dev, "Read data failed!\n");
+			ret = -EIO;
+			goto exit;
+		}
+		ret = simple_read_from_buffer(user_buf, count, ppos,
+			&cmd_data[GTP_ADDR_LENGTH], data_len);
+		break;
+	case GTP_RW_FILL_INFO:
+		ret = fill_update_info(user_buf, count, ppos);
+		break;
+	case GTP_RW_READ_VERSION:
+		/* Read driver version */
+		data_len = scnprintf(buf, sizeof(buf), "%s\n",
+			GTP_DRIVER_VERSION);
+		ret = simple_read_from_buffer(user_buf, count, ppos,
+			buf, data_len);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+exit:
+	mutex_unlock(&lock);
+	return ret;
+}
+
+static const struct file_operations goodix_proc_fops = {
+	.write = goodix_tool_write,
+	.read = goodix_tool_read,
+	.open = simple_open,
+	.owner = THIS_MODULE,
+};
+
+s32 init_wr_node(struct i2c_client *client)
+{
+	u8 i;
+
+	gt_client = client;
+	memset(&cmd_head, 0, sizeof(cmd_head));
+	cmd_data = NULL;
+
+	i = GTP_I2C_RETRY_5;
+	while ((!cmd_data) && i) {
+		cmd_data = devm_kzalloc(&client->dev,
+				i * DATA_LENGTH_UINT, GFP_KERNEL);
+		if (cmd_data)
+			break;
+		i--;
+	}
+	if (i) {
+		data_length = i * DATA_LENGTH_UINT;
+		dev_dbg(&client->dev, "Applied memory size:%d.", data_length);
+	} else {
+		dev_err(&client->dev, "Apply for memory failed.");
+		return FAIL;
+	}
+
+	cmd_head.addr_len = 2;
+	cmd_head.retry = GTP_I2C_RETRY_5;
+
+	register_i2c_func();
+
+	mutex_init(&lock);
+	tool_set_proc_name(procname);
+	goodix_proc_entry = proc_create(procname,
+			S_IWUSR | S_IWGRP | S_IRUSR | S_IRGRP,
+			goodix_proc_entry,
+			&goodix_proc_fops);
+	if (goodix_proc_entry == NULL) {
+		dev_err(&client->dev, "Couldn't create proc entry!");
+		return FAIL;
+	}
+
+	return SUCCESS;
 }

@@ -49,6 +49,7 @@
 
 #include <linux/linkage.h>
 #include <asm/assembler.h>
+#include <asm/uaccess.h>
 #include <xen/interface/xen.h>
 
 

@@ -27,7 +27,6 @@
 #include <linux/console.h>
 #include <linux/cache.h>
 #include <linux/bootmem.h>
-#include <linux/seq_file.h>
 #include <linux/screen_info.h>
 #include <linux/init.h>
 #include <linux/kexec.h>
@@ -62,12 +61,7 @@
 #include <asm/memblock.h>
 #include <asm/psci.h>
 #include <asm/efi.h>
-
-unsigned int processor_id;
-EXPORT_SYMBOL(processor_id);
-
-char* (*arch_read_hardware_id)(void);
-EXPORT_SYMBOL(arch_read_hardware_id);
+#include <asm/system_misc.h>
 
 unsigned int boot_reason;
 EXPORT_SYMBOL(boot_reason);
@@ -75,8 +69,9 @@ EXPORT_SYMBOL(boot_reason);
 unsigned int cold_boot;
 EXPORT_SYMBOL(cold_boot);
 
-static const char *cpu_name;
-static const char *machine_name;
+char* (*arch_read_hardware_id)(void);
+const char *machine_name;
+
 phys_addr_t __fdt_pointer __initdata;
 
 /*
@@ -199,13 +194,6 @@ static void __init smp_build_mpidr_hash(void)
 	__flush_dcache_area(&mpidr_hash, sizeof(struct mpidr_hash));
 }
 
-static void __init setup_processor(void)
-{
-	pr_info("Boot CPU: AArch64 Processor [%08x]\n", read_cpuid_id());
-	sprintf(init_utsname()->machine, ELF_PLATFORM);
-	cpuinfo_store_boot_cpu();
-}
-
 static void __init setup_machine_fdt(phys_addr_t dt_phys)
 {
 	if (!dt_phys || !early_init_dt_scan(phys_to_virt(dt_phys))) {
@@ -224,26 +212,8 @@ static void __init setup_machine_fdt(phys_addr_t dt_phys)
 		dump_stack_set_arch_desc("%s (DT)", machine_name);
 		pr_info("Machine: %s\n", machine_name);
 	}
+
 }
-
-/*
- * Limit the memory size that was specified via FDT.
- */
-static int __init early_mem(char *p)
-{
-	phys_addr_t limit;
-
-	if (!p)
-		return 1;
-
-	limit = memparse(p, &p) & PAGE_MASK;
-	pr_notice("Memory limited to %lldMB\n", limit >> 20);
-
-	memblock_enforce_memory_limit(limit);
-
-	return 0;
-}
-early_param("mem", early_mem);
 
 static void __init request_standard_resources(void)
 {
@@ -342,10 +312,11 @@ void __init __weak init_random_pool(void) { }
 
 void __init setup_arch(char **cmdline_p)
 {
-	setup_processor();
+	pr_info("Boot CPU: AArch64 Processor [%08x]\n", read_cpuid_id());
 
 	setup_machine_fdt(__fdt_pointer);
 
+	sprintf(init_utsname()->machine, ELF_PLATFORM);
 	init_mm.start_code = (unsigned long) _text;
 	init_mm.end_code   = (unsigned long) _etext;
 	init_mm.end_data   = (unsigned long) _edata;
@@ -431,139 +402,6 @@ static int __init topology_init(void)
 }
 postcore_initcall(topology_init);
 
-static const char *hwcap_str[] = {
-	"fp",
-	"asimd",
-	"evtstrm",
-	"aes",
-	"pmull",
-	"sha1",
-	"sha2",
-	"crc32",
-	NULL
-};
-
-#ifdef CONFIG_COMPAT
-static const char *compat_hwcap_str[] = {
-	"swp",
-	"half",
-	"thumb",
-	"26bit",
-	"fastmult",
-	"fpa",
-	"vfp",
-	"edsp",
-	"java",
-	"iwmmxt",
-	"crunch",
-	"thumbee",
-	"neon",
-	"vfpv3",
-	"vfpv3d16",
-	"tls",
-	"vfpv4",
-	"idiva",
-	"idivt",
-	"vfpd32",
-	"lpae",
-	"evtstrm",
-	NULL
-};
-
-static const char *compat_hwcap2_str[] = {
-	"aes",
-	"pmull",
-	"sha1",
-	"sha2",
-	"crc32",
-	NULL
-};
-#endif /* CONFIG_COMPAT */
-
-static int c_show(struct seq_file *m, void *v)
-{
-	int i, j;
-
-	seq_printf(m, "Processor\t: %s rev %d (%s)\n",
-		cpu_name, read_cpuid_id() & 15, ELF_PLATFORM);
-	for_each_present_cpu(i) {
-		struct cpuinfo_arm64 *cpuinfo = &per_cpu(cpu_data, i);
-		u32 midr = cpuinfo->reg_midr;
-
-		/*
-		 * glibc reads /proc/cpuinfo to determine the number of
-		 * online processors, looking for lines beginning with
-		 * "processor".  Give glibc what it expects.
-		 */
-#ifdef CONFIG_SMP
-		seq_printf(m, "processor\t: %d\n", i);
-#endif
-
-		seq_printf(m, "BogoMIPS\t: %lu.%02lu\n",
-			   loops_per_jiffy / (500000UL/HZ),
-			   loops_per_jiffy / (5000UL/HZ) % 100);
-
-		/*
-		 * Dump out the common processor features in a single line.
-		 * Userspace should read the hwcaps with getauxval(AT_HWCAP)
-		 * rather than attempting to parse this, but there's a body of
-		 * software which does already (at least for 32-bit).
-		 */
-		seq_puts(m, "Features\t:");
-		if (personality(current->personality) == PER_LINUX32) {
-#ifdef CONFIG_COMPAT
-			for (j = 0; compat_hwcap_str[j]; j++)
-				if (compat_elf_hwcap & (1 << j))
-					seq_printf(m, " %s", compat_hwcap_str[j]);
-
-			for (j = 0; compat_hwcap2_str[j]; j++)
-				if (compat_elf_hwcap2 & (1 << j))
-					seq_printf(m, " %s", compat_hwcap2_str[j]);
-#endif /* CONFIG_COMPAT */
-		} else {
-			for (j = 0; hwcap_str[j]; j++)
-				if (elf_hwcap & (1 << j))
-					seq_printf(m, " %s", hwcap_str[j]);
-		}
-		seq_puts(m, "\n");
-
-		seq_printf(m, "CPU implementer\t: 0x%02x\n",
-			   MIDR_IMPLEMENTOR(midr));
-		seq_printf(m, "CPU architecture: 8\n");
-		seq_printf(m, "CPU variant\t: 0x%x\n", MIDR_VARIANT(midr));
-		seq_printf(m, "CPU part\t: 0x%03x\n", MIDR_PARTNUM(midr));
-		seq_printf(m, "CPU revision\t: %d\n\n", MIDR_REVISION(midr));
-	}
-
-	if (!arch_read_hardware_id)
-		seq_printf(m, "Hardware\t: %s\n", machine_name);
-	else
-		seq_printf(m, "Hardware\t: %s\n", arch_read_hardware_id());
-
-	return 0;
-}
-
-static void *c_start(struct seq_file *m, loff_t *pos)
-{
-	return *pos < 1 ? (void *)1 : NULL;
-}
-
-static void *c_next(struct seq_file *m, void *v, loff_t *pos)
-{
-	++*pos;
-	return NULL;
-}
-
-static void c_stop(struct seq_file *m, void *v)
-{
-}
-
-const struct seq_operations cpuinfo_op = {
-	.start	= c_start,
-	.next	= c_next,
-	.stop	= c_stop,
-	.show	= c_show
-};
 
 void arch_setup_pdev_archdata(struct platform_device *pdev)
 {

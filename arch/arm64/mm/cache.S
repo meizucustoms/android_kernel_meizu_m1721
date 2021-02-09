@@ -25,7 +25,7 @@
 #include <asm/alternative.h>
 #include <asm/uaccess.h>
 
- /*
+/*
  *     flush_dcache_louis()
  *
  *     Flush the D-cache up to the Level of Unification Inner Shareable
@@ -131,6 +131,8 @@ ENTRY(flush_cache_all)
 	ic	ialluis				// I+BTB cache invalidate
 	ret	x12
 ENDPROC(flush_cache_all)
+
+
 
 /*
  *	flush_icache_range(start,end)

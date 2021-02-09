@@ -138,6 +138,7 @@ struct msm_ipc_router_xprt_info {
 	struct msm_ipc_router_xprt *xprt;
 	uint32_t remote_node_id;
 	uint32_t initialized;
+	uint32_t hello_sent;
 	struct list_head pkt_list;
 	struct wakeup_source ws;
 	struct mutex rx_lock_lhb2;
@@ -2197,7 +2198,6 @@ static void cleanup_rmt_server(struct msm_ipc_router_xprt_info *xprt_info,
 {
 	union rr_control_msg ctl;
 
-	ipc_router_reset_conn(rport_ptr);
 	memset(&ctl, 0, sizeof(ctl));
 	ctl.cmd = IPC_ROUTER_CTRL_CMD_REMOVE_SERVER;
 	ctl.srv.service = server->name.service;
@@ -2228,6 +2228,7 @@ static void cleanup_rmt_ports(struct msm_ipc_router_xprt_info *xprt_info,
 			server = rport_ptr->server;
 			rport_ptr->server = NULL;
 			mutex_unlock(&rport_ptr->rport_lock_lhb2);
+			ipc_router_reset_conn(rport_ptr);
 			if (server) {
 				cleanup_rmt_server(xprt_info, rport_ptr,
 						   server);
@@ -2382,13 +2383,13 @@ static void ipc_router_reset_conn(struct msm_ipc_router_remote_port *rport_ptr)
 	list_for_each_entry_safe(conn_info, tmp_conn_info,
 				&rport_ptr->conn_info_list, list) {
 		port_ptr = ipc_router_get_port_ref(conn_info->port_id);
-		if (!port_ptr)
-			continue;
-		mutex_lock(&port_ptr->port_lock_lhc3);
-		port_ptr->conn_status = CONNECTION_RESET;
-		mutex_unlock(&port_ptr->port_lock_lhc3);
-		wake_up(&port_ptr->port_rx_wait_q);
-		kref_put(&port_ptr->ref, ipc_router_release_port);
+		if (port_ptr) {
+			mutex_lock(&port_ptr->port_lock_lhc3);
+			port_ptr->conn_status = CONNECTION_RESET;
+			mutex_unlock(&port_ptr->port_lock_lhc3);
+			wake_up(&port_ptr->port_rx_wait_q);
+			kref_put(&port_ptr->ref, ipc_router_release_port);
+		}
 
 		list_del(&conn_info->list);
 		kfree(conn_info);
@@ -2485,12 +2486,37 @@ static void do_version_negotiation(struct msm_ipc_router_xprt_info *xprt_info,
 	}
 }
 
+static int send_hello_msg(struct msm_ipc_router_xprt_info *xprt_info)
+{
+	int rc = 0;
+	union rr_control_msg ctl;
+
+	if (xprt_info->hello_sent)
+		return 0;
+
+	xprt_info->hello_sent = 1;
+	/* Send a HELLO message */
+	memset(&ctl, 0, sizeof(ctl));
+	ctl.hello.cmd = IPC_ROUTER_CTRL_CMD_HELLO;
+	ctl.hello.checksum = IPC_ROUTER_HELLO_MAGIC;
+	ctl.hello.versions = (uint32_t)IPC_ROUTER_VER_BITMASK;
+	ctl.hello.checksum = ipc_router_calc_checksum(&ctl);
+	rc = ipc_router_send_ctl_msg(xprt_info, &ctl,
+				     IPC_ROUTER_DUMMY_DEST_NODE);
+	if (rc < 0) {
+		xprt_info->hello_sent = 0;
+		IPC_RTR_ERR("%s: Error sending HELLO message\n",
+			    __func__);
+		return rc;
+	}
+	return rc;
+}
+
 static int process_hello_msg(struct msm_ipc_router_xprt_info *xprt_info,
 				union rr_control_msg *msg,
 				struct rr_header_v1 *hdr)
 {
 	int i, rc = 0;
-	union rr_control_msg ctl;
 	struct msm_ipc_routing_table_entry *rt_entry;
 
 	if (!hdr)
@@ -2505,19 +2531,10 @@ static int process_hello_msg(struct msm_ipc_router_xprt_info *xprt_info,
 	kref_put(&rt_entry->ref, ipc_router_release_rtentry);
 
 	do_version_negotiation(xprt_info, msg);
-	/* Send a reply HELLO message */
-	memset(&ctl, 0, sizeof(ctl));
-	ctl.hello.cmd = IPC_ROUTER_CTRL_CMD_HELLO;
-	ctl.hello.checksum = IPC_ROUTER_HELLO_MAGIC;
-	ctl.hello.versions = (uint32_t)IPC_ROUTER_VER_BITMASK;
-	ctl.hello.checksum = ipc_router_calc_checksum(&ctl);
-	rc = ipc_router_send_ctl_msg(xprt_info, &ctl,
-				     IPC_ROUTER_DUMMY_DEST_NODE);
-	if (rc < 0) {
-		IPC_RTR_ERR("%s: Error sending reply HELLO message\n",
-								__func__);
+	rc = send_hello_msg(xprt_info);
+	if (rc < 0)
 		return rc;
-	}
+
 	xprt_info->initialized = 1;
 
 	/* Send list of servers from the local node and from nodes
@@ -2672,6 +2689,7 @@ static int process_rmv_client_msg(struct msm_ipc_router_xprt_info *xprt_info,
 		server = rport_ptr->server;
 		rport_ptr->server = NULL;
 		mutex_unlock(&rport_ptr->rport_lock_lhb2);
+		ipc_router_reset_conn(rport_ptr);
 		down_write(&server_list_lock_lha2);
 		if (server)
 			cleanup_rmt_server(NULL, rport_ptr, server);
@@ -2933,6 +2951,10 @@ static int loopback_data(struct msm_ipc_port *src,
 	}
 
 	temp_skb = skb_peek_tail(pkt->pkt_fragment_q);
+	if (!temp_skb) {
+		IPC_RTR_ERR("%s: Empty skb\n", __func__);
+		return -EINVAL;
+	}
 	align_size = ALIGN_SIZE(pkt->length);
 	skb_put(temp_skb, align_size);
 	pkt->length += align_size;
@@ -3094,6 +3116,11 @@ static int msm_ipc_router_write_pkt(struct msm_ipc_port *src,
 	}
 
 	temp_skb = skb_peek_tail(pkt->pkt_fragment_q);
+	if (!temp_skb) {
+		IPC_RTR_ERR("%s: Abort invalid pkt\n", __func__);
+		ret = -EINVAL;
+		goto out_write_pkt;
+	}
 	align_size = ALIGN_SIZE(pkt->length);
 	skb_put(temp_skb, align_size);
 	pkt->length += align_size;
@@ -3421,7 +3448,8 @@ int msm_ipc_router_recv_from(struct msm_ipc_port *port_ptr,
 	align_size = ALIGN_SIZE(data_len);
 	if (align_size) {
 		temp_skb = skb_peek_tail((*pkt)->pkt_fragment_q);
-		skb_trim(temp_skb, (temp_skb->len - align_size));
+		if (temp_skb)
+			skb_trim(temp_skb, (temp_skb->len - align_size));
 	}
 	return data_len;
 }
@@ -4063,6 +4091,7 @@ static int msm_ipc_router_add_xprt(struct msm_ipc_router_xprt *xprt)
 
 	xprt_info->xprt = xprt;
 	xprt_info->initialized = 0;
+	xprt_info->hello_sent = 0;
 	xprt_info->remote_node_id = -1;
 	INIT_LIST_HEAD(&xprt_info->pkt_list);
 	mutex_init(&xprt_info->rx_lock_lhb2);
@@ -4102,6 +4131,7 @@ static int msm_ipc_router_add_xprt(struct msm_ipc_router_xprt *xprt)
 	up_write(&routing_table_lock_lha3);
 
 	xprt->priv = xprt_info;
+	send_hello_msg(xprt_info);
 
 	return 0;
 }

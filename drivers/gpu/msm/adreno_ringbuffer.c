@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2016,2019-2020, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2002,2007-2017,2019-2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -26,6 +26,7 @@
 #include "adreno_iommu.h"
 #include "adreno_pm4types.h"
 #include "adreno_ringbuffer.h"
+#include "adreno_trace.h"
 
 #include "a3xx_reg.h"
 #include "adreno_a5xx.h"
@@ -64,6 +65,7 @@ static void _cff_write_ringbuffer(struct adreno_ringbuffer *rb)
 }
 
 static void adreno_get_submit_time(struct adreno_device *adreno_dev,
+		struct adreno_ringbuffer *rb,
 		struct adreno_submit_time *time)
 {
 	unsigned long flags;
@@ -92,6 +94,9 @@ static void adreno_get_submit_time(struct adreno_device *adreno_dev,
 				time->ticks &= 0xFFFFFFFF;
 	} else
 		time->ticks = 0;
+
+	/* Trace the GPU time to create a mapping to ftrace time */
+	trace_adreno_cmdbatch_sync(rb->drawctxt_active, time->ticks);
 
 	/* Get the kernel clock for time since boot */
 	time->ktime = local_clock();
@@ -134,7 +139,7 @@ void adreno_ringbuffer_submit(struct adreno_ringbuffer *rb,
 	_cff_write_ringbuffer(rb);
 
 	if (time != NULL)
-		adreno_get_submit_time(adreno_dev, time);
+		adreno_get_submit_time(adreno_dev, rb, time);
 
 	adreno_ringbuffer_wptr(adreno_dev, rb);
 }
@@ -542,12 +547,17 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 	if (flags & KGSL_CMD_FLAGS_PWRON_FIXUP)
 		total_sizedwords += 9;
 
-	/* WAIT_MEM_WRITES - needed in the stall on fault case
-	 * to prevent out of order CP operations that can result
-	 * in a CACHE_FLUSH_TS interrupt storm */
-	if (test_bit(KGSL_FT_PAGEFAULT_GPUHALT_ENABLE,
+	/* Don't insert any commands if stall on fault is not supported. */
+	if ((ADRENO_GPUREV(adreno_dev) > 500) && !adreno_is_a510(adreno_dev)) {
+		/*
+		 * WAIT_MEM_WRITES - needed in the stall on fault case
+		 * to prevent out of order CP operations that can result
+		 * in a CACHE_FLUSH_TS interrupt storm
+		 */
+		if (test_bit(KGSL_FT_PAGEFAULT_GPUHALT_ENABLE,
 				&adreno_dev->ft_pf_policy))
-		total_sizedwords += 1;
+			total_sizedwords += 1;
+	}
 
 	ringcmds = adreno_ringbuffer_allocspace(rb, total_sizedwords);
 	if (IS_ERR(ringcmds))
@@ -634,14 +644,18 @@ adreno_ringbuffer_addcmds(struct adreno_ringbuffer *rb,
 	if (profile_ready)
 		adreno_profile_postib_processing(adreno_dev, &flags, &ringcmds);
 
-	/*
-	 * WAIT_MEM_WRITES - needed in the stall on fault case to prevent
-	 * out of order CP operations that can result in a CACHE_FLUSH_TS
-	 * interrupt storm
-	 */
-	if (test_bit(KGSL_FT_PAGEFAULT_GPUHALT_ENABLE,
+	/* Don't insert any commands if stall on fault is not supported. */
+	if ((ADRENO_GPUREV(adreno_dev) > 500) && !adreno_is_a510(adreno_dev)) {
+		/*
+		 * WAIT_MEM_WRITES - needed in the stall on fault case
+		 * to prevent out of order CP operations that can result
+		 * in a CACHE_FLUSH_TS interrupt storm
+		 */
+		if (test_bit(KGSL_FT_PAGEFAULT_GPUHALT_ENABLE,
 				&adreno_dev->ft_pf_policy))
-		*ringcmds++ = cp_packet(adreno_dev, CP_WAIT_MEM_WRITES, 0);
+			*ringcmds++ = cp_packet(adreno_dev,
+						CP_WAIT_MEM_WRITES, 0);
+	}
 
 	/*
 	 * Do a unique memory write from the GPU. This can be used in
@@ -1128,6 +1142,7 @@ int adreno_ringbuffer_submitcmd(struct adreno_device *adreno_dev,
 					cmdbatch->timestamp, time);
 
 	if (!ret) {
+		set_bit(KGSL_CONTEXT_PRIV_SUBMITTED, &context->priv);
 		cmdbatch->global_ts = drawctxt->internal_timestamp;
 
 		/* Put the timevalues in the profiling buffer */
