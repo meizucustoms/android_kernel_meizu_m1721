@@ -36,6 +36,7 @@ static struct netlink_kernel_cfg nlcfg = {
 
 static void _sockev_event(unsigned long event, __u8 *evstr, int buflen)
 {
+
 	switch (event) {
 	case SOCKEV_SOCKET:
 		strlcpy(evstr, "SOCKEV_SOCKET", buflen);

@@ -343,7 +343,6 @@ static int msm_pcm_playback_prepare(struct snd_pcm_substream *substream)
 		sample_word_size = 16;
 		break;
 	}
-
 	switch (q6core_get_avs_version()) {
 	case (Q6_SUBSYS_AVS2_7):
 		ret = q6asm_open_write_v3(prtd->audio_client,
@@ -812,7 +811,7 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
 	struct msm_audio *prtd = runtime->private_data;
-	struct msm_plat_data *pdata = NULL;
+	struct msm_plat_data *pdata;
 	uint32_t timeout;
 	int dir = 0;
 	int ret = 0;
@@ -820,7 +819,7 @@ static int msm_pcm_playback_close(struct snd_pcm_substream *substream)
 	pr_debug("%s: cmd_pending 0x%lx\n", __func__, prtd->cmd_pending);
 
 	pdata = (struct msm_plat_data *)
-			dev_get_drvdata(soc_prtd->platform->dev);
+		dev_get_drvdata(soc_prtd->platform->dev);
 	if (!pdata) {
 		pr_err("%s: platform data is NULL\n", __func__);
 		return -EINVAL;
@@ -952,12 +951,12 @@ static int msm_pcm_capture_close(struct snd_pcm_substream *substream)
 	struct snd_soc_pcm_runtime *soc_prtd = substream->private_data;
 	struct msm_audio *prtd = runtime->private_data;
 	int dir = OUT;
-	struct msm_plat_data *pdata = NULL;
+	struct msm_plat_data *pdata;
 
 	pr_debug("%s\n", __func__);
 
 	pdata = (struct msm_plat_data *)
-			dev_get_drvdata(soc_prtd->platform->dev);
+		dev_get_drvdata(soc_prtd->platform->dev);
 	if (!pdata) {
 		pr_err("%s: platform data is NULL\n", __func__);
 		return -EINVAL;
@@ -1208,13 +1207,8 @@ static int msm_pcm_volume_ctl_put(struct snd_kcontrol *kcontrol,
 		return 0;
 	}
 
-	soc_prtd = substream->private_data;
-	if (!soc_prtd) {
-		pr_err("%s: soc_prtd is NULL\n", __func__);
-		return -ENODEV;
-	}
 	pdata = (struct msm_plat_data *)
-			dev_get_drvdata(soc_prtd->platform->dev);
+		dev_get_drvdata(soc_prtd->platform->dev);
 	if (!pdata) {
 		pr_err("%s: pdata not found\n", __func__);
 		return -ENODEV;
@@ -1273,7 +1267,7 @@ static int msm_pcm_chmap_ctl_put(struct snd_kcontrol *kcontrol,
 	rtd = substream->private_data;
 	if (rtd) {
 		pdata = (struct msm_plat_data *)
-					dev_get_drvdata(rtd->platform->dev);
+			dev_get_drvdata(rtd->platform->dev);
 		if (!pdata) {
 			pr_err("%s: pdata not found\n", __func__);
 			return -ENODEV;

@@ -106,29 +106,30 @@
 	qcom,pronto@a21b000 {
 		status = "disabled";
 	};
-
-	bluetooth: bt_qca9379 {
-		compatible = "qca,qca9379";
-		qca,bt-reset-gpio = <&msm_gpio 47 0>; /* BT_EN */
-	};
 };
 
-&blsp1_uart2_tx_active {
-	mux {
-		function = "blsp_uart2";
-	};
-};
-
-&blsp1_uart2_rxcts_active {
-	mux {
-		function = "blsp_uart2";
-	};
-};
-
-
-&blsp1_uart2_rfr_active {
-	mux {
-		function = "blsp_uart2";
+&firmware {
+	android {
+		compatible = "android,firmware";
+		fstab {
+			compatible = "android,fstab";
+			vendor_fstab: vendor {
+				compatible = "android,vendor";
+				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/vendor";
+				type = "ext4";
+				mnt_flags = "ro,barrier=1,discard";
+				fsmgr_flags = "wait,verify";
+				status = "ok";
+			};
+			system_fstab: system {
+				compatible = "android,system";
+				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/system";
+				type = "ext4";
+				mnt_flags = "ro,barrier=1,discard";
+				fsmgr_flags = "wait,verify";
+				status = "ok";
+			};
+		};
 	};
 };
 

@@ -345,6 +345,43 @@ int ipa3_active_clients_log_print_table(char *buf, int size)
 	return cnt;
 }
 
+static int ipa3_clean_modem_rule(void)
+{
+	struct ipa_install_fltr_rule_req_msg_v01 *req;
+	struct ipa_install_fltr_rule_req_ex_msg_v01 *req_ex;
+	int val = 0;
+
+	if (ipa3_ctx->ipa_hw_type < IPA_HW_v3_0) {
+		req = kzalloc(
+			sizeof(struct ipa_install_fltr_rule_req_msg_v01),
+			GFP_KERNEL);
+		if (!req) {
+			IPAERR("mem allocated failed!\n");
+			return -ENOMEM;
+		}
+		req->filter_spec_list_valid = false;
+		req->filter_spec_list_len = 0;
+		req->source_pipe_index_valid = 0;
+		val = ipa3_qmi_filter_request_send(req);
+		kfree(req);
+	} else {
+		req_ex = kzalloc(
+			sizeof(struct ipa_install_fltr_rule_req_ex_msg_v01),
+			GFP_KERNEL);
+		if (!req_ex) {
+			IPAERR("mem allocated failed!\n");
+			return -ENOMEM;
+		}
+		req_ex->filter_spec_ex_list_valid = false;
+		req_ex->filter_spec_ex_list_len = 0;
+		req_ex->source_pipe_index_valid = 0;
+		val = ipa3_qmi_filter_request_ex_send(req_ex);
+		kfree(req_ex);
+	}
+
+	return val;
+}
+
 static int ipa3_active_clients_panic_notifier(struct notifier_block *this,
 		unsigned long event, void *ptr)
 {
@@ -907,7 +944,8 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EINVAL;
 			break;
 		}
-		if (ipa3_add_hdr((struct ipa_ioc_add_hdr *)param)) {
+		if (ipa3_add_hdr_usr((struct ipa_ioc_add_hdr *)param,
+			true)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -987,7 +1025,8 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EINVAL;
 			break;
 		}
-		if (ipa3_add_rt_rule((struct ipa_ioc_add_rt_rule *)param)) {
+		if (ipa3_add_rt_rule_usr((struct ipa_ioc_add_rt_rule *)param,
+				true)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1191,7 +1230,8 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			retval = -EINVAL;
 			break;
 		}
-		if (ipa3_add_flt_rule((struct ipa_ioc_add_flt_rule *)param)) {
+		if (ipa3_add_flt_rule_usr((struct ipa_ioc_add_flt_rule *)param,
+				true)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1328,19 +1368,19 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		retval = ipa3_commit_hdr();
 		break;
 	case IPA_IOC_RESET_HDR:
-		retval = ipa3_reset_hdr();
+		retval = ipa3_reset_hdr(false);
 		break;
 	case IPA_IOC_COMMIT_RT:
 		retval = ipa3_commit_rt(arg);
 		break;
 	case IPA_IOC_RESET_RT:
-		retval = ipa3_reset_rt(arg);
+		retval = ipa3_reset_rt(arg, false);
 		break;
 	case IPA_IOC_COMMIT_FLT:
 		retval = ipa3_commit_flt(arg);
 		break;
 	case IPA_IOC_RESET_FLT:
-		retval = ipa3_reset_flt(arg);
+		retval = ipa3_reset_flt(arg, false);
 		break;
 	case IPA_IOC_GET_RT_TBL:
 		if (copy_from_user(header, (u8 *)arg,
@@ -1720,7 +1760,7 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 			break;
 		}
 		if (ipa3_add_hdr_proc_ctx(
-			(struct ipa_ioc_add_hdr_proc_ctx *)param)) {
+			(struct ipa_ioc_add_hdr_proc_ctx *)param, true)) {
 			retval = -EFAULT;
 			break;
 		}
@@ -1812,7 +1852,22 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 		}
 		break;
 
-	default:        /* redundant, as cmd was checked against MAXNR */
+	case IPA_IOC_CLEANUP:
+		/*Route and filter rules will also be clean*/
+		IPADBG("Got IPA_IOC_CLEANUP\n");
+		retval = ipa3_reset_hdr(true);
+		memset(&nat_del, 0, sizeof(nat_del));
+		nat_del.table_index = 0;
+		retval = ipa3_nat_del_cmd(&nat_del);
+		retval = ipa3_clean_modem_rule();
+		break;
+
+	case IPA_IOC_QUERY_WLAN_CLIENT:
+		IPADBG("Got IPA_IOC_QUERY_WLAN_CLIENT\n");
+		retval = ipa3_resend_wlan_msg();
+		break;
+
+	default:
 		IPA_ACTIVE_CLIENTS_DEC_SIMPLE();
 		return -ENOTTY;
 	}
@@ -1823,13 +1878,13 @@ static long ipa3_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
 }
 
 /**
-* ipa3_setup_dflt_rt_tables() - Setup default routing tables
-*
-* Return codes:
-* 0: success
-* -ENOMEM: failed to allocate memory
-* -EPERM: failed to add the tables
-*/
+ * ipa3_setup_dflt_rt_tables() - Setup default routing tables
+ *
+ * Return codes:
+ * 0: success
+ * -ENOMEM: failed to allocate memory
+ * -EPERM: failed to add the tables
+ */
 int ipa3_setup_dflt_rt_tables(void)
 {
 	struct ipa_ioc_add_rt_rule *rt_rule;
@@ -1995,14 +2050,14 @@ static int ipa3_init_smem_region(int memory_region_size,
 }
 
 /**
-* ipa3_init_q6_smem() - Initialize Q6 general memory and
-*                      header memory regions in IPA.
-*
-* Return codes:
-* 0: success
-* -ENOMEM: failed to allocate dma memory
-* -EFAULT: failed to send IPA command to initialize the memory
-*/
+ * ipa3_init_q6_smem() - Initialize Q6 general memory and
+ *                      header memory regions in IPA.
+ *
+ * Return codes:
+ * 0: success
+ * -ENOMEM: failed to allocate dma memory
+ * -EFAULT: failed to send IPA command to initialize the memory
+ */
 int ipa3_init_q6_smem(void)
 {
 	int rc;
@@ -2471,7 +2526,6 @@ static int ipa3_q6_set_ex_path_to_apps(void)
 	struct ipahal_imm_cmd_register_write reg_write;
 	struct ipahal_imm_cmd_pyld *cmd_pyld;
 	int retval;
-	struct ipahal_reg_valmask valmask;
 
 	desc = kcalloc(ipa3_ctx->ipa_num_pipes, sizeof(struct ipa3_desc),
 			GFP_KERNEL);
@@ -2486,40 +2540,10 @@ static int ipa3_q6_set_ex_path_to_apps(void)
 		if (ep_idx == -1)
 			continue;
 
-		if (ipa3_ctx->ep[ep_idx].valid &&
-			ipa3_ctx->ep[ep_idx].skip_ep_cfg) {
-			BUG_ON(num_descs >= ipa3_ctx->ipa_num_pipes);
-
-			reg_write.skip_pipeline_clear = false;
-			reg_write.pipeline_clear_options =
-				IPAHAL_HPS_CLEAR;
-			reg_write.offset =
-				ipahal_get_reg_n_ofst(IPA_ENDP_STATUS_n,
-					ep_idx);
-			ipahal_get_status_ep_valmask(
-				ipa3_get_ep_mapping(IPA_CLIENT_APPS_LAN_CONS),
-				&valmask);
-			reg_write.value = valmask.val;
-			reg_write.value_mask = valmask.mask;
-			cmd_pyld = ipahal_construct_imm_cmd(
-				IPA_IMM_CMD_REGISTER_WRITE, &reg_write, false);
-			if (!cmd_pyld) {
-				IPAERR("fail construct register_write cmd\n");
-				BUG();
-			}
-
-			desc[num_descs].opcode = ipahal_imm_cmd_get_opcode(
-				IPA_IMM_CMD_REGISTER_WRITE);
-			desc[num_descs].type = IPA_IMM_CMD_DESC;
-			desc[num_descs].callback = ipa3_destroy_imm;
-			desc[num_descs].user1 = cmd_pyld;
-			desc[num_descs].pyld = cmd_pyld->data;
-			desc[num_descs].len = cmd_pyld->len;
-			num_descs++;
-		}
-
-		/* disable statuses for modem producers */
-		if (IPA_CLIENT_IS_Q6_PROD(client_idx)) {
+		/* disable statuses for all modem controlled prod pipes */
+		if (IPA_CLIENT_IS_Q6_PROD(client_idx) ||
+			(ipa3_ctx->ep[ep_idx].valid &&
+			ipa3_ctx->ep[ep_idx].skip_ep_cfg)) {
 			ipa_assert_on(num_descs >= ipa3_ctx->ipa_num_pipes);
 
 			reg_write.skip_pipeline_clear = false;
@@ -2570,12 +2594,12 @@ static int ipa3_q6_set_ex_path_to_apps(void)
 }
 
 /**
-* ipa3_q6_pre_shutdown_cleanup() - A cleanup for all Q6 related configuration
-*                    in IPA HW. This is performed in case of SSR.
-*
-* This is a mandatory procedure, in case one of the steps fails, the
-* AP needs to restart.
-*/
+ * ipa3_q6_pre_shutdown_cleanup() - A cleanup for all Q6 related configuration
+ *                    in IPA HW. This is performed in case of SSR.
+ *
+ * This is a mandatory procedure, in case one of the steps fails, the
+ * AP needs to restart.
+ */
 void ipa3_q6_pre_shutdown_cleanup(void)
 {
 	IPADBG_LOW("ENTER\n");
@@ -2596,8 +2620,8 @@ void ipa3_q6_pre_shutdown_cleanup(void)
 		BUG();
 	}
 	/* Remove delay from Q6 PRODs to avoid pending descriptors
-	  * on pipe reset procedure
-	  */
+	 * on pipe reset procedure
+	 */
 	ipa3_q6_pipe_delay(false);
 	ipa3_set_reset_client_prod_pipe_delay(true,
 		IPA_CLIENT_USB_PROD);
@@ -3626,11 +3650,11 @@ static unsigned int ipa3_get_bus_vote(void)
 }
 
 /**
-* ipa3_enable_clks() - Turn on IPA clocks
-*
-* Return codes:
-* None
-*/
+ * ipa3_enable_clks() - Turn on IPA clocks
+ *
+ * Return codes:
+ * None
+ */
 void ipa3_enable_clks(void)
 {
 	IPADBG("enabling IPA clocks and bus voting\n");
@@ -3662,11 +3686,11 @@ void _ipa_disable_clks_v3_0(void)
 }
 
 /**
-* ipa3_disable_clks() - Turn off IPA clocks
-*
-* Return codes:
-* None
-*/
+ * ipa3_disable_clks() - Turn off IPA clocks
+ *
+ * Return codes:
+ * None
+ */
 void ipa3_disable_clks(void)
 {
 	IPADBG("disabling IPA clocks and bus voting\n");
@@ -3705,28 +3729,28 @@ static void ipa3_start_tag_process(struct work_struct *work)
 }
 
 /**
-* ipa3_active_clients_log_mod() - Log a modification in the active clients
-* reference count
-*
-* This method logs any modification in the active clients reference count:
-* It logs the modification in the circular history buffer
-* It logs the modification in the hash table - looking for an entry,
-* creating one if needed and deleting one if needed.
-*
-* @id: ipa3_active client logging info struct to hold the log information
-* @inc: a boolean variable to indicate whether the modification is an increase
-* or decrease
-* @int_ctx: a boolean variable to indicate whether this call is being made from
-* an interrupt context and therefore should allocate GFP_ATOMIC memory
-*
-* Method process:
-* - Hash the unique identifier string
-* - Find the hash in the table
-*    1)If found, increase or decrease the reference count
-*    2)If not found, allocate a new hash table entry struct and initialize it
-* - Remove and deallocate unneeded data structure
-* - Log the call in the circular history buffer (unless it is a simple call)
-*/
+ * ipa3_active_clients_log_mod() - Log a modification in the active clients
+ * reference count
+ *
+ * This method logs any modification in the active clients reference count:
+ * It logs the modification in the circular history buffer
+ * It logs the modification in the hash table - looking for an entry,
+ * creating one if needed and deleting one if needed.
+ *
+ * @id: ipa3_active client logging info struct to hold the log information
+ * @inc: a boolean variable to indicate whether the modification is an increase
+ * or decrease
+ * @int_ctx: a boolean variable to indicate whether this call is being made from
+ * an interrupt context and therefore should allocate GFP_ATOMIC memory
+ *
+ * Method process:
+ * - Hash the unique identifier string
+ * - Find the hash in the table
+ *    1)If found, increase or decrease the reference count
+ *    2)If not found, allocate a new hash table entry struct and initialize it
+ * - Remove and deallocate unneeded data structure
+ * - Log the call in the circular history buffer (unless it is a simple call)
+ */
 void ipa3_active_clients_log_mod(struct ipa_active_client_logging_info *id,
 		bool inc, bool int_ctx)
 {
@@ -3796,12 +3820,12 @@ void ipa3_active_clients_log_inc(struct ipa_active_client_logging_info *id,
 }
 
 /**
-* ipa3_inc_client_enable_clks() - Increase active clients counter, and
-* enable ipa clocks if necessary
-*
-* Return codes:
-* None
-*/
+ * ipa3_inc_client_enable_clks() - Increase active clients counter, and
+ * enable ipa clocks if necessary
+ *
+ * Return codes:
+ * None
+ */
 void ipa3_inc_client_enable_clks(struct ipa_active_client_logging_info *id)
 {
 	ipa3_active_clients_lock();
@@ -3814,13 +3838,13 @@ void ipa3_inc_client_enable_clks(struct ipa_active_client_logging_info *id)
 }
 
 /**
-* ipa3_inc_client_enable_clks_no_block() - Only increment the number of active
-* clients if no asynchronous actions should be done. Asynchronous actions are
-* locking a mutex and waking up IPA HW.
-*
-* Return codes: 0 for success
-*		-EPERM if an asynchronous action should have been done
-*/
+ * ipa3_inc_client_enable_clks_no_block() - Only increment the number of active
+ * clients if no asynchronous actions should be done. Asynchronous actions are
+ * locking a mutex and waking up IPA HW.
+ *
+ * Return codes: 0 for success
+ *		-EPERM if an asynchronous action should have been done
+ */
 int ipa3_inc_client_enable_clks_no_block(struct ipa_active_client_logging_info
 		*id)
 {
@@ -3882,12 +3906,12 @@ void ipa3_dec_client_disable_clks(struct ipa_active_client_logging_info *id)
 }
 
 /**
-* ipa3_inc_acquire_wakelock() - Increase active clients counter, and
-* acquire wakelock if necessary
-*
-* Return codes:
-* None
-*/
+ * ipa3_inc_acquire_wakelock() - Increase active clients counter, and
+ * acquire wakelock if necessary
+ *
+ * Return codes:
+ * None
+ */
 void ipa3_inc_acquire_wakelock(void)
 {
 	unsigned long flags;
@@ -4015,12 +4039,12 @@ static void ipa3_sps_process_irq_schedule_rel(void)
 }
 
 /**
-* ipa3_suspend_handler() - Handles the suspend interrupt:
-* wakes up the suspended peripheral by requesting its consumer
-* @interrupt:		Interrupt type
-* @private_data:	The client's private data
-* @interrupt_data:	Interrupt specific information data
-*/
+ * ipa3_suspend_handler() - Handles the suspend interrupt:
+ * wakes up the suspended peripheral by requesting its consumer
+ * @interrupt:		Interrupt type
+ * @private_data:	The client's private data
+ * @interrupt_data:	Interrupt specific information data
+ */
 void ipa3_suspend_handler(enum ipa_irq_type interrupt,
 				void *private_data,
 				void *interrupt_data)
@@ -4547,6 +4571,7 @@ static int ipa3_post_init(const struct ipa3_plat_drv_res *resource_p,
 	ipa3_register_panic_hdlr();
 
 	ipa3_ctx->q6_proxy_clk_vote_valid = true;
+	ipa3_ctx->q6_proxy_clk_vote_cnt++;
 
 	mutex_lock(&ipa3_ctx->lock);
 	ipa3_ctx->ipa_initialization_complete = true;
@@ -4577,7 +4602,7 @@ static void ipa3_post_init_wq(struct work_struct *work)
 static int ipa3_manual_load_ipa_fws(void)
 {
 	int result;
-	const struct firmware *fw;
+	const struct firmware *fw = NULL;
 
 	IPADBG("Manual FW loading process initiated\n");
 
@@ -4625,6 +4650,8 @@ static int ipa3_pil_load_ipa_fws(void)
 	if (IS_ERR_OR_NULL(subsystem_get_retval)) {
 		IPAERR("Unable to trigger PIL process for FW loading\n");
 		return -EINVAL;
+	} else {
+		subsystem_put(subsystem_get_retval);
 	}
 
 	IPADBG("PIL FW loading process is complete\n");
@@ -4648,6 +4675,9 @@ static ssize_t ipa3_write(struct file *file, const char __user *buf,
 		IPAERR("Unable to copy data from user\n");
 		return -EFAULT;
 	}
+
+	if (count > 0)
+		dbg_buff[count] = '\0';
 
 	/* Prevent consequent calls from trying to load the FW again. */
 	if (ipa3_is_ready())
@@ -4859,7 +4889,7 @@ static int ipa3_pre_init(const struct ipa3_plat_drv_res *resource_p,
 
 	ipa3_ctx->logbuf = ipc_log_context_create(IPA_IPC_LOG_PAGES, "ipa", 0);
 	if (ipa3_ctx->logbuf == NULL)
-		IPAERR("failed to create IPC log, continue...\n");
+		IPADBG("failed to create IPC log, continue...\n");
 
 	ipa3_ctx->pdev = ipa_dev;
 	ipa3_ctx->uc_pdev = ipa_dev;
@@ -5175,10 +5205,15 @@ static int ipa3_pre_init(const struct ipa3_plat_drv_res *resource_p,
 	init_waitqueue_head(&ipa3_ctx->msg_waitq);
 	mutex_init(&ipa3_ctx->msg_lock);
 
+	/* store wlan client-connect-msg-list */
+	INIT_LIST_HEAD(&ipa3_ctx->msg_wlan_client_list);
+	mutex_init(&ipa3_ctx->msg_wlan_client_lock);
+
 	mutex_init(&ipa3_ctx->lock);
 	mutex_init(&ipa3_ctx->nat_mem.lock);
 	mutex_init(&ipa3_ctx->q6_proxy_clk_vote_mutex);
 	mutex_init(&ipa3_ctx->ipa_cne_evt_lock);
+	ipa3_ctx->q6_proxy_clk_vote_cnt = 0;
 
 	idr_init(&ipa3_ctx->ipa_idr);
 	spin_lock_init(&ipa3_ctx->idr_lock);
@@ -5785,7 +5820,7 @@ static int ipa_smmu_uc_cb_probe(struct device *dev)
 	int bypass = 1;
 	int fast = 1;
 	int ret;
-	u32 iova_ap_mapping[2];
+	u32 iova_ap_mapping[2] = {0};
 
 	IPADBG("UC CB PROBE sub pdev=%p\n", dev);
 
@@ -5896,7 +5931,7 @@ static int ipa_smmu_ap_cb_probe(struct device *dev)
 	int atomic_ctx = 1;
 	int fast = 1;
 	int bypass = 1;
-	u32 iova_ap_mapping[2];
+	u32 iova_ap_mapping[2] = {0};
 	u32 add_map_size;
 	const u32 *add_map;
 	void *smem_addr;
@@ -6225,7 +6260,7 @@ int ipa3_plat_drv_probe(struct platform_device *pdev_p,
  *
  * Returns -EAGAIN to runtime_pm framework in case IPA is in use by AP.
  * This will postpone the suspend operation until IPA is no longer used by AP.
-*/
+ */
 int ipa3_ap_suspend(struct device *dev)
 {
 	int i;
@@ -6251,14 +6286,14 @@ int ipa3_ap_suspend(struct device *dev)
 }
 
 /**
-* ipa3_ap_resume() - resume callback for runtime_pm
-* @dev: pointer to device
-*
-* This callback will be invoked by the runtime_pm framework when an AP resume
-* operation is invoked.
-*
-* Always returns 0 since resume should always succeed.
-*/
+ * ipa3_ap_resume() - resume callback for runtime_pm
+ * @dev: pointer to device
+ *
+ * This callback will be invoked by the runtime_pm framework when an AP resume
+ * operation is invoked.
+ *
+ * Always returns 0 since resume should always succeed.
+ */
 int ipa3_ap_resume(struct device *dev)
 {
 	return 0;

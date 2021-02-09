@@ -1,4 +1,4 @@
-/* Copyright (c) 2014-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2014-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -37,6 +37,7 @@
 #define GLINK_QOS_DEF_NUM_PRIORITY	1
 #define GLINK_QOS_DEF_MTU		2048
 
+#define GLINK_CH_XPRT_NAME_SIZE ((3 * GLINK_NAME_SIZE) + 4)
 #define GLINK_KTHREAD_PRIO 1
 
 /**
@@ -369,7 +370,7 @@ static void tx_func(struct kthread_work *work);
 
 static struct channel_ctx *ch_name_to_ch_ctx_create(
 					struct glink_core_xprt_ctx *xprt_ctx,
-					const char *name);
+					const char *name, bool local);
 
 static void ch_push_remote_rx_intent(struct channel_ctx *ctx, size_t size,
 					uint32_t riid, void *cookie);
@@ -1820,13 +1821,14 @@ static void glink_ch_ctx_release(struct rwref_lock *ch_st_lock)
  *                              it is not found.
  * @xprt_ctx:	Transport to search for a matching channel.
  * @name:	Name of the desired channel.
+ * @local:	If called from local open or not
  *
  * Return: The channel corresponding to @name, NULL if a matching channel was
  *         not found AND a new channel could not be created.
  */
 static struct channel_ctx *ch_name_to_ch_ctx_create(
 					struct glink_core_xprt_ctx *xprt_ctx,
-					const char *name)
+					const char *name, bool local)
 {
 	struct channel_ctx *entry;
 	struct channel_ctx *ctx;
@@ -1870,6 +1872,20 @@ check_ctx:
 	list_for_each_entry_safe(entry, temp, &xprt_ctx->channels,
 		    port_list_node)
 		if (!strcmp(entry->name, name) && !entry->pending_delete) {
+			rwref_get(&entry->ch_state_lhb2);
+			/* port already exists */
+			if (entry->local_open_state != GLINK_CHANNEL_CLOSED
+								&& local) {
+				/* not ready to be re-opened */
+				GLINK_INFO_CH_XPRT(entry, xprt_ctx,
+					"%s: Ch not ready. State: %u\n",
+					__func__, entry->local_open_state);
+				rwref_put(&entry->ch_state_lhb2);
+				entry = NULL;
+			} else if (local) {
+				entry->local_open_state =
+						GLINK_CHANNEL_OPENING;
+			}
 			spin_unlock_irqrestore(&xprt_ctx->xprt_ctx_lock_lhb1,
 					flags);
 			kfree(ctx);
@@ -1901,6 +1917,10 @@ check_ctx:
 			kfree(flcid);
 		}
 
+		ctx->transport_ptr = xprt_ctx;
+		rwref_get(&ctx->ch_state_lhb2);
+		if (local)
+			ctx->local_open_state = GLINK_CHANNEL_OPENING;
 		list_add_tail(&ctx->port_list_node, &xprt_ctx->channels);
 
 		GLINK_INFO_PERF_CH_XPRT(ctx, xprt_ctx,
@@ -2567,20 +2587,11 @@ void *glink_open(const struct glink_open_config *cfg)
 	 * look for an existing port structure which can occur in
 	 * reopen and remote-open-first cases
 	 */
-	ctx = ch_name_to_ch_ctx_create(transport_ptr, cfg->name);
+	ctx = ch_name_to_ch_ctx_create(transport_ptr, cfg->name, true);
 	if (ctx == NULL) {
 		GLINK_ERR("%s:%s %s: Error - unable to allocate new channel\n",
 				cfg->transport, cfg->edge, __func__);
 		return ERR_PTR(-ENOMEM);
-	}
-
-	/* port already exists */
-	if (ctx->local_open_state != GLINK_CHANNEL_CLOSED) {
-		/* not ready to be re-opened */
-		GLINK_INFO_CH_XPRT(ctx, transport_ptr,
-		"%s: Channel not ready to be re-opened. State: %u\n",
-		__func__, ctx->local_open_state);
-		return ERR_PTR(-EBUSY);
 	}
 
 	/* initialize port structure */
@@ -2613,8 +2624,6 @@ void *glink_open(const struct glink_open_config *cfg)
 	ctx->local_xprt_req = best_id;
 	ctx->no_migrate = cfg->transport &&
 				!(cfg->options & GLINK_OPT_INITIAL_XPORT);
-	ctx->transport_ptr = transport_ptr;
-	ctx->local_open_state = GLINK_CHANNEL_OPENING;
 	GLINK_INFO_PERF_CH(ctx,
 		"%s: local:GLINK_CHANNEL_CLOSED->GLINK_CHANNEL_OPENING\n",
 		__func__);
@@ -2859,6 +2868,7 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 	size_t intent_size;
 	bool is_atomic =
 		tx_flags & (GLINK_TX_SINGLE_THREADED | GLINK_TX_ATOMIC);
+	char glink_name[GLINK_CH_XPRT_NAME_SIZE];
 	unsigned long flags;
 	void *cookie = NULL;
 
@@ -2893,21 +2903,22 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 		tracer_pkt_log_event(data, GLINK_CORE_TX);
 	}
 
-	/* find matching rx intent (best-fit algorithm for now) */
+	scnprintf(glink_name, GLINK_CH_XPRT_NAME_SIZE, "%s_%s_%s", ctx->name,
+			ctx->transport_ptr->edge, ctx->transport_ptr->name);
+	/* find matching rx intent (first-fit algorithm for now) */
 	if (ch_pop_remote_rx_intent(ctx, size, &riid, &intent_size, &cookie)) {
 		if (!(tx_flags & GLINK_TX_REQ_INTENT)) {
 			/* no rx intent available */
-			GLINK_ERR_CH(ctx,
-				"%s: R[%u]:%zu Intent not present for lcid\n",
-				__func__, riid, size);
+			GLINK_ERR(
+				"%s: %s: R[%u]:%zu Intent not present\n",
+				glink_name, __func__, riid, size);
 			ret = -EAGAIN;
 			goto glink_tx_common_err;
 		}
 		if (is_atomic && !(ctx->transport_ptr->capabilities &
 					  GCAP_AUTO_QUEUE_RX_INT)) {
-			GLINK_ERR_CH(ctx,
-				"%s: Cannot request intent in atomic context\n",
-				__func__);
+			GLINK_ERR("%s: %s: %s\n", glink_name, __func__,
+				"Cannot request intent in atomic context");
 			ret = -EINVAL;
 			goto glink_tx_common_err;
 		}
@@ -2917,8 +2928,8 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 		ret = ctx->transport_ptr->ops->tx_cmd_rx_intent_req(
 				ctx->transport_ptr->ops, ctx->lcid, size);
 		if (ret) {
-			GLINK_ERR_CH(ctx, "%s: Request intent failed %d\n",
-					__func__, ret);
+			GLINK_ERR("%s: %s: Request intent failed %d\n",
+					glink_name, __func__, ret);
 			goto glink_tx_common_err;
 		}
 
@@ -2926,18 +2937,18 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 						&intent_size, &cookie)) {
 			rwref_read_put(&ctx->ch_state_lhb2);
 			if (is_atomic) {
-				GLINK_ERR_CH(ctx,
-				    "%s Intent of size %zu not ready\n",
-				    __func__, size);
+				GLINK_ERR("%s: %s: Intent of size %zu %s\n",
+					glink_name, __func__, size,
+					"not ready");
 				ret = -EAGAIN;
 				goto glink_tx_common_err_2;
 			}
 
 			if (ctx->transport_ptr->local_state == GLINK_XPRT_DOWN
 			    || !ch_is_fully_opened(ctx)) {
-				GLINK_ERR_CH(ctx,
-					"%s: Channel closed while waiting for intent\n",
-					__func__);
+				GLINK_ERR("%s: %s: %s %s\n", glink_name,
+					 __func__, "Channel closed while",
+					"waiting for intent");
 				ret = -EBUSY;
 				goto glink_tx_common_err_2;
 			}
@@ -2946,18 +2957,18 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 			if (!wait_for_completion_timeout(
 					&ctx->int_req_ack_complete,
 					ctx->rx_intent_req_timeout_jiffies)) {
-				GLINK_ERR_CH(ctx,
-					"%s: Intent request ack with size: %zu not granted for lcid\n",
-					__func__, size);
+				GLINK_ERR(
+					"%s: %s: %s %zu not granted for lcid\n",
+					glink_name, __func__,
+					"Intent request ack with size:", size);
 				ret = -ETIMEDOUT;
 				goto glink_tx_common_err_2;
 			}
 
 			if (!ctx->int_req_ack) {
-				GLINK_ERR_CH(ctx,
-				    "%s: Intent Request with size: %zu %s",
-				    __func__, size,
-				    "not granted for lcid\n");
+				GLINK_ERR("%s: %s: %s %zu %s\n", glink_name,
+					__func__, "Intent Request with size:",
+					size, "not granted for lcid");
 				ret = -EAGAIN;
 				goto glink_tx_common_err_2;
 			}
@@ -2966,9 +2977,9 @@ static int glink_tx_common(void *handle, void *pkt_priv,
 			if (!wait_for_completion_timeout(
 					&ctx->int_req_complete,
 					ctx->rx_intent_req_timeout_jiffies)) {
-				GLINK_ERR_CH(ctx,
-					"%s: Intent request with size: %zu not granted for lcid\n",
-					__func__, size);
+				GLINK_ERR("%s: %s: %s %zu %s\n", glink_name,
+					 __func__, "Intent request with size: ",
+					size, "not granted for lcid");
 				ret = -ETIMEDOUT;
 				goto glink_tx_common_err_2;
 			}
@@ -4800,7 +4811,7 @@ static void glink_core_rx_cmd_ch_remote_open(struct glink_transport_if *if_ptr,
 	bool do_migrate;
 
 	glink_core_migration_edge_lock(if_ptr->glink_core_priv);
-	ctx = ch_name_to_ch_ctx_create(if_ptr->glink_core_priv, name);
+	ctx = ch_name_to_ch_ctx_create(if_ptr->glink_core_priv, name, false);
 	if (ctx == NULL) {
 		GLINK_ERR_XPRT(if_ptr->glink_core_priv,
 		       "%s: invalid rcid %u received, name '%s'\n",
@@ -4900,6 +4911,7 @@ static void glink_core_rx_cmd_ch_remote_close(
 	struct channel_ctx *ctx;
 	bool is_ch_fully_closed;
 	struct glink_core_xprt_ctx *xprt_ptr = if_ptr->glink_core_priv;
+	unsigned long flags;
 
 	ctx = xprt_rcid_to_ch_ctx_get(if_ptr->glink_core_priv, rcid);
 	if (!ctx) {
@@ -4917,11 +4929,13 @@ static void glink_core_rx_cmd_ch_remote_close(
 		rwref_put(&ctx->ch_state_lhb2);
 		return;
 	}
+	spin_lock_irqsave(&ctx->transport_ptr->xprt_ctx_lock_lhb1, flags);
+	ctx->pending_delete = true;
+	spin_unlock_irqrestore(&ctx->transport_ptr->xprt_ctx_lock_lhb1, flags);
 	GLINK_INFO_CH(ctx, "%s: remote: OPENED->CLOSED\n", __func__);
 
 	is_ch_fully_closed = glink_core_remote_close_common(ctx, false);
 
-	ctx->pending_delete = true;
 	if_ptr->tx_cmd_ch_remote_close_ack(if_ptr, rcid);
 
 	if (is_ch_fully_closed) {

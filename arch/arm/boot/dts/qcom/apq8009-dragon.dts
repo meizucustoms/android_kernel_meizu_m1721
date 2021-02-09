@@ -11,6 +11,12 @@
  * GNU General Public License for more details.
  */
 
+#include "msm-audio-mido.dtsi"
+#include "msm8953-general-mido.dtsi"
+#include "msm8953-display-mido.dtsi"
+#include "msm8953-camera-sensor-qrd-mido.dtsi"
+#include "msm8953-memory-mido.dtsi"
+
 /dts-v1/;
 
 #include "apq8009-dragon.dtsi"
@@ -20,15 +26,4 @@
 	compatible = "qcom,apq8009-mtp", "qcom,apq8009", "qcom,mtp";
 	qcom,msm-id = <265 2>;
 	qcom,board-id= <0x00010020 0>;
-};
-
-&blsp1_uart2_hs {
-	status = "okay";
-};
-
-&i2c_2 {
-	status = "disabled";
-	nq@28 {
-		status = "disabled";
-	};
 };

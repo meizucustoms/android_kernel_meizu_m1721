@@ -22,7 +22,7 @@
 / {
 	model = "Qualcomm Technologies, Inc. SDA450 + PMI8950 MTP";
 	compatible = "qcom,sda450-mtp", "qcom,sda450", "qcom,mtp";
-	qcom,board-id= <8 0>;
+	qcom,board-id = <8 0>;
 	qcom,pmic-id = <0x010016 0x010011 0x0 0x0>;
 };
 

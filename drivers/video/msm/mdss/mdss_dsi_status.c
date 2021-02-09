@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -144,14 +144,18 @@ static int fb_event_callback(struct notifier_block *self,
 		return NOTIFY_DONE;
 
 	mfd = evdata->info->par;
-	ctrl_pdata = container_of(dev_get_platdata(&mfd->pdev->dev),
+	if (mfd->panel_info->type == SPI_PANEL) {
+		pinfo = mfd->panel_info;
+	} else {
+		ctrl_pdata = container_of(dev_get_platdata(&mfd->pdev->dev),
 				struct mdss_dsi_ctrl_pdata, panel_data);
-	if (!ctrl_pdata) {
-		pr_err("%s: DSI ctrl not available\n", __func__);
-		return NOTIFY_BAD;
-	}
+		if (!ctrl_pdata) {
+			pr_err("%s: DSI ctrl not available\n", __func__);
+			return NOTIFY_BAD;
+		}
 
-	pinfo = &ctrl_pdata->panel_data.panel_info;
+		pinfo = &ctrl_pdata->panel_data.panel_info;
+	}
 
 	if ((!(pinfo->esd_check_enabled) &&
 			dsi_status_disable) ||
@@ -227,6 +231,17 @@ static int param_set_interval(const char *val, struct kernel_param *kp)
 int __init mdss_dsi_status_init(void)
 {
 	int rc = 0;
+	struct mdss_util_intf *util = mdss_get_util_intf();
+
+	if (!util) {
+		pr_err("%s: Failed to get utility functions\n", __func__);
+		return -ENODEV;
+	}
+
+	if (util->display_disabled) {
+		pr_info("Display is disabled, not progressing with dsi_init\n");
+		return -ENOTSUPP;
+	}
 
 	pstatus_data = kzalloc(sizeof(struct dsi_status_data), GFP_KERNEL);
 	if (!pstatus_data) {

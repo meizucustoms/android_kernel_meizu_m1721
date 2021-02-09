@@ -59,6 +59,7 @@
 #include "mdss_debug.h"
 #include "mdss_smmu.h"
 #include "mdss.h"
+#include "mdss_spi_panel.h"
 
 #ifndef EXPORT_COMPAT
 #define EXPORT_COMPAT(x)
@@ -112,6 +113,7 @@ struct mdp3_bus_handle_map mdp3_bus_handle[MDP3_BUS_HANDLE_MAX] = {
 
 static struct mdss_panel_intf pan_types[] = {
 	{"dsi", MDSS_PANEL_INTF_DSI},
+	{"spi", MDSS_PANEL_INTF_SPI},
 };
 static char mdss_mdp3_panel[MDSS_MAX_PANEL_LEN];
 
@@ -154,6 +156,13 @@ struct mdp3_iommu_ctx_map mdp3_iommu_contexts[MDP3_IOMMU_CTX_MAX] = {
 		.attached = 0,
 	},
 };
+
+#ifndef CONFIG_FB_MSM_MDSS_SPI_PANEL
+void mdss_spi_panel_bl_ctrl_update(struct mdss_panel_data *pdata, u32 bl_level)
+{
+
+}
+#endif
 
 static int mdp3_get_domain(u32 flags)
 {
@@ -1853,7 +1862,11 @@ int mdp3_put_img(struct mdp3_img_data *data, int client)
 						client == MDP3_CLIENT_DMA_P)
 				mdss_smmu_unmap_dma_buf(data->tab_clone,
 					dom, dir, data->srcp_dma_buf);
-			else
+			else if (client == MDP3_CLIENT_SPI) {
+				ion_unmap_kernel(iclient, data->srcp_ihdl);
+				ion_free(iclient, data->srcp_ihdl);
+				data->srcp_ihdl = NULL;
+			} else
 				mdss_smmu_unmap_dma_buf(data->srcp_table,
 					dom, dir, data->srcp_dma_buf);
 			data->mapped = false;
@@ -1922,7 +1935,7 @@ err_unmap:
 			mdss_smmu_dma_data_direction(DMA_BIDIRECTIONAL));
 	dma_buf_detach(data->srcp_dma_buf, data->srcp_attachment);
 	dma_buf_put(data->srcp_dma_buf);
-
+	data->skip_detach = true;
 	if (client ==  MDP3_CLIENT_PPP || client == MDP3_CLIENT_DMA_P) {
 		vfree(data->tab_clone->sgl);
 		kfree(data->tab_clone);
@@ -1966,12 +1979,21 @@ int mdp3_get_img(struct msmfb_data *img, struct mdp3_img_data *data, int client)
 		if (!ret)
 			goto done;
 	} else if (iclient) {
-		data->srcp_dma_buf = dma_buf_get(img->memory_id);
+			data->srcp_dma_buf = dma_buf_get(img->memory_id);
 			if (IS_ERR(data->srcp_dma_buf)) {
 				pr_err("DMA : error on ion_import_fd\n");
 				ret = PTR_ERR(data->srcp_dma_buf);
 				data->srcp_dma_buf = NULL;
 				return ret;
+			}
+			if (client == MDP3_CLIENT_SPI) {
+				data->srcp_ihdl = ion_import_dma_buf(iclient,
+					img->memory_id);
+				if (IS_ERR_OR_NULL(data->srcp_ihdl)) {
+					pr_err("error on ion_import_fd\n");
+					data->srcp_ihdl = NULL;
+					return -EIO;
+				}
 			}
 
 			data->srcp_attachment =
@@ -2005,6 +2027,26 @@ int mdp3_get_img(struct msmfb_data *img, struct mdp3_img_data *data, int client)
 				data->mapped = false;
 				data->skip_detach = false;
 				return ret;
+
+			} else if (client == MDP3_CLIENT_SPI) {
+					void *vaddr;
+
+					if (ion_handle_get_size(iclient,
+						data->srcp_ihdl,
+						(size_t *)&data->len) < 0) {
+						pr_err("get size failed\n");
+						return -EINVAL;
+					}
+					vaddr = ion_map_kernel(iclient,
+						data->srcp_ihdl);
+					if (IS_ERR_OR_NULL(vaddr)) {
+						pr_err("Mapping failed\n");
+						mdp3_put_img(data, client);
+						return -EINVAL;
+					}
+					data->addr = (dma_addr_t) vaddr;
+					data->len -= img->offset;
+					return 0;
 			}
 		}
 
@@ -2294,6 +2336,8 @@ static int mdp3_is_display_on(struct mdss_panel_data *pdata)
 	if (pdata->panel_info.type == MIPI_VIDEO_PANEL) {
 		status = MDP3_REG_READ(MDP3_REG_DSI_VIDEO_EN);
 		rc = status & 0x1;
+	} else if (pdata->panel_info.type == SPI_PANEL) {
+		rc = is_spi_panel_continuous_splash_on(pdata);
 	} else {
 		status = MDP3_REG_READ(MDP3_REG_DMA_P_CONFIG);
 		status &= 0x180000;
@@ -2331,7 +2375,11 @@ static int mdp3_continuous_splash_on(struct mdss_panel_data *pdata)
 	mdp3_clk_set_rate(MDP3_CLK_MDP_SRC, mdp_clk_rate,
 			MDP3_CLIENT_DMA_P);
 
-	rc = mdp3_bus_scale_set_quota(MDP3_CLIENT_DMA_P, ab, ib);
+	/*DMA not used on SPI interface, remove DMA bus voting*/
+	if (panel_info->type == SPI_PANEL)
+		rc = mdp3_bus_scale_set_quota(MDP3_CLIENT_DMA_P, 0, 0);
+	else
+		rc = mdp3_bus_scale_set_quota(MDP3_CLIENT_DMA_P, ab, ib);
 	bus_handle->restore_ab[MDP3_CLIENT_DMA_P] = ab;
 	bus_handle->restore_ib[MDP3_CLIENT_DMA_P] = ib;
 
@@ -2349,6 +2397,8 @@ static int mdp3_continuous_splash_on(struct mdss_panel_data *pdata)
 
 	if (panel_info->type == MIPI_VIDEO_PANEL)
 		mdp3_res->intf[MDP3_DMA_OUTPUT_SEL_DSI_VIDEO].active = 1;
+	else if (panel_info->type == SPI_PANEL)
+		mdp3_res->intf[MDP3_DMA_OUTPUT_SEL_SPI_CMD].active = 1;
 	else
 		mdp3_res->intf[MDP3_DMA_OUTPUT_SEL_DSI_CMD].active = 1;
 
@@ -2666,9 +2716,41 @@ static ssize_t mdp3_show_smart_blit(struct device *dev,
 static DEVICE_ATTR(smart_blit, S_IRUGO | S_IWUSR | S_IWGRP,
 			mdp3_show_smart_blit, mdp3_store_smart_blit);
 
+static ssize_t mdp3_store_twm(struct device *dev,
+		struct device_attribute *attr, const char *buf, size_t len)
+{
+	u32 data = -1;
+	ssize_t rc = 0;
+
+	rc = kstrtoint(buf, 10, &data);
+	if (rc) {
+		pr_err("kstrtoint failed. rc=%d\n", rc);
+		return rc;
+	}
+	mdp3_res->twm_en = data ? true : false;
+	pr_err("TWM :  %s\n",	(mdp3_res->twm_en) ?
+		"ENABLED" : "DISABLED");
+	return len;
+}
+
+static ssize_t mdp3_show_twm(struct device *dev,
+		struct device_attribute *attr, char *buf)
+{
+	ssize_t ret = 0;
+
+	pr_err("TWM :  %s\n",	(mdp3_res->twm_en) ?
+		"ENABLED" : "DISABLED");
+	ret = snprintf(buf, PAGE_SIZE, "%d\n", mdp3_res->twm_en);
+	return ret;
+}
+
+static DEVICE_ATTR(twm_enable, S_IRUGO | S_IWUSR | S_IWGRP,
+			mdp3_show_twm, mdp3_store_twm);
+
 static struct attribute *mdp3_fs_attrs[] = {
 	&dev_attr_caps.attr,
 	&dev_attr_smart_blit.attr,
+	&dev_attr_twm_enable.attr,
 	NULL
 };
 
@@ -2930,6 +3012,14 @@ static int mdp3_probe(struct platform_device *pdev)
 		mdp3_dynamic_clock_gating_ctrl;
 	mdp3_res->mdss_util->panel_intf_type = mdp3_panel_intf_type;
 	mdp3_res->mdss_util->panel_intf_status = mdp3_panel_get_intf_status;
+	mdp3_res->twm_en = false;
+
+	if (mdp3_res->mdss_util->param_check(mdss_mdp3_panel)) {
+		mdp3_res->mdss_util->display_disabled = true;
+		mdp3_res->mdss_util->mdp_probe_done = true;
+		return 0;
+	}
+
 	rc = mdp3_parse_dt(pdev);
 	if (rc)
 		goto probe_done;
@@ -3000,6 +3090,9 @@ static int mdp3_probe(struct platform_device *pdev)
 
 	mdp3_res->mdss_util->mdp_probe_done = true;
 	pr_debug("%s: END\n", __func__);
+
+	if (mdp3_res->pan_cfg.pan_intf == MDSS_PANEL_INTF_SPI)
+		mdp3_interface.check_dsi_status = mdp3_check_spi_panel_status;
 
 probe_done:
 	if (IS_ERR_VALUE(rc))
@@ -3105,7 +3198,7 @@ static int mdp3_runtime_resume(struct device *dev)
 		atomic_read(&mdp3_res->active_intf_cnt));
 
 	/* do not resume panels when coming out of idle power collapse */
-	if (!mdp3_res->idle_pc)
+	if (!mdp3_is_idle_pc())
 		device_for_each_child(dev, &device_on, mdss_fb_suspres_panel);
 
 	MDSS_XLOG(XLOG_FUNC_ENTRY);
@@ -3137,7 +3230,7 @@ static int mdp3_runtime_suspend(struct device *dev)
 	mdp3_footswitch_ctrl(0);
 
 	/* do not suspend panels when going in to idle power collapse */
-	if (!mdp3_res->idle_pc)
+	if (!mdp3_is_idle_pc())
 		device_for_each_child(dev, &device_on, mdss_fb_suspres_panel);
 
 	return 0;

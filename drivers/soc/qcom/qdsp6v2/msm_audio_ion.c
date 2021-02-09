@@ -763,6 +763,8 @@ static int msm_audio_smmu_init(struct device *dev)
 					msm_iommu_get_bus(dev),
 					   MSM_AUDIO_ION_VA_START,
 					   MSM_AUDIO_ION_VA_LEN);
+	if (mapping == NULL)
+		goto fail_attach;
 	if (IS_ERR(mapping))
 		return PTR_ERR(mapping);
 

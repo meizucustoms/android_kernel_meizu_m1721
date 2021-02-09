@@ -47,24 +47,28 @@ static struct sync_fence *__mdp3_create_fence(struct msm_fb_data_type *mfd,
 
 	mdp3_session = (struct mdp3_session_data *)mfd->mdp.private1;
 
-	if (fence_type == MDP3_RETIRE_FENCE)
-		snprintf(fence_name, sizeof(fence_name), "fb%d_retire",
-			mfd->index);
-	else
-		snprintf(fence_name, sizeof(fence_name), "fb%d_release",
-			mfd->index);
-
 	if ((fence_type == MDP3_RETIRE_FENCE) &&
 		(mfd->panel.type == MIPI_CMD_PANEL)) {
 		if (mdp3_session->vsync_timeline) {
 			value = mdp3_session->vsync_timeline->value + 1 +
 				mdp3_session->retire_cnt++;
-			sync_fence = mdss_fb_sync_get_fence(
-					mdp3_session->vsync_timeline,
-						fence_name, value);
 		} else {
 			return ERR_PTR(-EPERM);
 		}
+	}
+
+	if (fence_type == MDP3_RETIRE_FENCE)
+		snprintf(fence_name, sizeof(fence_name), "fb%d_retire_%d",
+			mfd->index, value);
+	else
+		snprintf(fence_name, sizeof(fence_name), "fb%d_release_%d",
+			mfd->index, value);
+
+	if ((fence_type == MDP3_RETIRE_FENCE) &&
+		(mfd->panel.type == MIPI_CMD_PANEL)) {
+			sync_fence = mdss_fb_sync_get_fence(
+					mdp3_session->vsync_timeline,
+						fence_name, value);
 	} else {
 		sync_fence = mdss_fb_sync_get_fence(sync_pt_data->timeline,
 			fence_name, value);
@@ -193,6 +197,7 @@ static int __mdp3_map_layer_buffer(struct msm_fb_data_type *mfd,
 	struct msmfb_data img;
 	bool is_panel_type_cmd = false;
 	struct mdp3_img_data data;
+	int intf_type;
 	int rc = 0;
 
 	layer = &input_layer[0];
@@ -204,16 +209,17 @@ static int __mdp3_map_layer_buffer(struct msm_fb_data_type *mfd,
 		goto err;
 	}
 
+	intf_type = mdp3_get_ion_client(mfd);
 	memset(&img, 0, sizeof(img));
 	img.memory_id = buffer->planes[0].fd;
 	img.offset = buffer->planes[0].offset;
 
 	memset(&data, 0, sizeof(struct mdp3_img_data));
 
-	if (mfd->panel.type == MIPI_CMD_PANEL)
+	if (mfd->panel.type == MIPI_CMD_PANEL || intf_type == MDP3_CLIENT_SPI)
 		is_panel_type_cmd = true;
 	if (is_panel_type_cmd) {
-		rc = mdp3_iommu_enable(MDP3_CLIENT_DMA_P);
+		rc = mdp3_iommu_enable(intf_type);
 		if (rc) {
 			pr_err("fail to enable iommu\n");
 			return rc;
@@ -223,7 +229,7 @@ static int __mdp3_map_layer_buffer(struct msm_fb_data_type *mfd,
 	if (layer->flags & MDP_LAYER_SECURE_DISPLAY_SESSION)
 		data.flags |=  MDP_SECURE_DISPLAY_OVERLAY_SESSION;
 
-	rc = mdp3_get_img(&img, &data, MDP3_CLIENT_DMA_P);
+	rc = mdp3_get_img(&img, &data, intf_type);
 	if (rc) {
 		pr_err("fail to get overlay buffer\n");
 		goto err;
@@ -267,7 +273,7 @@ int mdp3_layer_pre_commit(struct msm_fb_data_type *mfd,
 	struct mdp3_session_data *mdp3_session;
 	struct mdp3_dma *dma;
 	int layer_count = commit->input_layer_cnt;
-	int stride, format;
+	int stride, format, client;
 
 	/* Handle NULL commit */
 	if (!layer_count) {
@@ -280,7 +286,8 @@ int mdp3_layer_pre_commit(struct msm_fb_data_type *mfd,
 
 	mutex_lock(&mdp3_session->lock);
 
-	mdp3_bufq_deinit(&mdp3_session->bufq_in);
+	client = mdp3_get_ion_client(mfd);
+	mdp3_bufq_deinit(&mdp3_session->bufq_in, client);
 
 	layer_list = commit->input_layers;
 	layer = &layer_list[0];

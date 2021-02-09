@@ -844,7 +844,8 @@ static int diag_cmd_set_msg_mask(unsigned char *src_buf, int src_len,
 		goto end;
 	if (mask_size + write_len > dest_len)
 		mask_size = dest_len - write_len;
-	memcpy(dest_buf + write_len, src_buf + header_len, mask_size);
+	if (mask_size && src_len >= header_len + mask_size)
+		memcpy(dest_buf + write_len, src_buf + header_len, mask_size);
 	write_len += mask_size;
 	for (i = 0; i < NUM_PERIPHERALS; i++) {
 		if (!diag_check_update(i, pid))
@@ -2041,14 +2042,6 @@ int diag_copy_to_user_msg_mask(char __user *buf, size_t count,
 			__func__, mask_info->ptr, mask_info->update_buf);
 		return -EINVAL;
 	}
-	mutex_lock(&driver->diag_maskclear_mutex);
-	if (driver->mask_clear) {
-		DIAG_LOG(DIAG_DEBUG_PERIPHERALS,
-		"diag:%s: count = %zu\n", __func__, count);
-		mutex_unlock(&driver->diag_maskclear_mutex);
-		return -EIO;
-	}
-	mutex_unlock(&driver->diag_maskclear_mutex);
 	mutex_lock(&mask_info->lock);
 	mutex_lock(&driver->msg_mask_lock);
 

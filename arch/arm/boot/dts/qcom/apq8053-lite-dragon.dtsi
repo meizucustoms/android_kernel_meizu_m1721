@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2017, 2018 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -171,23 +171,6 @@
 	/delete-property/ msm-vdd-wsa-switch-supply;
 	/delete-property/ qcom,msm-vdd-wsa-switch-voltage;
 	/delete-property/ qcom,msm-vdd-wsa-switch-current;
-};
-
-&pm8953_l2 {
-	status = "okay";
-	regulator-always-on;
-};
-
-&camera0 {
-	qcom,mount-angle = <90>;
-};
-
-&camera1 {
-	qcom,mount-angle = <90>;
-};
-
-&camera2{
-	qcom,mount-angle = <90>;
 };
 
 &pm8953_diangu_dig {
@@ -405,8 +388,8 @@
 	interrupt-map-mask = <0xffffffff>;
 	interrupt-map = <0 &intc 0 125 0
 		1 &intc 0 221 0
-		2 &tlmm 133 0>;
-	interrupt-names = "hc_irq", "pwr_irq", "status_irq";
+		2 &tlmm 114 0x1>;
+	interrupt-names = "hc_irq", "pwr_irq", "sdiowakeup_irq";
 
 	qcom,clk-rates = <400000 20000000 25000000 50000000 100000000
 				177770000>;
@@ -563,5 +546,30 @@
 
 	qcom,pronto@a21b000 {
 		status = "disabled";
+	};
+};
+
+&firmware {
+	android {
+		compatible = "android,firmware";
+		fstab {
+			compatible = "android,fstab";
+			vendor {
+				compatible = "android,vendor";
+				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/vendor";
+				type = "ext4";
+				mnt_flags = "ro,barrier=1,discard";
+				fsmgr_flags = "wait";
+				status = "ok";
+			};
+			system {
+				compatible = "android,system";
+				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/system";
+				type = "ext4";
+				mnt_flags = "ro,barrier=1,discard";
+				fsmgr_flags = "wait";
+				status = "ok";
+			};
+		};
 	};
 };

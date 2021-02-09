@@ -46,6 +46,7 @@
 
 		qcom,idle-timeout = <80>; //msec
 		qcom,strtstp-sleepwake;
+		qcom,gpu-disable-fuse = <0x44 0x00000001 27>;
 
 		/*
 		 * Clocks = KGSL_CLK_CORE | KGSL_CLK_IFACE |

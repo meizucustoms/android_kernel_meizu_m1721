@@ -93,6 +93,7 @@ karo	Ka-Ro electronics GmbH
 keymile	Keymile GmbH
 lacie	LaCie
 lantiq	Lantiq Semiconductor
+lego	LEGO Systems A/S
 lenovo	Lenovo Group Ltd.
 invn	InvenSense Inc.
 isl	Intersil
@@ -200,6 +201,7 @@ xlnx	Xilinx
 zyxel	ZyXEL Communications Corp.
 zarlink	Zarlink Semiconductor
 bosch-sensortec»    Bosch Sensortec GmbH
+inven   InvenSense, Inc.
 lontium Lontium Semiconductor
 himax	Himax Technologies, Inc.
 hxcommon	Himax Technologies, Inc.
