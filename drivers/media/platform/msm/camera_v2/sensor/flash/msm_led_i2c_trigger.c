@@ -169,7 +169,7 @@ static int32_t msm_led_get_dt_data(struct device_node *of_node,
 				fctrl->flash_trigger_name[i],
 				&fctrl->flash_trigger[i]);
 		}
-	} else { /*Handle LED Flash Ctrl by GPIO*/
+	} else { /* Handle LED Flash Ctrl by GPIO */
 		power_info->gpio_conf =
 			 kzalloc(sizeof(struct msm_camera_gpio_conf),
 				 GFP_KERNEL);
@@ -422,8 +422,7 @@ int msm_flash_i2c_probe(struct i2c_client *client,
 	fctrl->flash_device_type = MSM_CAMERA_I2C_DEVICE;
 
 	/* Assign name for sub device */
-	snprintf(fctrl->msm_sd.sd.name, sizeof(fctrl->msm_sd.sd.name),
-		FLASH_NAME);
+	strcpy(fctrl->msm_sd.sd.name, "msm_flash");
 
 	rc = msm_led_get_dt_data(client->dev.of_node, fctrl);
 	if (rc < 0) {
@@ -438,8 +437,7 @@ int msm_flash_i2c_probe(struct i2c_client *client,
 		fctrl->flash_i2c_client->client = client;
 		if (fctrl->flashdata->slave_info->sensor_slave_addr)
 			fctrl->flash_i2c_client->client->addr =
-				fctrl->flashdata->slave_info->
-				sensor_slave_addr;
+				fctrl->flashdata->slave_info->sensor_slave_addr;
 	} else {
 		pr_err("%s %s sensor_i2c_client NULL\n",
 			__func__, client->name);

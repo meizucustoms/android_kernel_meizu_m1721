@@ -637,19 +637,19 @@ static int32_t msm_led_aw36413_i2c_trigger_config(struct msm_led_flash_ctrl_t *f
 	aw_info("cfg_type = %d\n", cfg->cfg_type);
     
     switch (cfg->cfg_type) {
-    case CFG_FLASH_INIT:
+    case MSM_CAMERA_LED_INIT:
         if (fctrl->func_tbl->flash_led_init)
             ret = fctrl->func_tbl->flash_led_init(fctrl);
         break;
-    case CFG_FLASH_RELEASE:
+    case MSM_CAMERA_LED_RELEASE:
         if (fctrl->func_tbl->flash_led_release)
             ret = fctrl->func_tbl->flash_led_release(fctrl);
         break;
-    case CFG_FLASH_OFF:
+    case MSM_CAMERA_LED_OFF:
         if (fctrl->func_tbl->flash_led_off)
             ret = fctrl->func_tbl->flash_led_off(fctrl);
         break;
-    case CFG_FLASH_LOW:
+    case MSM_CAMERA_LED_LOW:
         fctrl->flash_op_current[0] = cfg->flash_current[0];
         fctrl->flash_op_current[1] = cfg->flash_current[1];
         aw_info("[LED1 | %d mA] [LED2 | %d mA] [LED3 | %d mA] [LED4 | %d mA]\n", fctrl->flash_op_current[0],
@@ -659,7 +659,7 @@ static int32_t msm_led_aw36413_i2c_trigger_config(struct msm_led_flash_ctrl_t *f
         if (fctrl->func_tbl->flash_led_low)
             ret = fctrl->func_tbl->flash_led_low(fctrl);
         break;
-    case CFG_FLASH_HIGH:
+    case MSM_CAMERA_LED_HIGH:
         fctrl->flash_op_current[0] = cfg->flash_current[0];
         fctrl->flash_op_current[1] = cfg->flash_current[1];
         aw_info("[LED1 | %d mA] [LED2 | %d mA] [LED3 | %d mA] [LED4 | %d mA]\n", fctrl->flash_op_current[0],
