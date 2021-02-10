@@ -30,7 +30,7 @@
 #define IPA_V3_5_CLK_RATE_NOMINAL (400 * 1000 * 1000UL)
 #define IPA_V3_5_CLK_RATE_TURBO (42640 * 10 * 1000UL)
 
-#define IPA_V3_0_MAX_HOLB_TMR_VAL (4294967296 - 1)
+#define IPA_MAX_HOLB_TMR_VAL (4294967296 - 1)
 
 #define IPA_V3_0_BW_THRESHOLD_TURBO_MBPS (1000)
 #define IPA_V3_0_BW_THRESHOLD_NOMINAL_MBPS (600)
@@ -5385,6 +5385,7 @@ int ipa3_controller_static_bind(struct ipa3_controller *ctrl,
 
 	ctrl->ipa_init_hdr = _ipa_init_hdr_v3_0;
 	ctrl->ipa_generate_rt_hw_rule = __ipa_generate_rt_hw_rule_v3_0;
+	ctrl->max_holb_tmr_val = IPA_MAX_HOLB_TMR_VAL;
 
 	return 0;
 }

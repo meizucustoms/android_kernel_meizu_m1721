@@ -1,4 +1,4 @@
-/* Copyright (c) 2002,2007-2017,2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2002, 2007-2017, 2019-2020 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -311,11 +311,12 @@ int adreno_ringbuffer_probe(struct adreno_device *adreno_dev, bool nopreempt)
 {
 	struct kgsl_device *device = KGSL_DEVICE(adreno_dev);
 	struct adreno_gpudev *gpudev = ADRENO_GPU_DEVICE(adreno_dev);
+	unsigned int priv = KGSL_MEMDESC_RANDOM | KGSL_MEMDESC_PRIVILEGED;
 	int i, status;
 
 	if (!adreno_is_a3xx(adreno_dev)) {
 		status = kgsl_allocate_global(device, &device->scratch,
-				PAGE_SIZE, 0, KGSL_MEMDESC_RANDOM, "scratch");
+				PAGE_SIZE, 0, priv, "scratch");
 		if (status != 0)
 			return status;
 	}
