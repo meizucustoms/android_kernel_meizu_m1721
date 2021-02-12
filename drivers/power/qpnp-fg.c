@@ -253,7 +253,7 @@ static struct fg_mem_setting settings[FG_MEM_SETTING_MAX] = {
 	SETTING(CHG_TERM_CURRENT, 0x4F8,   2,      250),
 	SETTING(IRQ_VOLT_EMPTY,	 0x458,   3,      3100),
 	SETTING(CUTOFF_VOLTAGE,	 0x40C,   0,      3400),
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU
 	SETTING(VBAT_EST_DIFF,	 0x000,   0,      200),
 #else
 	SETTING(VBAT_EST_DIFF,	 0x000,   0,      30),
@@ -2021,13 +2021,10 @@ static void fg_handle_battery_insertion(struct fg_chip *chip)
 				&chip->update_sram_data, msecs_to_jiffies(0));
 }
 
-
-#ifndef CONFIG_MACH_XIAOMI_C6
 static int soc_to_setpoint(int soc)
 {
 	return DIV_ROUND_CLOSEST(soc * 255, 100);
 }
-#endif
 
 static void batt_to_setpoint_adc(int vbatt_mv, u8 *data)
 {
@@ -8216,11 +8213,7 @@ static int fg_common_hw_init(struct fg_chip *chip)
 	}
 
 	rc = fg_mem_masked_write(chip, settings[FG_MEM_DELTA_SOC].address, 0xFF,
-#ifdef CONFIG_MACH_XIAOMI_C6
-			1,
-#else
 			soc_to_setpoint(settings[FG_MEM_DELTA_SOC].value),
-#endif
 			settings[FG_MEM_DELTA_SOC].offset);
 	if (rc) {
 		pr_err("failed to write delta soc rc=%d\n", rc);

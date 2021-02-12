@@ -39,7 +39,7 @@ CFLAGS_aes-glue-ce.o	:= -DUSE_V8_CRYPTO_EXTENSIONS
 
 obj-$(CONFIG_CRYPTO_CRC32_ARM64) += crc32-arm64.o
 
-ifdef CONFIG_MACH_XIAOMI_MSM8953
+ifdef CONFIG_MACH_MEIZU
 CFLAGS_crc32-arm64.o	:= -mcpu=cortex-a53+crc -Wa,-mcpu=cortex-a53+crc -mtune=cortex-a53
 else
 CFLAGS_crc32-arm64.o	:= -mcpu=generic+crc

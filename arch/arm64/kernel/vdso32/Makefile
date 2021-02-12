@@ -64,7 +64,7 @@ VDSO_CAFLAGS += -DDISABLE_BRANCH_PROFILING
 # Try to compile for ARMv8. If the compiler is too old and doesn't support it,
 # fall back to v7. There is no easy way to check for what architecture the code
 # is being compiled, so define a macro specifying that (see arch/arm/Makefile).
-ifndef CONFIG_MACH_XIAOMI_MSM8953
+ifndef CONFIG_MACH_MEIZU
 VDSO_CAFLAGS += $(call cc32-option,-march=armv8-a -D__LINUX_ARM_ARCH__=8,\
                                    -march=armv7-a -D__LINUX_ARM_ARCH__=7)
 else
@@ -98,7 +98,7 @@ VDSO_CFLAGS += -D__uint128_t='void*'
 VDSO_CFLAGS += $(call cc32-disable-warning,shift-count-overflow)
 VDSO_CFLAGS += -Wno-int-to-pointer-cast
 
-ifdef CONFIG_MACH_XIAOMI_MSM8953
+ifdef CONFIG_MACH_MEIZU
 VDSO_CFLAGS += -mcpu=cortex-a53 -Wa,-mcpu=cortex-a53 -mtune=cortex-a53
 endif
 
