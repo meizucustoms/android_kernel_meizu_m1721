@@ -885,8 +885,4 @@ config SND_SOC_MSM_HDMI_CODEC_RX
 config SND_SOC_MSM_HDMI_DBA_CODEC_RX
 	bool "HDMI DBA Audio Playback"
 	depends on MSM_DBA
-	
-config SND_CS35L35_MEIZU
-	bool "CS35L35 Use I2C8"
-	default n
 endmenu

@@ -1,0 +1,4 @@
+config MEIZU_SPEAKER_PROINFO
+	bool "TXJ Speaker Calibration"
+	help
+	  Enable kernel TXJ driver to support OS-level library for speaker

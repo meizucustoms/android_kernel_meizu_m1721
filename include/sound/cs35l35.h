@@ -85,6 +85,8 @@ struct cs35l35_platform_data {
 	bool bst_pdn_fet_on;
 	/* Boost Voltage : used if ClassH Algo Enabled */
 	int bst_vctl;
+	/* Boost Peak Amp : used if ClassH Algo Enabled */
+	int bst_ipk;
 	/* Amp Gain Zero Cross */
 	bool gain_zc;
 	/* Audio Input Location */
@@ -93,6 +95,8 @@ struct cs35l35_platform_data {
 	int adv_channel;
 	/* Shared Boost for stereo */
 	bool shared_bst;
+    /* Specifies this amp is using an external boost supply */
+	bool ext_bst;
 	/* ClassH Algorithm */
 	struct classh_cfg classh_algo;
 	/* Monitor Config */

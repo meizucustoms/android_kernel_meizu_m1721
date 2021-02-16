@@ -11,6 +11,16 @@
  */
 
 / {
+	aliases {
+		i2c2 = &i2c_2;
+		i2c3 = &i2c_3;
+		i2c5 = &i2c_5;
+		i2c6 = &i2c_6;
+		i2c8 = &i2c_8;
+		spi1 = &spi_1;
+		spi3 = &spi_3;
+	};
+
 	firmware: firmware {
 		android {
 			fstab {
@@ -50,34 +60,7 @@
 				qcom,pull-up = <1>;
 			};
 		};
-                qcom,leds@a100 {
-                        status = "okay";
-                        compatible = "qcom,leds-qpnp";
-                        reg = <0xa100 0x100>;
-                        label = "mpp";
-                        qcom,led_mpp_2 {
-                                label = "mpp";
-                                linux,name = "button-backlight";
-                                linux,default-trigger = "none";
-                                qcom,default-state = "off";
-                                qcom,max-current = <5>;
-                                qcom,current-setting = <5>;
-                                qcom,id = <6>;
-                                qcom,mode = "manual";
-                                qcom,source-sel = <1>;
-                                qcom,mode-ctrl = <0x61>;
-                        };
-                };
 		/delete-node/ qcom,pm8953_typec@bf00;
-	};
-
-	qcom,pmi8950@2 {
-		qcom,leds@a100 {
-			compatible = "qcom,leds-qpnp";
-			reg = <0xa100 0x100>;
-			label = "mpp";
-			/delete-node/ qcom,led_mpp_2;
-		};
 	};
 };
 
@@ -88,15 +71,75 @@
 	};
 };
 
-&pmi8950_gpios {
-	gpio@c000 {
-		qcom,mode = <1>;
-		qcom,pull = <4>;
-		qcom,src-sel = <2>;
-		qcom,master-en = <1>;
-		qcom,out-strength = <2>;
-		status = "okay";
+
+
+&pm8953_gpios {
+        gpio@c700 {
+                status = "disabled";
+        };
+    
+        gpio@c600 {
+		status = "disabled";
 	};
+    
+        gpio@c500 {
+		status = "disabled";
+	};
+    
+        gpio@c400 {
+		status = "disabled";
+	};
+    
+        gpio@c300 {
+		status = "disabled";
+	};
+    
+         gpio@c200 {
+		status = "disabled";
+	};
+    
+        gpio@c100 {
+                reg = <0xc100 0x100>;
+                qcom,pin-num = <2>;
+                qcom,mode = <0>;
+                qcom,pull = <0>;
+                qcom,vin-sel = <2>;
+                qcom,src-sel = <0>;
+                qcom,master-en = <1>;
+                qcom,out-strength = <3>;
+                qcom,output-type = <0>;
+                status = "okay";
+        };
+    
+        gpio@c000 {
+                reg = <0xc000 0x100>;
+                qcom,pin-num = <1>;
+                qcom,mode = <1>;
+                qcom,pull = <5>;
+                qcom,vin-sel = <0>;
+                qcom,src-sel = <2>;
+                qcom,master-en = <1>;
+                qcom,out-strength = <2>;
+                status = "okay";
+        };
+};
+
+&pmi8950_gpios {
+        gpio@c100 {
+                reg = <0xc100 0x100>;
+                qcom,pin-num = <2>;
+                qcom,mode = <2>;
+                qcom,output-type = <0>;
+                qcom,invert = <0>;
+                qcom,pull = <4>;
+                qcom,out-strength = <3>;
+                qcom,master-en = <1>;
+                status = "okay";
+        };
+    
+        gpio@c000 {
+                status = "disabled";
+        };
 };
 
 &qrd_batterydata {
@@ -218,11 +261,10 @@
 	qcom,cool-bat-decidegc = <150>;
 	qcom,warm-bat-decidegc = <450>;
 	qcom,fg-restore-batt-info;
-
 };
 
 &pmi8950_pwm {
-	status = "okay";
+	status = "disabled";
 };
 
 &wled {
@@ -251,65 +293,66 @@
 };
 
 &pmi_haptic {
-	qcom,vmax-mv = <3000>;
+	qcom,vmax-mv = <3470>;
 };
 
 &soc {
 	qcom,mpm@601d4 {
-		qcom,gpio-map = <0x03 0x26>,
-                        <0x04 0x01>,
-                        <0x05 0x05>,
-                        <0x06 0x09>,
-                        <0x08 0x25>,
-                        <0x09 0x24>,
-                        <0x0a 0x0d>,
-                        <0x0b 0x23>,
-                        <0x0c 0x11>,
-                        <0x0d 0x15>,
-                        <0x0e 0x36>,
-                        <0x0f 0x22>,
-                        <0x10 0x1f>,
-                        <0x11 0x3a>,
-                        <0x12 0x1c>,
-                        <0x13 0x2a>,
-                        <0x14 0x19>,
-                        <0x15 0x0c>,
-                        <0x16 0x2b>,
-                        <0x17 0x2c>,
-                        <0x18 0x2d>,
-                        <0x19 0x2e>,
-                        <0x1a 0x30>,
-                        <0x1b 0x41>,
-                        <0x1c 0x5d>,
-                        <0x1d 0x61>,
-                        <0x1e 0x3f>,
-                        <0x1f 0x46>,
-                        <0x20 0x47>,
-                        <0x21 0x48>,
-                        <0x22 0x51>,
-                        <0x23 0x55>,
-                        <0x24 0x5a>,
-                        <0x32 0x43>,
-                        <0x33 0x49>, 
-                        <0x34 0x4a>,
-                        <0x35 0x3e>,
-                        <0x3b 0x3b>,
-                        <0x3c 0x3c>,
-                        <0x3d 0x3d>,
-                        <0x3e 0x56>,
-                        <0x3f 0x57>,
-                        <0x40 0x5b>,
-                        <0x41 0x81>,
-                        <0x42 0x82>,
-                        <0x43 0x83>,
-                        <0x44 0x84>,
-                        <0x45 0x85>,
-                        <0x46 0x89>,
-                        <0x47 0x8a>,
-                        <0x48 0x8b>,
-                        <0x49 0x8c>,
-                        <0x4a 0x8d>,
-                        <0xff 0x58>;
+		qcom,gpio-map = <3  38 >,
+                        <4  1 >,
+                        <5  5 >,
+                        <6  9 >,
+                        <8  37>,
+                        <9  36>,
+                        <10  13>,
+                        <11  35>,
+                        <12  17>,
+                        <13  21>,
+                        <14  54>,
+                        <15  34>,
+                        <16  31>,
+                        <17  58>,
+                        <18  28>,
+                        <19  42>,
+                        <20  25>,
+                        <21  12>,
+                        <22  43>,
+                        <23  44>,
+                        <24  45>,
+                        <25  46>,
+                        <26  48>,
+                        <27  65>,
+                        <28  93>,
+                        <29  97>,
+                        <30  63>,
+                        <31  70>,
+                        <32  71>,
+                        <33  72>,
+                        <34  81>,
+                        <35  85>,
+                        <36  90>,
+                        <50  67>,
+                        <51  73>,
+                        <52  74>,
+                        <53  62>,
+                        <59  59>,
+                        <60  60>,
+                        <61  61>,
+                        <62  86>,
+                        <63  87>,
+                        <64  91>,
+                        <65  129>,
+                        <66  130>,
+                        <67  131>,
+                        <68  132>,
+                        <69  133>,
+                        <70  137>,
+                        <71  138>,
+                        <72  139>,
+                        <73  140>,
+                        <74  141>,
+                        <0xff 24>, /* added by xiaomi */
+                        <0xff 88>;
 		};
 	sn_fuse: snfuse@0xa4128 {
 		compatible = "qcom,sn-fuse";
@@ -317,18 +360,71 @@
 		reg-names = "sn-base";
 	};
 
-	spi@78B5000 {
-			goodix_fp@0 {
-				compatible = "goodix,fingerprint";
-				reg = <0x00>;
-				interrupt-parent = <&tlmm>;
-				interrupts = <0x30 0x01>;
-				goodix,gpio_irq = <&tlmm 0x30 0x00>;
-				goodix,gpio_reset = <&tlmm 0x8c 0x00>;
-				goodix,gpio_pwr = <&tlmm 0x86 0x00>;
-				spi-max-frequency = <0x7a1200>;
-			};
+	qcom_seecom: qseecom@84a00000 { /* renamed from caf qseecom@85b00000 */
+                compatible = "qcom,qseecom";
+                reg = <0x84a00000 0x1900000>; /* changed by xiaomi */
+                reg-names = "secapp-region";
+                qcom,hlos-num-ce-hw-instances = <1>;
+                qcom,hlos-ce-hw-instance = <0>;
+                qcom,qsee-ce-hw-instance = <0>;
+                qcom,disk-encrypt-pipe-pair = <2>;
+                qcom,support-fde;
+                qcom,msm-bus,name = "qseecom-noc";
+                qcom,msm-bus,num-cases = <4>;
+                qcom,msm-bus,num-paths = <1>;
+                qcom,support-bus-scaling;
+                qcom,msm-bus,vectors-KBps =
+                        <55 512 0 0>,
+                        <55 512 0 0>,
+                        <55 512 120000 1200000>,
+                        <55 512 393600 3936000>;
+                clocks = <&clock_gcc clk_crypto_clk_src>,
+                         <&clock_gcc clk_gcc_crypto_clk>,
+                         <&clock_gcc clk_gcc_crypto_ahb_clk>,
+                         <&clock_gcc clk_gcc_crypto_axi_clk>;
+                clock-names = "core_clk_src", "core_clk",
+                                "iface_clk", "bus_clk";
+                qcom,ce-opp-freq = <100000000>;
+        };
+        /delete-node/ qseecom@85b00000;
+
+	gpio_keys {
+		compatible = "gpio-keys";
+		input-name = "gpio-keys";
+		pinctrl-names = "tlmm_gpio_key_active", "tlmm_gpio_key_suspend";
+		pinctrl-0 = <&gpio_key_active>;
+		pinctrl-1 = <&gpio_key_suspend>;
+
+		vol_up {
+			label = "volume_up";
+			gpios = <&tlmm 85 0x1>;
+			linux,input-type = <1>;
+			linux,code = <115>;
+			debounce-interval = <15>;
 		};
+        
+                home {
+                        label = "home";
+                        gpios = <&tlmm 141 0x1>;
+                        linux,input-type = <1>;
+                        linux,code = <102>;
+                        debounce-interval = <15>;
+                        gpio-key,wakeup;
+                };
+	};
+
+	spi@78b5000 {
+                goodix_fp@0 {
+                        compatible = "goodix,fingerprint";
+                        reg = <0>;
+                        interrupt-parent = <&tlmm>;
+                        interrupts = <48 1>;
+                        goodix,gpio_irq = <&tlmm 48 0>;
+                        goodix,gpio_reset = <&tlmm 140 0>;
+                        goodix,gpio_pwr = <&tlmm 134 0>;
+                        spi-max-frequency = <8000000>;
+                };
+        };
 
 	i2c@78b7000 {
                 focaltech@38 {
@@ -363,108 +459,147 @@
                         focaltech,fw-delay-readid-ms = <10>;
                         focaltech,fw-delay-era-flsh-ms = <2000>;
                         focaltech,fw-auto-cal;
-                        focaltech,fw-vkey-support;
                         focaltech,resume-in-workqueue;
-                        focaltech,num-virtual-key = <3>;
-                        focal,virtual_key_1 = <172 500 2040>;/*home*/
-                        focal,virtual_key_2 = <139 200 2040>;/*menu*/
-                        focal,virtual_key_3 = <158 800 2040>;/*back*/
                 };
-            
-			goodix_ts@5d {
-				compatible = "goodix,gt9xx";
-				reg = <0x5d>;
-				interrupt-parent = <0xbe>;
-				interrupts = <0x41 0x2008>;
-				vdd_ana-supply = <0xe2>;
-				vcc_i2c-supply = <0xe3>;
-				goodix,rst-gpio = <0xbe 0x40 0x00>;
-				goodix,irq-gpio = <0xbe 0x41 0x2008>;
-				pinctrl-names = "pmx_ts_active", "pmx_ts_suspend", "pmx_ts_release";
-				pinctrl-0 = <0xe4 0xe5>;
-				pinctrl-1 = <0xe6 0xe7>;
-				pinctrl-2 = <0xe8>;
-				goodix,cfg-group0 = <0x46380480 0x70a3d00 0x1c52808 0x50320305 0x4022 0x617 0x191e1487 0x27cc1f21 0x43067c06 0x19b3311 0x00 0x00 0x431c 0x5a858084 0x41e0804 0x801f0065 0x28005232 0x433f00 0x37500037 0x00 0x00 0x90 0x1000000 0xff6f 0x330028 0x00 0xa4600 0x28 0x11121314 0x15161710 0xf0e0d0c 0xb0a0908 0x7060504 0x3020100 0xffffffff 0xffff0a08 0x6050402 0x1e1f20 0x22242829 0xffffff78 0x11000000 0x88701200 0x00 0x1e5a0f66 0x55000020 0x2201155 0x00 0x00 0x03 0x32000501 0xac800 0x00 0x00 0x00 0x00 0x00 0x2301>;
-			};
+
+		goodix_ts@14 {
+			compatible = "goodix,gt9xx";
+			reg = <0x14>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <65 0x0>;
+			pinctrl-names = "pmx_ts_active","pmx_ts_suspend",
+			"pmx_ts_release";
+			pinctrl-0 = <&ts_int_active &ts_reset_active>;
+			pinctrl-1 = <&ts_int_suspend &ts_reset_suspend>;
+			pinctrl-2 = <&ts_release>;
+			vdd_ana-supply = <&pm8953_l10>;
+			vcc_i2c-supply = <&pm8953_l6>;
+			goodix,rst-gpio = <&tlmm 64 0x0>;
+			goodix,irq-gpio = <&tlmm 65 0x2008>;
+			goodix,cfg-group0 = [45 38 04 80 07 0A 35 41 01 0A
+					26 0B 5A 32 05 05 00 00 00 00
+					00 00 05 14 14 26 14 8C 2E 0E
+					4A 4C F4 0A F4 0A 00 BA 33 11
+					00 00 00 00 00 05 03 28 78 96
+					3A 1E 5A 8F 90 03 00 00 00 04
+					CE 21 00 B0 29 28 98 34 00 87
+					41 60 7B 51 00 7B 18 38 60 00
+					F0 55 40 AA A0 27 00 04 53 00
+					00 00 00 00 00 02 00 00 00 00
+					00 00 00 00 00 00 3C 00 00 00
+					00 28 02 04 06 08 0A 0C 0E 10
+					12 14 16 18 1A 1C 00 00 00 00
+					00 00 00 00 00 00 00 00 00 00
+					00 00 00 02 04 06 08 0A 0C 0F
+					10 12 13 14 16 18 1C 1D 1E 1F
+					20 21 22 24 26 28 29 2A 00 00
+					00 00 00 00 00 00 00 00 00 00
+					00 00 00 00 23 01];
+			goodix,cfg-group1 = [49 38 04 80 07 0A 3D 49 01 48
+					50 0F 50 41 03 65 00 00 00 00
+					00 00 0F 16 1A 23 14 87 27 DD
+					50 52 E7 07 E7 07 00 42 33 91
+					0A 00 00 00 00 83 C4 14 14 C8
+					02 3C 64 8F D0 03 05 1E 00 04
+					93 3F 00 8A 46 00 82 4D 00 7C
+					55 00 76 5F 00 76 18 38 60 00
+					F7 55 40 99 99 17 00 00 D1 00
+					00 00 00 00 00 02 00 00 05 28
+					00 00 00 00 00 28 64 00 00 00
+					00 50 0C 0B 0A 09 08 07 06 05
+					04 03 02 01 00 0D 0E 0F 10 11
+					12 13 14 15 16 17 18 19 1A FF
+					FF FF 29 28 24 22 20 1F 1E 0A
+					08 06 05 04 02 00 FF FF FF 00
+					00 00 00 00 00 00 00 00 28 32
+					3C 10 23 28 0F 00 00 00 00 00
+					00 00 0F 4B 00 00 00 00 00 00
+					1E 50 00 00 00 05 00 00 00 00
+					01 14 78 1A 19 3C 28 00 00 00
+					00 00 00 00 00 00 00 00 00 00
+					00 00 00 00 00 00 83 01];
 		};
-        
-    i2c@7af6000 { /* BLSP1 QUP3 */
-        meizu_led_flash: qcom,led-flash@6b {
-            cell-index = <0x00>;
-            reg = <0x6b>;
-            qcom,slave-id = <0xd6 0x00 0x36>;
-            compatible = "awinic,aw36413";
-            label = "awinic,aw36413";
-            qcom,flash-type = <0x01>;
-            gpios = <0xbe 0x5f 0x00 0xbe 0x5d 0x00 0xbe 0x60 0x00>;
-            qcom,gpio-flash-en = <0x00>;
-            qcom,gpio-flash-en-2 = <0x01>;
-            qcom,gpio-flash-strobe = <0x02>;
-            qcom,gpio-req-tbl-num = <0x00 0x01 0x02>;
-            qcom,gpio-req-tbl-flags = <0x00 0x00 0x00>;
-            qcom,gpio-req-tbl-label = "FLASH_EN", "FLASH_EN_2", "FLASH_STROBE";
+
         };
-        
-        aw2013@45 {
-            compatible = "awinic,aw2013";
-            reg = <0x45>;
-            vdd-supply = <&pm8953_l10>;
-            vcc-supply = <&pm8953_l5>;
 
-            aw2013,red {
-                aw2013,name = "mx-led";
-                aw2013,id = <0x00>;
-                aw2013,max-brightness = <0xff>;
-                aw2013,max-current = <0x03>;
-                aw2013,rise-time-ms = <0x02>;
-                aw2013,hold-time-ms = <0x02>;
-                aw2013,fall-time-ms = <0x02>;
-                aw2013,off-time-ms = <0x02>;
-            };
+	i2c@7af6000{ /* BLSP2 QUP2 */
+                aw2013@45 {
+                        compatible = "awinic,aw2013";
+                        reg = <0x45>;
+                        vdd-supply = <&pm8953_l10>;
+                        vcc-supply = <&pm8953_l5>;
+
+                        aw2013,red {
+                                aw2013,name = "mx-led";
+                                aw2013,id = <0>;
+                                aw2013,max-brightness = <255>;
+                                aw2013,max-current = <3>;
+                                aw2013,rise-time-ms = <2>;
+                                aw2013,hold-time-ms = <2>;
+                                aw2013,fall-time-ms = <2>;
+                                aw2013,off-time-ms = <2>;
+                        };
+                };
+
+                mz_led_flash: qcom,led-flash@6b {
+                        cell-index = <0>;
+                        reg = <0x6b>;
+                        qcom,slave-id = <0xd6 0x0 0x36>;
+                        compatible = "awinic,aw36413";
+                        label = "awinic,aw36413";
+                        qcom,flash-type = <1>;
+                        gpios = <&tlmm 95 0>, <&tlmm 93 0>, <&tlmm 96 0>;
+                        qcom,gpio-flash-en = <0>;
+                        qcom,gpio-flash-en-2 = <1>;
+                        qcom,gpio-flash-strobe = <2>;
+                        qcom,gpio-req-tbl-num = <0 1 2>;
+                        qcom,gpio-req-tbl-flags = <0 0 0>;
+                        qcom,gpio-req-tbl-label = "FLASH_EN", "FLASH_EN_2", "FLASH_STROBE";
+                };
         };
-    };
-        
-    i2c@7af8000 {
-                cs35l35: cs35l35@40 {
-				compatible = "cirrus,cs35l35";
-				reg = <0x40>;
-				reset-gpios = <&tlmm 0x5b 0x01>;
-				irq-gpio = <&tlmm 0x5a 0x01>;
-				interrupt-parent = <&tlmm>;
-				interrupts = <0x5a 0x08>;
-				debounce = <0x5a 0x64>;
-				pinctrl-names = "cs35l35_irq_default";
-				pinctrl-0 = <&cs35l35_int_default>;
-				cirrus,audio-channel = <0x00>;
-				cirrus,sp-drv-strength = <0x00>;
-				cirrus,boost-ctl = <0x7f>;
-				cirrus,boost-ipk = <0x19>;
 
-				cirrus,classh-internal-algo {
-					cirrus,classh-bst-overide;
-					cirrus,classh-bst-max-limit = <0x01>;
-					cirrus,classh-mem-depth = <0x01>;
-					cirrus,classh-release-rate = <0x03>;
-					cirrus,classh-headroom = <0x08>;
-					cirrus,classh-wk-fet-disable = <0x00>;
-					cirrus,classh-wk-fet-delay = <0x04>;
-					cirrus,classh-wk-fet-thld = <0x01>;
-					cirrus,classh-vpch-auto = <0x01>;
-					cirrus,classh-vpch-rate = <0x02>;
-					cirrus,classh-vpch-man = <0x05>;
-				};
+        i2c@7af8000 { /* BLSP2 QUP4 */
+                cs35l35@40 {
+                        status = "ok";
+                        compatible = "cirrus,cs35l35";
+                        reg = <0x40>;
+                        reset-gpios = <&tlmm 91 1>;
+                        irq-gpio = <&tlmm 90 1>;
+                        interrupt-parent = <&tlmm>;
+                        interrupts = <90 8>;
+                        debounce = <90 100>;
+                        pinctrl-names = "cs35l35_irq_default";
+                        pinctrl-0 = <&cs35l35_default>;
+                        cirrus,audio-channel = <0>;
+                        cirrus,sp-drv-strength = <0>;
+                        cirrus,boost-ctl = <127>;
+                        cirrus,boost-ipk = <25>;
 
-				cirrus,monitor-signal-format {
-					cirrus,imon = [03 00 01];
-					cirrus,vmon = [03 00 00];
-					cirrus,vpmon = [00 04 00];
-					cirrus,vbstmon = [00 04 01];
-					cirrus,vpbrstat = [00 04 00];
-					cirrus,zerofill = [00 00 00];
-				};
-			};
-		};
-    };
+                        cirrus,classh-internal-algo {
+                                cirrus,classh-bst-overide;
+                                cirrus,classh-bst-max-limit = <1>;
+                                cirrus,classh-mem-depth = <1>;
+                                cirrus,classh-release-rate = <3>;
+                                cirrus,classh-headroom = <8>;
+                                cirrus,classh-wk-fet-disable = <0>;
+                                cirrus,classh-wk-fet-delay = <4>;
+                                cirrus,classh-wk-fet-thld = <1>;
+                                cirrus,classh-vpch-auto = <1>;
+                                cirrus,classh-vpch-rate = <2>;
+                                cirrus,classh-vpch-man = <5>;
+                        };
+
+                        cirrus,monitor-signal-format {
+                                cirrus,imon = [03 00 01];
+                                cirrus,vmon = [03 00 00];
+                                cirrus,vpmon = [00 04 00];
+                                cirrus,vbstmon = [00 04 01];
+                                cirrus,vpbrstat = [00 04 00];
+                                cirrus,zerofill = [00 00 00];
+                        };
+                };
+	};
+};
 
 &usb3 {
 	qcom,detect-dpdm-floating;
@@ -493,10 +628,6 @@
 	status = "ok";
 };
 
-&cs35l35 {
-    status = "ok";
-};
-
 &ext_codec {
 	status = "disabled";
 };
@@ -514,7 +645,7 @@
 };
 
 &wcd9335 {
-	status = "disabled";
+	status = "ok";
 };
 
 &wcd_rst_gpio {
