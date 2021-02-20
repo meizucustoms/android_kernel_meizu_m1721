@@ -277,6 +277,10 @@ cmd_gzip = (cat $(filter-out FORCE,$^) | gzip -n -f -9 > $@) || \
 # DTC
 # ---------------------------------------------------------------------------
 # Generate an assembly file to wrap the output of the device tree compiler
+
+# Silence warnings
+DTC_FLAGS += -q
+
 quiet_cmd_dt_S_dtb= DTB     $@
 cmd_dt_S_dtb=						\
 (							\
