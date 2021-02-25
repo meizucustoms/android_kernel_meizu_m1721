@@ -164,6 +164,7 @@ ifdef CONFIG_SND_SOC_QDSP6V2
 	PLATFORM_OBJS += msm-pcm-hostless.o
 	PLATFORM_OBJS += msm-pcm-host-voice-v2.o
 	PLATFORM_OBJS += msm-pcm-loopback-v2.o
+	PLATFORM_OBJS += msm-pcm-lpa-v2.o
 	PLATFORM_OBJS += msm-pcm-q6-noirq.o
 	PLATFORM_OBJS += msm-pcm-q6-v2.o
 	PLATFORM_OBJS += msm-pcm-routing-v2.o
