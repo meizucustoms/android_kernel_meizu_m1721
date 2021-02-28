@@ -60,20 +60,6 @@ static unsigned char firmware_data_vendor2[] = {
 	#include "HQ_AL1512_C6_FT5435_Ofilm0x51_Ver0a_20170119_app.i"
 };
 #endif
-#define TCT_KEY_BACK  158
-#define TCT_KEY_HOME 172
-#define TCT_KEY_MENU 139
-
-
-
-#define TCT_KEY_BACK_POS_X  100
-#define TCT_KEY_BACK_POS_Y  1321
-
-#define TCT_KEY_HOME_POS_X  360
-#define TCT_KEY_HOME_POS_Y  1321
-
-#define TCT_KEY_MENU_POS_X  620
-#define TCT_KEY_MENU_POS_Y  1321
 
 #define TX_NUM_MAX 50
 #define RX_NUM_MAX 50
@@ -328,7 +314,6 @@ struct work_struct work_vr;
 u8 vr_on;
 #endif
 };
-static bool disable_keys_function = false;
 bool is_ft5435 = false;
 struct wake_lock ft5436_wakelock;
 
@@ -1173,18 +1158,6 @@ static irqreturn_t ft5435_ts_interrupt(int irq, void *dev_id)
 				input_report_abs(ip_dev, ABS_MT_POSITION_Y, y);
 			} else {
 				input_mt_report_slot_state(ip_dev, MT_TOOL_FINGER, 0);
-			}
-		} else{
-			if (data->pdata->fw_vkey_support && !disable_keys_function) {
-				for (j = 0; j < data->pdata->num_virkey; j++) {
-					if (x == data->pdata->vkeys[j].x) {
-						if (status == FT_TOUCH_DOWN || status == FT_TOUCH_CONTACT)
-							input_report_key(data->input_dev, data->pdata->vkeys[j].keycode, true);
-						else {
-							input_report_key(data->input_dev, data->pdata->vkeys[j].keycode, false);
-						}
-					}
-				}
 			}
 		}
 	}
@@ -2338,8 +2311,7 @@ static int ft5435_fw_upgrade(struct device *dev, bool force)
 
 	FT_STORE_TS_INFO(data->ts_info, data->family_id, data->pdata->name,
 			data->pdata->num_max_touches, data->pdata->group_id,
-			data->pdata->fw_vkey_support ? "yes" : "no",
-			data->pdata->fw_name, data->fw_ver[0],
+			"no", data->pdata->fw_name, data->fw_ver[0],
 			data->fw_ver[1], data->fw_ver[2]);
 rel_fw:
 	release_firmware(fw);
@@ -2981,49 +2953,6 @@ static int ft5435_get_dt_coords(struct device *dev, char *name,
 
 	return 0;
 }
-static int ft5435_get_dt_vkey(struct device *dev, struct ft5435_ts_platform_data *pdata)
-{
-	u32 coords[FOCALTECH_MAX_VKEY_NUM];
-	struct property *prop;
-	struct device_node *np = dev->of_node;
-	int coords_size, rc, i;
-	char name[128];
-	memset(name, 0, sizeof(name));
-
-	sprintf(name, "focal,virtual_key_1");
-	prop = of_find_property(np, name, NULL);
-	printk("[%s]000\n", __FUNCTION__);
-	if (!prop)
-		return -EINVAL;
-	printk("[%s]111\n", __FUNCTION__);
-	if (!prop->value)
-		return -ENODATA;
-	printk("[%s]222\n", __FUNCTION__);
-	coords_size = prop->length / sizeof(u32);
-	if (coords_size != pdata->num_virkey) {
-		printk("[%s]invalid %s\n", __FUNCTION__, name);
-		return -EINVAL;
-	}
-	printk("[%s]333\n", __FUNCTION__);
-	for (i = 0; i < pdata->num_virkey; i++) {
-		sprintf(name, "focal,virtual_key_%d", i+1);
-		rc = of_property_read_u32_array(np, name, coords, coords_size);
-		if (rc && (rc != -EINVAL)) {
-			printk("[%s]Unable to read %s\n", __FUNCTION__, name);
-			return rc;
-		}
-
-		pdata->vkeys[i].keycode = coords[0];
-		pdata->vkeys[i].x = coords[1];
-		pdata->vkeys[i].y = coords[2];
-		printk("[FTS]keycode = %d, x= %d, y=%d \n", pdata->vkeys[i].keycode,
-			pdata->vkeys[i].x, pdata->vkeys[i].y);
-	}
-	printk("[%s]5555\n", __FUNCTION__);
-	return 0;
-
-
-}
 
 static int ft5435_parse_dt(struct device *dev,
 			struct ft5435_ts_platform_data *pdata)
@@ -3146,25 +3075,8 @@ static int ft5435_parse_dt(struct device *dev,
 	pdata->resume_in_workqueue = of_property_read_bool(np,
 						"focaltech,resume-in-workqueue");
 
-
-	pdata->fw_vkey_support = of_property_read_bool(np,
-						"focaltech,fw-vkey-support");
-
 	pdata->ignore_id_check = of_property_read_bool(np,
 						"focaltech,ignore-id-check");
-
-	rc = of_property_read_u32(np, "focaltech,num-virtual-key", &temp_val);
-	if (rc && (rc != -EINVAL)) {
-		printk("[%s]focaltech,num-virtual-key,dts parase failed\n", __FUNCTION__);
-		return rc;
-	} else if (rc != -EINVAL) {
-		pdata->num_virkey = temp_val;
-	}
-	rc = ft5435_get_dt_vkey(dev, pdata);
-	if (rc) {
-		printk("[%s]focaltech,ft5435_get_dt_vkey failed\n", __FUNCTION__);
-		return rc;
-	}
 
 	rc = of_property_read_u32(np, "focaltech,family-id", &temp_val);
 	if (!rc)
@@ -3660,33 +3572,6 @@ static void ft5x0x_release_apk_debug_channel(void)
 }
 #endif
 
-static ssize_t ft5435_ts_disable_keys_show(struct device *dev,
-	struct device_attribute *attr, char *buf)
-{
-	const char c = disable_keys_function ? '1' : '0';
-	return sprintf(buf, "%c\n", c);
-}
-
-static ssize_t ft5435_ts_disable_keys_store(struct device *dev,
-	struct device_attribute *attr, const char *buf, size_t count)
-{
-	int i;
-
-	if (sscanf(buf, "%u", &i) == 1 && i < 2) {
-		disable_keys_function = (i == 1);
-		return count;
-	} else {
-		dev_dbg(dev, "disable_keys write error\n");
-		return -EINVAL;
-	}
-}
-
-
-static DEVICE_ATTR(disable_keys, S_IWUSR | S_IRUSR, ft5435_ts_disable_keys_show,
-		   ft5435_ts_disable_keys_store);
-
-
-
 static ssize_t ft5435_ts_enable_dt2w_show(struct device *dev,
         struct device_attribute *attr, char *buf)
 {
@@ -3713,7 +3598,6 @@ static DEVICE_ATTR(enable_dt2w, S_IWUSR | S_IRUSR, ft5435_ts_enable_dt2w_show,
                    ft5435_ts_enable_dt2w_store);
 
 static struct attribute *ft5435_ts_attrs[] = {
-    &dev_attr_disable_keys.attr,
     &dev_attr_enable_dt2w.attr,
 	NULL
 };
@@ -3727,7 +3611,7 @@ static int ft5435_proc_init(struct kernfs_node *sysfs_node_parent)
 {
        int ret = 0;
        char *buf, *path = NULL;
-       char *key_disabler_sysfs_node, *double_tap_sysfs_node;
+       char *double_tap_sysfs_node;
        struct proc_dir_entry *proc_entry_tp = NULL;
        struct proc_dir_entry *proc_symlink_tmp = NULL;
        buf = kzalloc(PATH_MAX, GFP_KERNEL);
@@ -3737,16 +3621,6 @@ static int ft5435_proc_init(struct kernfs_node *sysfs_node_parent)
        proc_entry_tp = proc_mkdir("touchpanel", NULL);
        if (proc_entry_tp == NULL) {
                pr_err("%s: Couldn't create touchpanel dir in procfs\n", __func__);
-               ret = -ENOMEM;
-       }
-
-       key_disabler_sysfs_node = kzalloc(PATH_MAX, GFP_KERNEL);
-       if (key_disabler_sysfs_node)
-               sprintf(key_disabler_sysfs_node, "/sys%s/%s", path, "disable_keys");
-       proc_symlink_tmp = proc_symlink("capacitive_keys_disable",
-                       proc_entry_tp, key_disabler_sysfs_node);
-       if (proc_symlink_tmp == NULL) {
-               pr_err("%s: Couldn't create capacitive_keys_enable symlink\n", __func__);
                ret = -ENOMEM;
        }
 
@@ -3761,7 +3635,6 @@ static int ft5435_proc_init(struct kernfs_node *sysfs_node_parent)
        }
 
        kfree(buf);
-       kfree(key_disabler_sysfs_node);
        kfree(double_tap_sysfs_node);
        return ret;
 }
@@ -3865,10 +3738,6 @@ static int ft5435_ts_probe(struct i2c_client *client,
 	__set_bit(BTN_TOUCH, input_dev->keybit);
 	__set_bit(INPUT_PROP_DIRECT, input_dev->propbit);
 
-	for (i = 0; i < pdata->num_virkey; i++) {
-		input_set_capability(input_dev, EV_KEY,
-							pdata->vkeys[i].keycode);
-	}
 	input_mt_init_slots(input_dev, pdata->num_max_touches, 0);
 	input_set_abs_params(input_dev, ABS_MT_POSITION_X, pdata->x_min,
 			     pdata->x_max, 0, 0);
@@ -4145,8 +4014,7 @@ INIT_WORK(&data->work_vr, ft5435_change_vr_switch);
 
 	FT_STORE_TS_INFO(data->ts_info, data->family_id, data->pdata->name,
 			data->pdata->num_max_touches, data->pdata->group_id,
-			data->pdata->fw_vkey_support ? "yes" : "no",
-			data->pdata->fw_name, data->fw_ver[0],
+			"no", data->pdata->fw_name, data->fw_ver[0],
 			data->fw_ver[1], data->fw_ver[2]);
 
 #if defined(CONFIG_FB)
