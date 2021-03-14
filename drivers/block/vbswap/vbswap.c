@@ -186,7 +186,7 @@ static noinline void __vbswap_make_request(struct bio *bio, int rw)
 		index++;
 	}
 
-	bio->bi_status = BLK_STS_OK;
+	bio->bi_error = 0;
 	bio_endio(bio);
 
 	return;
