@@ -1753,7 +1753,7 @@ static int32_t q6asm_callback(struct apr_client_data *data, void *priv)
 			dev_vdbg(ac->dev, "%s: Payload = [0x%x] status[0x%x] opcode 0x%x\n",
 				__func__, payload[0], payload[1], data->opcode);
 		else
-			dev_vdbg(ac->dev, "%s: Payload size of %d is less than expected.\n",
+			dev_vdbg(ac->dev, "%s: Payload size of %d is less than expected %d.\n", (2 * sizeof(uint32_t)),
 				__func__, data->payload_size);
 	}
 	if (data->opcode == APR_BASIC_RSP_RESULT) {

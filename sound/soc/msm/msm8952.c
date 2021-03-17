@@ -32,6 +32,7 @@
 #include "../codecs/msm8x16-wcd.h"
 #include "../codecs/wsa881x-analog.h"
 #include <linux/regulator/consumer.h>
+#include <uapi/sound/msm-cirrus-playback.h>
 #define DRV_NAME "msm8952-asoc-wcd"
 
 #define BTSCO_RATE_8KHZ 8000
@@ -1586,16 +1587,16 @@ static void msm_quat_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
         port_id = AFE_PORT_ID_SECONDARY_MI2S_RX;
 
 	if (atomic_dec_return(&quat_mi2s_rsc_ref) == 0) {
+		mi2s_sclk_clk.enable = 0;
+        ret = afe_set_lpass_clock_v2(port_id, &mi2s_sclk_clk);
+        if (ret < 0) {
+            pr_err("%s(): afe lpass sclk fail! ret = %d\n", __func__, ret);
+            return;
+        }
         mi2s_osr_clk.enable = 0;
         ret = afe_set_lpass_clock_v2(port_id, &mi2s_osr_clk);
         if (ret < 0) {
             pr_err("%s(): afe lpass osr fail! ret = %d\n", __func__, ret);
-            return;
-        }
-        mi2s_sclk_clk.enable = 0;
-        ret = afe_set_lpass_clock_v2(port_id, &mi2s_sclk_clk);
-        if (ret < 0) {
-            pr_err("%s(): afe lpass sclk fail! ret = %d\n", __func__, ret);
             return;
         }
     }
@@ -2560,8 +2561,6 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.platform_name = "msm-pcm-routing",
 		.codec_name =  "cs35l35.8-0040",
 		.codec_dai_name = "cs35l35-pcm",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
@@ -2578,7 +2577,7 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.codec_dai_name = "cs35l35-pcm",
 		.codec_name = "cs35l35.8-0040",
 		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
-		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
+		.be_id = 0,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ops = &msm8952_quat_mi2s_be_ops,
 		.ignore_suspend = 1,
@@ -2859,8 +2858,10 @@ static struct snd_soc_codec_conf msm8952_codec_conf[] = {
 static int cs35l35_late_probe(struct snd_soc_card *card)
 {
     int i = 0;
+	struct crus_gb_cali_data cali;
+	int ret = 0;
 
-    pr_info("%s(): enter", __func__);
+    pr_info("%s(): enter\n", __func__);
 
     while (true) {
         if (card->num_rtd <= i)
@@ -2872,7 +2873,21 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
         i++;
     }
 
-	pr_info("%s(): found cs35l35", __func__);
+	pr_info("%s(): found cs35l35\n", __func__);
+
+	pr_info("%s(): get speaker calibration data from proinfo\n", __func__);
+	cali = msm_cirrus_get_speaker_calibration_data();
+	if (cali.ret) {
+		pr_err("%s(): failed getting calibration data (ret = %d)\n", __func__, cali.ret);
+		return cali.ret;
+	}
+
+	pr_info("%s(): set speaker calibration data from crus_gb_cali_data\n", __func__);
+	ret = msm_cirrus_set_speaker_calibration_data(&cali);
+	if (ret) {
+		pr_err("%s(): failed setting calibration data (ret = %d)\n", __func__, ret);
+		return ret;
+	}
 
     snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "AMP Playback");
     snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "AMP Capture");
@@ -2881,7 +2896,7 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
     snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "SPK");
     snd_soc_dapm_sync(&card->rtd[i].codec->dapm);
 
-    pr_info("%s(): exit", __func__);
+    pr_info("%s(): exit\n", __func__);
     return 0;
 }
 

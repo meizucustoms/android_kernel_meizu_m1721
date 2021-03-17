@@ -13,8 +13,6 @@
 
 &int_codec {
 	status = "ok";
-	/* already defined in msm8953-audio.dtsi */
-	qcom,msm-hs-micbias-type = "internal";
 	qcom,msm-ext-pa = "quaternary";
 	qcom,msm-mbhc-hphl-swh = <1>;
 	qcom,msm-mbhc-gnd-swh = <1>;

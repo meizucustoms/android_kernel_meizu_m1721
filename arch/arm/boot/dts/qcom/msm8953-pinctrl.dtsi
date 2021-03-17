@@ -661,32 +661,6 @@
 			};
 		};
 
-		sdc2_cd_on: cd_on {
-			mux {
-				pins = "gpio133";
-				function = "gpio";
-			};
-
-			config {
-				pins = "gpio133";
-				drive-strength = <2>;
-				bias-pull-up;
-			};
-		};
-
-		sdc2_cd_off: cd_off {
-			mux {
-				pins = "gpio133";
-				function = "gpio";
-			};
-
-			config {
-				pins = "gpio133";
-				drive-strength = <2>;
-				bias-disable;
-			};
-		};
-
 		i2c_2 {
 			i2c_2_active: i2c_2_active {
 				/* active state */
@@ -920,7 +894,7 @@
 					output-low;
 				};
 			};
-			cdc_reset_active:cdc_reset_active {
+			cdc_reset_active: cdc_reset_active {
 				mux {
 					pins = "gpio67";
 					function = "gpio";

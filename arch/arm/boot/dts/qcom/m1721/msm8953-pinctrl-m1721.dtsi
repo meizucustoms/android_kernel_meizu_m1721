@@ -14,157 +14,61 @@
 &soc {
 
         tlmm: pinctrl@1000000 {
-
-                // Card tray part
-
-                /*
-                 * SD-card slot in card tray
-                */
-
-                sdcard_tray {
-
-                        sdcard_inserted: sdcard_gpio_active {
-
-                                mux {
-                                        pins = "gpio62";
-                                        function = "gpio";
-                                };
-
+                sdhc2_cd_pin {
+                        sdc2_mz_cd_on: cd_on {
                                 config {
-                                        pins = "gpio62";
-                                        bias-pull-down;
-                                        drive-strength = <8>;
-                                        input-enable;
-                                };
-
-                        };
-
-                        sdcard_gpio_suspend {
-
-                                mux {
-                                        pins = "gpio62";
-                                        function = "gpio";
-                                };
-
-                                config {
-                                        pins = "gpio62";
-                                        bias-pull-down;
-                                        drive-strength = <8>;
-                                        input-enable;
-                                };
-                        };
-                };
-
-                /*
-                 * SIM1 slot in card tray
-                */
-
-                sim1_tray {
-
-                        sim1_inserted: sim1_gpio_active {
-
-                                mux {
-                                        pins = "gpio33";
-                                        function = "gpio";
-                                };
-
-                                config {
-                                        pins = "gpio33";
                                         bias-pull-up;
-                                        drive-strength = <8>;
-                                        input-enable;
+                                        drive-strength = <2>;
+                                        pins = "gpio133", "gpio54", "gpio58";
                                 };
-
-                        };
-
-                        sim1_gpio_suspend {
 
                                 mux {
-                                        pins = "gpio33";
                                         function = "gpio";
+                                        pins = "gpio133", "gpio54", "gpio58";
                                 };
-
-                                config {
-                                        pins = "gpio33";
-                                        bias-pull-up;
-                                        drive-strength = <8>;
-                                        input-enable;
-                                };
-
-                        };
-                };
-
-                /*
-                 * SIM2 slot in card tray
-                */
-
-                sim2_tray {
-
-                        sim2_inserted: sim2_gpio_active {
-
-                                mux {
-                                        pins = "gpio66";
-                                        function = "gpio";
-                                };
-
-                                config {
-                                        pins = "gpio66";
-                                        bias-pull-up;
-                                        drive-strength = <8>;
-                                        input-enable;
-                                };
-
                         };
 
-                        sim2_gpio_suspend {
+                        sdc2_mz_cd_off: cd_off {
+                                config {
+                                        bias-disable;
+                                        drive-strength = <2>;
+                                        pins = "gpio133", "gpio54", "gpio58";
+                                };
 
                                 mux {
-                                        pins = "gpio66";
                                         function = "gpio";
+                                        pins = "gpio133", "gpio54", "gpio58";
                                 };
-
-                                config {
-                                        pins = "gpio66";
-                                        bias-pull-up;
-                                        drive-strength = <8>;
-                                        input-enable;
-                                };
-
                         };
                 };
 
                 // CS35L35 (Audio amplifier for main speaker) part
-
                 cs35l35_default {
-
-                        mux {
-                                pins = "gpio91";
-                                function = "gpio";
-                        };
-
                         config {
-                                pins = "gpio91";
-                                output-high;
                                 bias-pull-up;
                                 drive-strength = <2>;
+                                output-high;
+                                pins = "gpio91";
                         };
 
+                        mux {
+                                function = "gpio";
+                                pins = "gpio91";
+                        };
                 };
 
-                cs35l35_default: cs35l35_int_default {
-
-                        mux {
-                                pins = "gpio90";
-                                function = "gpio";
-                        };
-
+                cs35l35_irq_default: cs35l35_irq_default {
                         config {
-                                pins = "gpio90";
-                                bias-pull-up;
+                                bias-pull-down;
                                 drive-strength = <2>;
                                 input-enable;
+                                pins = "gpio90";
                         };
 
+                        mux {
+                                function = "gpio";
+                                pins = "gpio90";
+                        };
                 };
 
                 cs35l35_mclk {
@@ -234,6 +138,62 @@
                         };
 
                 };
+
+                /delete-node/ tlmm_gpio_key;
+                /delete-node/ cdc_mclk2_pin;
+
+                tlmm_gpio_key {
+                        gpio_key_active: gpio_key_active {
+                                config {
+                                        bias-pull-up;
+                                        drive-strength = <2>;
+                                        pins = "gpio85", "gpio86", "gpio87", "gpio141";
+                                };
+
+                                mux {
+                                        function = "gpio";
+                                        pins = "gpio85", "gpio86", "gpio87", "gpio141";
+                                };
+                        };
+
+                        gpio_key_suspend: gpio_key_suspend {
+                                config {
+                                        bias-pull-up;
+                                        drive-strength = <2>;
+                                        pins = "gpio85", "gpio86", "gpio87", "gpio141";
+                                };
+
+                                mux {
+                                        function = "gpio";
+                                        pins = "gpio85", "gpio86", "gpio87", "gpio141";
+                                };
+                        };
+                };
+
+                cdc_mclk2_pin {
+			cdc_mclk2_sleep: cdc_mclk2_sleep {
+				mux {
+					pins = "gpio86";
+					function = "pri_mi2s";
+				};
+				config {
+					pins = "gpio86";
+					drive-strength = <2>; /* 2 mA */
+					bias-pull-down;       /* PULL DOWN */
+				};
+			};
+			cdc_mclk2_active: cdc_mclk2_active {
+				mux {
+					pins = "gpio86";
+					function = "pri_mi2s";
+				};
+				config {
+					pins = "gpio86";
+					drive-strength = <8>; /* 8 mA */
+					bias-disable;         /* NO PULL */
+				};
+			};
+		};
 
         };
 

@@ -38,6 +38,8 @@ static int32_t *crus_gb_get_buffer;
 static atomic_t crus_gb_get_param_flag;
 struct mutex crus_gb_get_param_lock;
 struct mutex crus_gb_lock;
+static int cirrus_ff_chan_swap_sel;
+static int cirrus_ff_chan_swap_dur;
 static int crus_pass;
 static int cirrus_fb_port_ctl;
 static int crus_ext_config_set;
@@ -439,7 +441,7 @@ static int msm_routing_crus_gb_config(struct snd_kcontrol *kcontrol,
         pr_info("CRUS path of Opalum for Music\n");
         // set opalum parameters
         crus_afe_set_param(cirrus_ff_port, CIRRUS_GB_FFPORT,
-                           CRUS_PARAM_OPALUM,
+                           CRUS_PARAM_RX_SET_USECASE,
                            sizeof(struct crus_single_data_t),
                            (void *)&opalum_ctl);
         // ability to load ext config for music
@@ -469,14 +471,21 @@ static int msm_routing_crus_gb_config(struct snd_kcontrol *kcontrol,
 		break;
 	case 2: /* Config + Opalum: Set Temp Cal */
 		pr_info("CRUS GB Config: Set Temp Calibration\n");
-        if ((crus_temp_acc - 0x3d937U < 0x145d0) && (crus_count == 0x10)) {
+
+		// Check calibration values.
+		// Calibration failed if:
+		//   1) temp-acc > 335623
+		//   2) count != 16
+        if (crus_temp_acc < 335623 && crus_count == 16) {
             crus_temp_cal.data1 = crus_temp_acc;
-            crus_temp_cal.data2 = crus_count;
         } else {
-            crus_temp_cal.data1 = CRUS_PARAM_CAL_ERR_VAL_1;
-            crus_temp_cal.data2 = CRUS_PARAM_CAL_ERR_VAL_2;
+			pr_warn("CRUS_GB_CONFIG: Using default temp_acc... (temp_acc %d, count %d)\n",
+					crus_temp_acc, crus_count);
+            crus_temp_cal.data1 = 285000; // Set default temp_acc
         }
-        crus_temp_cal.data3 = CRUS_PARAM_CAL_ERR_VAL_3;
+
+		crus_temp_cal.data2 = 16;     // Set default count
+		crus_temp_cal.data3 = 28;     // Set default ambient
         
         crus_afe_set_param(cirrus_ff_port, CIRRUS_GB_FFPORT,
                            CRUS_PARAM_SET_TEMP_CAL,
@@ -495,7 +504,7 @@ static int msm_routing_crus_gb_config(struct snd_kcontrol *kcontrol,
                 crus_current_temp.data1, crus_current_temp.data2);
         break;
     case 4: /* Config + Opalum: Set F0 Cal */
-		pr_info("CRUS GB Config: Set Fo Calibration\n");
+		pr_info("CRUS GB Config: Set F0 Calibration\n");
         crus_afe_get_param(cirrus_fb_port, CIRRUS_GB_FBPORT,
                            CRUS_PARAM_SET_F0_CAL,
                            sizeof(struct crus_dual_data_t),
@@ -510,7 +519,7 @@ static int msm_routing_crus_gb_config(struct snd_kcontrol *kcontrol,
         pr_info("CRUS path of Opalum for Voice\n");
         // set opalum parameters
         crus_afe_set_param(cirrus_ff_port, CIRRUS_GB_FFPORT,
-                           CRUS_PARAM_OPALUM,
+                           CRUS_PARAM_RX_SET_USECASE,
                            sizeof(struct crus_single_data_t),
                            (void *)&opalum_ctl);
         // ability to load ext config for voice
@@ -521,7 +530,7 @@ static int msm_routing_crus_gb_config(struct snd_kcontrol *kcontrol,
         pr_info("CRUS path of Opalum for Dolby (Dolbit Audio)\n");
         // set opalum parameters
         crus_afe_set_param(cirrus_ff_port, CIRRUS_GB_FFPORT,
-                           CRUS_PARAM_OPALUM,
+                           CRUS_PARAM_RX_SET_USECASE,
                            sizeof(struct crus_single_data_t),
                            (void *)&opalum_ctl);
         break;
@@ -692,6 +701,78 @@ static int cirrus_transfer_params(struct snd_kcontrol *kcontrol,
     }
 }
 
+static int msm_routing_crus_chan_swap(struct snd_kcontrol *kcontrol,
+				      struct snd_ctl_elem_value *ucontrol)
+{
+	struct crus_dual_data_t data;
+	const int crus_set = ucontrol->value.integer.value[0];
+
+	pr_debug("Starting Cirrus GB Channel Swap function call %d\n",
+		 crus_set);
+
+	switch (crus_set) {
+	case 0: /* L/R */
+		data.data1 = 1;
+		break;
+	case 1: /* R/L */
+		data.data1 = 2;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	data.data2 = cirrus_ff_chan_swap_dur;
+
+	crus_afe_set_param(cirrus_ff_port, CIRRUS_GB_FFPORT,
+			   CRUS_PARAM_RX_CHANNEL_SWAP,
+			   sizeof(struct crus_dual_data_t), &data);
+
+	cirrus_ff_chan_swap_sel = crus_set;
+
+	return 0;
+}
+
+static int msm_routing_crus_chan_swap_get(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	pr_debug("Starting Cirrus GB Channel Swap Get function call\n");
+	ucontrol->value.integer.value[0] = cirrus_ff_chan_swap_sel;
+
+	return 0;
+}
+
+static int msm_routing_crus_chan_swap_dur(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+	int crus_set = ucontrol->value.integer.value[0];
+
+	pr_debug("Starting Cirrus GB Channel Swap Duration function call\n");
+
+	if ((crus_set < 0) || (crus_set > MAX_CHAN_SWAP_SAMPLES)) {
+		pr_err("%s: Value out of range (%d)\n", __func__, crus_set);
+		return -EINVAL;
+	}
+
+	if (crus_set < MIN_CHAN_SWAP_SAMPLES) {
+		pr_info("%s: Received %d, rounding up to min value %d\n",
+			__func__, crus_set, MIN_CHAN_SWAP_SAMPLES);
+		crus_set = MIN_CHAN_SWAP_SAMPLES;
+	}
+
+	cirrus_ff_chan_swap_dur = crus_set;
+
+	return 0;
+}
+
+static int msm_routing_crus_chan_swap_dur_get(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	pr_debug("Starting Cirrus GB Channel Swap Duration Get function call\n");
+	ucontrol->value.integer.value[0] = cirrus_ff_chan_swap_dur;
+
+	return 0;
+}
+
 static const char * const cirrus_fb_port_text[] = {"PRI_MI2S_RX",
 						   "SEC_MI2S_RX",
 						   "TERT_MI2S_RX",
@@ -714,6 +795,8 @@ static const char * const crus_ext_text[] = {"Config RX Default",
                         "Config RX New",
                         "Config TX New"};
 
+static const char * const crus_chan_swap_text[] = {"LR", "RL"};
+
 static const struct soc_enum cirrus_fb_controls_enum[] = {
 	SOC_ENUM_SINGLE_EXT(5, cirrus_fb_port_text),
 };
@@ -727,6 +810,10 @@ static const struct soc_enum crus_ext_enum[] = {
 	SOC_ENUM_SINGLE_EXT(4, crus_ext_text),
 };
 
+static const struct soc_enum crus_chan_swap_enum[] = {
+	SOC_ENUM_SINGLE_EXT(2, crus_chan_swap_text),
+};
+
 static const struct snd_kcontrol_new crus_mixer_controls[] = {
 	SOC_ENUM_EXT("FBProtect Port", cirrus_fb_controls_enum[0],
 	msm_routing_cirrus_fbport_get, msm_routing_cirrus_fbport_put),
@@ -736,6 +823,11 @@ static const struct snd_kcontrol_new crus_mixer_controls[] = {
 	msm_routing_crus_gb_config_get, msm_routing_crus_gb_config),
     SOC_ENUM_EXT("CIRRUS GB EXT CONFIG", crus_ext_enum[0],
 	msm_routing_crus_ext_config_get, msm_routing_crus_ext_config),
+    SOC_ENUM_EXT("Cirrus GB Channel Swap", crus_chan_swap_enum[0],
+	msm_routing_crus_chan_swap_get, msm_routing_crus_chan_swap),
+	SOC_SINGLE_EXT("Cirrus GB Channel Swap Duration", SND_SOC_NOPM, 0,
+	MAX_CHAN_SWAP_SAMPLES, 0, msm_routing_crus_chan_swap_dur_get,
+	msm_routing_crus_chan_swap_dur),
 	SOC_SINGLE_MULTI_EXT("CIRRUS_TRANSFER_PARAMS", 0xFFFFFFFF, 0,
 	0xFFFF, 0, 3, cirrus_transfer_params, NULL),
 };
@@ -903,9 +995,9 @@ static ssize_t opsl_f0_store(struct device *dev,
 					size_t count)
 {
 	int data;
-    ssize_t ret = -22LL;
+    ssize_t ret = -EINVAL;
 	
-	if (kstrtoint(buf, 0, &data)) {
+	if (!kstrtoint(buf, 0, &data)) {
 		crus_f0 = data;
 		pr_info("CRUS set f0 to %d\n", data);
 		ret = count;
@@ -917,9 +1009,9 @@ static ssize_t opsl_ambient_store(struct device *dev,
 					size_t count)
 {
 	int data;
-    ssize_t ret = -22LL;
+    ssize_t ret = -EINVAL;
 	
-	if (kstrtoint(buf, 0, &data)) {
+	if (!kstrtoint(buf, 0, &data)) {
 		crus_ambient = data;
 		pr_info("CRUS %s: set ambient temperature to %d\n", __func__, data);
 		ret = count;
@@ -931,9 +1023,9 @@ static ssize_t opsl_count_store(struct device *dev,
 					size_t count)
 {
 	int data;
-    ssize_t ret = -22LL;
-	
-	if (kstrtoint(buf, 0, &data)) {
+    ssize_t ret = -EINVAL;
+    
+	if (!kstrtoint(buf, 0, &data)) {
 		crus_count = data;
 		pr_info("CRUS set count to %d\n", data);
 		ret = count;
@@ -945,9 +1037,9 @@ static ssize_t opsl_temp_acc_store(struct device *dev,
 					size_t count)
 {
 	int data;
-    ssize_t ret = -22LL;
+    ssize_t ret = -EINVAL;
 	
-	if (kstrtoint(buf, 0, &data)) {
+	if (!kstrtoint(buf, 0, &data)) {
 		crus_temp_acc = data;
 		pr_info("CRUS set temp acc to %d\n", data);
 		ret = count;
@@ -1020,6 +1112,89 @@ static struct bus_type opal_virt_bus = {
 static struct device opalum_virt = {
 	.bus = &opal_virt_bus,
 };
+
+struct crus_gb_cali_data msm_cirrus_get_speaker_calibration_data(void)
+{
+	struct crus_gb_cali_data ret;
+	char proinfo_data[30];
+	struct file *fp;
+	mm_segment_t old_fs;
+
+	printk("%s: enter\n", __func__);
+
+	// Initialize blank structure data
+	ret.temp_acc = 0x9dead;
+	ret.count = 0x9dead;
+	ret.ambient = 0x9dead;
+	ret.ret = -EINVAL;
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	msleep(50);
+
+	fp = filp_open("/dev/block/bootdevice/by-name/proinfo", 
+					O_RDWR | O_CREAT, 0660);
+	if (IS_ERR(fp)) {
+		ret.ret = PTR_ERR(fp);
+		printk("%s: Failed to open proinfo pseudo-file (ret = %d)\n", 
+			__func__, ret.ret);
+		set_fs(old_fs);
+		return ret;
+	}
+
+	fp->f_pos = SPK_CAL_DATA_START_ADDR;
+
+	if (!fp->f_op->read)
+		ret.ret = (int)vfs_read(fp, proinfo_data, SPK_CAL_DATA_LENGTH, &fp->f_pos);
+	else
+		ret.ret = fp->f_op->read(fp, proinfo_data, SPK_CAL_DATA_LENGTH, &fp->f_pos);
+
+	filp_close(fp, NULL);
+	set_fs(old_fs);
+
+	if (ret.ret < 0) {
+		printk("%s: Failed to read calibration data from proinfo pseudo-file (ret = %d)\n", __func__, ret.ret);
+		return ret;
+	}
+
+	ret.ret = sscanf(proinfo_data, "%d,%d,%d", &ret.temp_acc, &ret.count, &ret.ambient);
+	if (ret.ret != 3) {
+		printk("%s: Failed to parse calibration data (ret = %d, data = %s)\n", __func__, ret.ret, proinfo_data);
+		return ret;
+	}
+
+	// sscanf successful return code is 3,
+	// so set return code to 0 if all is right
+	ret.ret = 0;
+
+	printk("%s: exit\n", __func__);
+
+	return ret;
+}
+
+int msm_cirrus_set_speaker_calibration_data(struct crus_gb_cali_data *cali)
+{
+	printk("%s: enter\n", __func__);
+
+	if (cali->ret) {
+		printk("%s: calibration data error\n", __func__);
+		return cali->ret;
+	}
+
+	if (cali->temp_acc == 0x9dead || cali->count == 0x9dead || cali->ambient == 0x9dead) {
+		printk("%s: calibration data values error\n", __func__);
+		return -EINVAL;
+	}
+
+	crus_temp_acc = cali->temp_acc;
+	crus_count = cali->count;
+	crus_ambient = cali->ambient;
+
+	printk("%s: exit\n", __func__);
+
+	return 0;
+}
 
 static int __init crus_gb_init(void)
 {

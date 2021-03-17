@@ -241,8 +241,8 @@ extern int Save_rawData1[TX_NUM_MAX][RX_NUM_MAX];
 #define FTS_WORKMODE_VALUE		0x00
 static struct i2c_client  *ft_g_client;
 
-#define FT_STORE_TS_INFO(buf, id, name, max_tch, group_id, fw_vkey_support, \
-			fw_name, fw_maj, fw_min, fw_sub_min) \
+#define FT_STORE_TS_INFO(buf, id, name, max_tch, group_id, fw_name, \
+						 fw_maj, fw_min, fw_sub_min) \
 			snprintf(buf, FT_INFO_MAX_LEN, \
 				"controller\t= focaltech\n" \
 				"model\t\t= 0x%x\n" \
@@ -250,12 +250,11 @@ static struct i2c_client  *ft_g_client;
 				"max_touches\t= %d\n" \
 				"drv_ver\t\t= 0x%x\n" \
 				"group_id\t= 0x%x\n" \
-				"fw_vkey_support\t= %s\n" \
+				"fw_vkey_support\t= no\n" \
 				"fw_name\t\t= %s\n" \
 				"fw_ver\t\t= %d.%d.%d\n", id, name, \
 				max_tch, FT_DRIVER_VERSION, group_id, \
-				fw_vkey_support, fw_name, fw_maj, fw_min, \
-				fw_sub_min)
+				fw_name, fw_maj, fw_min, fw_sub_min)
 
 #define FT_DEBUG_DIR_NAME	"ts_debug"
 
@@ -1066,8 +1065,9 @@ static irqreturn_t ft5435_ts_interrupt(int irq, void *dev_id)
 {
 #if 1
 	struct ft5435_ts_data *data = dev_id;
+	
 	struct input_dev *ip_dev;
-	int rc, i, j;
+	int rc, i;
 	u32 id, x, y, status, num_touches;
 	u8 reg = 0x00, *buf;
 	bool update_input = false;
@@ -2311,7 +2311,7 @@ static int ft5435_fw_upgrade(struct device *dev, bool force)
 
 	FT_STORE_TS_INFO(data->ts_info, data->family_id, data->pdata->name,
 			data->pdata->num_max_touches, data->pdata->group_id,
-			"no", data->pdata->fw_name, data->fw_ver[0],
+			data->pdata->fw_name, data->fw_ver[0],
 			data->fw_ver[1], data->fw_ver[2]);
 rel_fw:
 	release_firmware(fw);
@@ -3652,7 +3652,6 @@ static int ft5435_ts_probe(struct i2c_client *client,
 	u8 reg_addr;
 	int err, len;
 	u8 w_buf[FT_MAX_WR_BUF] = {0};
-	int i;
 	int retry = 3;
 	char tp_temp_info[80];
 	printk("~~~~~ ft5435_ts_probe start\n");
@@ -4014,7 +4013,7 @@ INIT_WORK(&data->work_vr, ft5435_change_vr_switch);
 
 	FT_STORE_TS_INFO(data->ts_info, data->family_id, data->pdata->name,
 			data->pdata->num_max_touches, data->pdata->group_id,
-			"no", data->pdata->fw_name, data->fw_ver[0],
+			data->pdata->fw_name, data->fw_ver[0],
 			data->fw_ver[1], data->fw_ver[2]);
 
 #if defined(CONFIG_FB)
