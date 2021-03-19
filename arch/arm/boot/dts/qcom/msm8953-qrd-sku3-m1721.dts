@@ -24,14 +24,7 @@
 };
 
 &soc {
-	led_flash0: qcom,camera-flash {
-		cell-index = <0>;
-		compatible = "qcom,camera-flash";
-		qcom,flash-type = <1>;
-		qcom,flash-source = <&pmi8950_flash0 &pmi8950_flash1>;
-		qcom,torch-source = <&pmi8950_torch0 &pmi8950_torch1>;
-		qcom,switch-source = <&pmi8950_switch>;
-	};
+	/delete-node/ qcom,camera-flash;
 };
 
 #include "msm8953-qrd-sku3.dtsi"
@@ -66,4 +59,4 @@
 	};
 };
 
-#include "mido/msm8953-mido.dtsi"
+#include "m1721/msm8953-m1721.dtsi"

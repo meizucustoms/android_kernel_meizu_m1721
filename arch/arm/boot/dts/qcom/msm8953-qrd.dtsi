@@ -237,16 +237,6 @@
 	status = "ok";
 };
 
-&flash_led {
-	/delete-node/ qcom,flash_1;
-	/delete-node/ qcom,torch_1;
-};
-
-&led_flash0{
-	qcom,flash-source = <&pmi8950_flash0>;
-	qcom,torch-source = <&pmi8950_torch0>;
-};
-
 &pm8953_vadc {
 	/delete-node/ chan@11;
 };
