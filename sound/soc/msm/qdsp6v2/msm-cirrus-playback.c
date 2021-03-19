@@ -1021,6 +1021,155 @@ static struct device opalum_virt = {
 	.bus = &opal_virt_bus,
 };
 
+struct crus_gb_cali_data msm_cirrus_get_speaker_calibration_data(void)
+{
+	struct crus_gb_cali_data ret;
+	char proinfo_data[30];
+	struct file *fp;
+	mm_segment_t old_fs;
+
+	printk("%s: enter\n", __func__);
+
+	// Initialize blank structure data
+	ret.temp_acc = 0x9dead;
+	ret.count = 0x9dead;
+	ret.ambient = 0x9dead;
+	ret.ret = -EINVAL;
+
+	old_fs = get_fs();
+	set_fs(KERNEL_DS);
+
+	msleep(50);
+
+	fp = filp_open("/dev/block/bootdevice/by-name/proinfo", 
+					O_RDWR | O_CREAT, 0660);
+	if (IS_ERR(fp)) {
+		ret.ret = PTR_ERR(fp);
+		printk("%s: Failed to open proinfo pseudo-file (ret = %d)\n", 
+			__func__, ret.ret);
+		set_fs(old_fs);
+		return ret;
+	}
+
+	fp->f_pos = SPK_CAL_DATA_START_ADDR;
+
+	if (!fp->f_op->read)
+		ret.ret = (int)vfs_read(fp, proinfo_data, SPK_CAL_DATA_LENGTH, &fp->f_pos);
+	else
+		ret.ret = fp->f_op->read(fp, proinfo_data, SPK_CAL_DATA_LENGTH, &fp->f_pos);
+
+	filp_close(fp, NULL);
+	set_fs(old_fs);
+
+	if (ret.ret < 0) {
+		printk("%s: Failed to read calibration data from proinfo pseudo-file (ret = %d)\n", __func__, ret.ret);
+		return ret;
+	}
+
+	ret.ret = sscanf(proinfo_data, "%d,%d,%d", &ret.temp_acc, &ret.count, &ret.ambient);
+	if (ret.ret != 3) {
+		printk("%s: Failed to parse calibration data (ret = %d, data = %s)\n", __func__, ret.ret, proinfo_data);
+		return ret;
+	}
+
+	// sscanf successful return code is 3,
+	// so set return code to 0 if all is right
+	ret.ret = 0;
+
+	printk("%s: exit\n", __func__);
+
+	return ret;
+}
+
+int msm_cirrus_set_speaker_calibration_data(struct crus_gb_cali_data *cali)
+{
+	printk("%s: enter\n", __func__);
+
+	if (cali->ret) {
+		printk("%s: calibration data error\n", __func__);
+		return cali->ret;
+	}
+
+	if (cali->temp_acc == 0x9dead || cali->count == 0x9dead || cali->ambient == 0x9dead) {
+		printk("%s: calibration data values error\n", __func__);
+		return -EINVAL;
+	}
+
+	crus_temp_acc = cali->temp_acc;
+	crus_count = cali->count;
+	crus_ambient = cali->ambient;
+
+	printk("%s: exit\n", __func__);
+
+	return 0;
+}
+
+int msm_cirrus_flash_tx_config(void)
+{
+    char *data;
+    const struct firmware *fw;
+    int ret = 0;
+
+    printk("%s: enter\n", __func__);
+
+	ret = request_firmware(&fw, "crus_gb_config_new_tx.bin", crus_gb_device);
+    if (ret != 0) {
+        pr_err("%s: failed to load TX config: %d", __func__, ret);
+        return ret;
+    }
+    
+    data = kmalloc(fw->size, GFP_KERNEL);
+    memcpy(data, fw->data, fw->size);
+    data[fw->size] = '\0';
+    pr_debug("%s: length = %d; data = %lx\n", __func__, (unsigned int)fw->size, (long unsigned int)fw->data);
+    
+    ret = crus_afe_send_config(data, fw->size, cirrus_fb_port, CIRRUS_GB_FBPORT);
+    pr_debug("%s: ret: %d", __func__, ret);
+
+    printk("%s: exit\n", __func__);
+
+    release_firmware(fw);
+    kfree(data);
+
+	return 0;
+}
+
+int msm_cirrus_flash_rx_config(void)
+{
+    char *data;
+    const struct firmware *fw;
+    int ret = 0;
+
+    printk("%s: enter\n", __func__);
+
+	ret = request_firmware(&fw, "crus_gb_config_default.bin", crus_gb_device);
+    if (ret != 0) {
+        pr_err("%s: failed to load RX config: %d\n", __func__, ret);
+        return ret;
+    }
+    
+    data = kmalloc(fw->size, GFP_KERNEL);
+    memcpy(data, fw->data, fw->size);
+    data[fw->size] = '\0';
+    pr_debug("%s: length = %d; data = %lx\n", __func__, (unsigned int)fw->size, (long unsigned int)fw->data);
+    
+    // Protection for double load
+    if (!music_config_loaded) {
+        music_config_loaded = 1;
+        ret = crus_afe_send_config(data, fw->size, cirrus_fb_port, CIRRUS_GB_FBPORT);
+        pr_debug("%s: ret: %d\n", __func__, ret);
+    } else {
+        pr_warn("%s: skip config load\n", __func__);
+    }
+
+    printk("%s: exit\n", __func__);
+
+    release_firmware(fw);
+    kfree(data);
+
+	return 0;
+}
+
 static int __init crus_gb_init(void)
 {
     int ret = 0;

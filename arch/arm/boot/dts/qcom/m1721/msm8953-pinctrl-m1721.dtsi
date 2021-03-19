@@ -12,8 +12,6 @@
 
 &soc {
     tlmm: pinctrl@1000000 {
-        /delete-node/ cd_on;
-        /delete-node/ cd_off;
         /delete-node/ tlmm_gpio_key;
         /delete-node/ cdc_mclk2_pin;
 
@@ -300,6 +298,62 @@
 			};
 		};
 
-        
+        // WSA
+
+        wsa-vi {
+            wsa_vi_off: wsa_vi_off {
+                config {
+                    bias-pull-down;
+                    drive-strength = <2>;
+                    pins = "gpio86", "gpio89";
+                };
+
+                mux {
+                    function = "wsa_io";
+                    pins = "gpio86", "gpio89";
+                };
+            };
+
+            wsa_vi_on: wsa_vi_on {
+                config {
+                    bias-disable;
+                    drive-strength = <8>;
+                    pins = "gpio86", "gpio89";
+                };
+
+                mux {
+                    function = "wsa_io";
+                    pins = "gpio86", "gpio89";
+                };
+            };
+        };
+
+        wsa_reset {
+            wsa_reset_off: wsa_reset_off {
+                config {
+                    drive-strength = <2>;
+                    output-low;
+                    pins = "gpio87";
+                };
+
+                mux {
+                    function = "gpio";
+                    pins = "gpio87";
+                };
+            };
+
+            wsa_reset_on: wsa_reset_on {
+                config {
+                    drive-strength = <2>;
+                    output-high;
+                    pins = "gpio87";
+                };
+
+                mux {
+                    function = "gpio";
+                    pins = "gpio87";
+                };
+            };
+        };
     };
 };

@@ -12,6 +12,7 @@
  */
 
 &soc {
+
         tlmm: pinctrl@1000000 {
                 
                 /*
@@ -92,7 +93,7 @@
 
         };
 
-        spi_1: spi@78b5000 { /* BLSP1 QUP1 */
+        spi_1: spi@78B5000 { /* BLSP1 QUP1 */
                 compatible = "qcom,spi-qup-v2";
                 reg-names = "spi_physical", "spi_bam_physical";
                 reg = <0x78b5000 0x600>, 
@@ -158,32 +159,5 @@
                 dma-names = "tx", "rx";
                 status = "ok";
         };
-
-        /delete-node/ aliases;
-
-        aliases {
-		/* smdtty devices */
-		smd1 = &smdtty_apps_fm;
-		smd2 = &smdtty_apps_riva_bt_acl;
-		smd3 = &smdtty_apps_riva_bt_cmd;
-		smd4 = &smdtty_mbalbridge;
-		smd5 = &smdtty_apps_riva_ant_cmd;
-		smd6 = &smdtty_apps_riva_ant_data;
-		smd7 = &smdtty_data1;
-		smd8 = &smdtty_data4;
-		smd11 = &smdtty_data11;
-		smd21 = &smdtty_data21;
-		smd36 = &smdtty_loopback;
-		sdhc1 = &sdhc_1; /* SDC1 eMMC slot */
-		sdhc2 = &sdhc_2; /* SDC2 for SD card */
-		i2c2 = &i2c_2;
-		i2c3 = &i2c_3;
-		i2c5 = &i2c_5;
-                i2c6 = &i2c_6;
-                i2c8 = &i2c_8;
-                spi1 = &spi_1;
-		spi3 = &spi_3;
-	};
 };
 
- 

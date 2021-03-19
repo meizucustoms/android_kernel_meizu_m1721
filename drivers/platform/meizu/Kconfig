@@ -22,24 +22,10 @@ config DTS_FLYME
 endmenu
 
 menu "Meizu proprietary selection"
-
-config MEIZU_SPEAKER_CALIBRATION
-	bool "TXJ Speaker Calibration"
-	help
-	  Enable kernel TXJ driver to support OS-level library for speaker
 	  
 config MEIZU_HARDWARE_INFO
 	bool "IOCTL for Meizu libs"
 	help
 	  Enable kernel meizu_hw driver to get HW info
-	  
-endmenu
-
-menu "MeizuSucks selection"
-
-config MEIZUSUCKS_WELCOME
-	bool "Print MeizuSucks kernel version on boot"
-	help
-	  Print info about your MeizuSucks project kernel on boot and shutdown
 	  
 endmenu

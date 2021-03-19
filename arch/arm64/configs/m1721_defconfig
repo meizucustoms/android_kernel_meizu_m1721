@@ -3684,13 +3684,7 @@ CONFIG_DTS_FLYME=y
 # Meizu proprietary selection
 #
 CONFIG_CIRRUS_PLAYBACK=y
-CONFIG_MEIZU_SPEAKER_CALIBRATION=y
 CONFIG_MEIZU_HARDWARE_INFO=y
-
-#
-# MeizuSucks selection
-#
-CONFIG_MEIZUSUCKS_WELCOME=y
 
 #
 # SOC (System On Chip) specific Drivers
