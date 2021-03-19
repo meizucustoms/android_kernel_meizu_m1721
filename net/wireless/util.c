@@ -819,7 +819,8 @@ void cfg80211_process_wdev_events(struct wireless_dev *wdev)
 		wdev_lock(wdev);
 		switch (ev->type) {
 		case EVENT_CONNECT_RESULT:
-			bssid = ev->cr.bssid;
+			if (!is_zero_ether_addr(ev->cr.bssid))
+				bssid = ev->cr.bssid;
 			__cfg80211_connect_result(
 				wdev->netdev, bssid,
 				ev->cr.req_ie, ev->cr.req_ie_len,

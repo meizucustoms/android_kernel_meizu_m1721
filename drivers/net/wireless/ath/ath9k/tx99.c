@@ -190,27 +190,22 @@ static ssize_t write_file_tx99(struct file *file, const char __user *user_buf,
 	if (strtobool(buf, &start))
 		return -EINVAL;
 
-	mutex_lock(&sc->mutex);
-
 	if (start == sc->tx99_state) {
 		if (!start)
-			goto out;
+			return count;
 		ath_dbg(common, XMIT, "Resetting TX99\n");
 		ath9k_tx99_deinit(sc);
 	}
 
 	if (!start) {
 		ath9k_tx99_deinit(sc);
-		goto out;
+		return count;
 	}
 
 	r = ath9k_tx99_init(sc);
-	if (r) {
-		mutex_unlock(&sc->mutex);
+	if (r)
 		return r;
-	}
-out:
-	mutex_unlock(&sc->mutex);
+
 	return count;
 }
 

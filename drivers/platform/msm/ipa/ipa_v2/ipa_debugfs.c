@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -804,11 +804,10 @@ static ssize_t ipa_read_flt(struct file *file, char __user *ubuf, size_t count,
 			eq = true;
 		} else {
 			rt_tbl = ipa_id_find(entry->rule.rt_tbl_hdl);
-			if (rt_tbl == NULL ||
-				rt_tbl->cookie != IPA_RT_TBL_COOKIE)
-				rt_tbl_idx =  ~0;
-			else
+			if (rt_tbl)
 				rt_tbl_idx = rt_tbl->idx;
+			else
+				rt_tbl_idx = ~0;
 			bitmap = entry->rule.attrib.attrib_mask;
 			eq = false;
 		}
@@ -835,11 +834,10 @@ static ssize_t ipa_read_flt(struct file *file, char __user *ubuf, size_t count,
 				eq = true;
 			} else {
 				rt_tbl = ipa_id_find(entry->rule.rt_tbl_hdl);
-				if (rt_tbl == NULL ||
-					rt_tbl->cookie != IPA_RT_TBL_COOKIE)
-					rt_tbl_idx = ~0;
-				else
+				if (rt_tbl)
 					rt_tbl_idx = rt_tbl->idx;
+				else
+					rt_tbl_idx = ~0;
 				bitmap = entry->rule.attrib.attrib_mask;
 				eq = false;
 			}
@@ -1433,11 +1431,7 @@ static ssize_t ipa_read_nat4(struct file *file,
 	pr_err("Table Size:%d\n",
 				ipa_ctx->nat_mem.size_base_tables);
 
-	if (!ipa_ctx->nat_mem.size_expansion_tables)
-		pr_err("Expansion Table Size:%d\n",
-				ipa_ctx->nat_mem.size_expansion_tables);
-	else
-		pr_err("Expansion Table Size:%d\n",
+	pr_err("Expansion Table Size:%d\n",
 				ipa_ctx->nat_mem.size_expansion_tables-1);
 
 	if (!ipa_ctx->nat_mem.is_sys_mem)
@@ -1452,8 +1446,6 @@ static ssize_t ipa_read_nat4(struct file *file,
 
 			pr_err("\nBase Table:\n");
 		} else {
-			if (!ipa_ctx->nat_mem.size_expansion_tables)
-				continue;
 			tbl_size = ipa_ctx->nat_mem.size_expansion_tables-1;
 			base_tbl =
 			 (u32 *)ipa_ctx->nat_mem.ipv4_expansion_rules_addr;
@@ -1553,8 +1545,6 @@ static ssize_t ipa_read_nat4(struct file *file,
 
 			pr_err("\nIndex Table:\n");
 		} else {
-			if (!ipa_ctx->nat_mem.size_expansion_tables)
-				continue;
 			tbl_size = ipa_ctx->nat_mem.size_expansion_tables-1;
 			indx_tbl =
 			 (u32 *)ipa_ctx->nat_mem.index_table_expansion_addr;

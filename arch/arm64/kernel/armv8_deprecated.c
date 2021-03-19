@@ -14,6 +14,7 @@
 #include <linux/slab.h>
 #include <linux/sysctl.h>
 
+#include <asm/alternative.h>
 #include <asm/cpufeature.h>
 #include <asm/insn.h>
 #include <asm/opcodes.h>
@@ -61,7 +62,7 @@ struct insn_emulation {
 };
 
 static LIST_HEAD(insn_emulation);
-static int nr_insn_emulated __initdata;
+static int nr_insn_emulated;
 static DEFINE_RAW_SPINLOCK(insn_emulation_lock);
 
 static void register_emulation_hooks(struct insn_emulation_ops *ops)
@@ -172,7 +173,7 @@ static int update_insn_emulation_mode(struct insn_emulation *insn,
 	return ret;
 }
 
-static void __init register_insn_emulation(struct insn_emulation_ops *ops)
+static void register_insn_emulation(struct insn_emulation_ops *ops)
 {
 	unsigned long flags;
 	struct insn_emulation *insn;
@@ -236,7 +237,7 @@ static struct ctl_table ctl_abi[] = {
 	{ }
 };
 
-static void __init register_insn_emulation_sysctl(struct ctl_table *table)
+static void register_insn_emulation_sysctl(struct ctl_table *table)
 {
 	unsigned long flags;
 	int i = 0;
@@ -280,9 +281,9 @@ static void __init register_insn_emulation_sysctl(struct ctl_table *table)
  * Error-checking SWP macros implemented using ldxr{b}/stxr{b}
  */
 #define __user_swpX_asm(data, addr, res, temp, B)		\
-do {								\
-	uaccess_enable();					\
 	__asm__ __volatile__(					\
+	ALTERNATIVE("nop", SET_PSTATE_PAN(0), ARM64_HAS_PAN,	\
+		    CONFIG_ARM64_PAN)				\
 	"	mov		%w2, %w1\n"			\
 	"0:	ldxr"B"		%w1, [%3]\n"			\
 	"1:	stxr"B"		%w0, %w2, [%3]\n"		\
@@ -299,11 +300,11 @@ do {								\
 	"	.quad		0b, 3b\n"			\
 	"	.quad		1b, 3b\n"			\
 	"	.popsection\n"					\
+	ALTERNATIVE("nop", SET_PSTATE_PAN(1), ARM64_HAS_PAN,	\
+		CONFIG_ARM64_PAN)				\
 	: "=&r" (res), "+r" (data), "=&r" (temp)		\
 	: "r" (addr), "i" (-EAGAIN), "i" (-EFAULT)		\
-	: "memory");						\
-	uaccess_disable();					\
-} while (0)
+	: "memory")
 
 #define __user_swp_asm(data, addr, res, temp) \
 	__user_swpX_asm(data, addr, res, temp, "")

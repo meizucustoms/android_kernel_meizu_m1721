@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2014-2015,2017,2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -30,12 +30,10 @@
 		_IOWR('R', 4, struct compat_fastrpc_ioctl_invoke_fd)
 #define COMPAT_FASTRPC_IOCTL_INIT \
 		_IOWR('R', 6, struct compat_fastrpc_ioctl_init)
-#define COMPAT_FASTRPC_IOCTL_CONTROL \
-		_IOWR('R', 12, struct compat_fastrpc_ioctl_control)
 
 struct compat_remote_buf {
 	compat_uptr_t pv;	/* buffer pointer */
-	compat_size_t len;	/* length of buffer */
+	compat_ssize_t len;	/* length of buffer */
 };
 
 union compat_remote_arg {
@@ -58,13 +56,13 @@ struct compat_fastrpc_ioctl_mmap {
 	compat_int_t fd;	/* ion fd */
 	compat_uint_t flags;	/* flags for dsp to map with */
 	compat_uptr_t vaddrin;	/* optional virtual address */
-	compat_size_t size;	/* size */
+	compat_ssize_t size;	/* size */
 	compat_uptr_t vaddrout;	/* dsps virtual address */
 };
 
 struct compat_fastrpc_ioctl_munmap {
 	compat_uptr_t vaddrout;	/* address to unmap */
-	compat_size_t size;	/* size */
+	compat_ssize_t size;	/* size */
 };
 
 struct compat_fastrpc_ioctl_init {
@@ -77,25 +75,13 @@ struct compat_fastrpc_ioctl_init {
 	compat_int_t memfd;	/* ION fd for the mem */
 };
 
-#define FASTRPC_CONTROL_KALLOC		(3)
-struct compat_fastrpc_ctrl_kalloc {
-	compat_uint_t kalloc_support; /* Remote memory allocation from kernel */
-};
-
-struct compat_fastrpc_ioctl_control {
-	compat_uint_t req;
-	union {
-		struct compat_fastrpc_ctrl_kalloc kalloc;
-	};
-};
-
 static int compat_get_fastrpc_ioctl_invoke(
 			struct compat_fastrpc_ioctl_invoke_fd __user *inv32,
 			struct fastrpc_ioctl_invoke_fd __user **inva,
 			unsigned int cmd)
 {
 	compat_uint_t u, sc;
-	compat_size_t s;
+	compat_ssize_t s;
 	compat_uptr_t p;
 	struct fastrpc_ioctl_invoke_fd *inv;
 	union compat_remote_arg *pra32;
@@ -178,7 +164,7 @@ static int compat_get_fastrpc_ioctl_mmap(
 {
 	compat_uint_t u;
 	compat_int_t i;
-	compat_size_t s;
+	compat_ssize_t s;
 	compat_uptr_t p;
 	int err;
 
@@ -212,26 +198,13 @@ static int compat_get_fastrpc_ioctl_munmap(
 			struct fastrpc_ioctl_munmap __user *unmap)
 {
 	compat_uptr_t p;
-	compat_size_t s;
+	compat_ssize_t s;
 	int err;
 
 	err = get_user(p, &unmap32->vaddrout);
 	err |= put_user(p, &unmap->vaddrout);
 	err |= get_user(s, &unmap32->size);
 	err |= put_user(s, &unmap->size);
-
-	return err;
-}
-
-static int compat_get_fastrpc_ioctl_control(
-			struct compat_fastrpc_ioctl_control __user *ctrl32,
-			struct fastrpc_ioctl_control __user *ctrl)
-{
-	compat_uptr_t p;
-	int err;
-
-	err = get_user(p, &ctrl32->req);
-	err |= put_user(p, &ctrl->req);
 
 	return err;
 }
@@ -349,34 +322,6 @@ long compat_fastrpc_device_ioctl(struct file *filp, unsigned int cmd,
 	case FASTRPC_IOCTL_SETMODE:
 		return filp->f_op->unlocked_ioctl(filp, cmd,
 						(unsigned long)compat_ptr(arg));
-	case COMPAT_FASTRPC_IOCTL_CONTROL:
-	{
-		struct compat_fastrpc_ioctl_control __user *ctrl32;
-		struct fastrpc_ioctl_control __user *ctrl;
-		compat_uptr_t p;
-
-		ctrl32 = compat_ptr(arg);
-		VERIFY(err, NULL != (ctrl = compat_alloc_user_space(
-							sizeof(*ctrl))));
-		if (err)
-			return -EFAULT;
-		VERIFY(err, 0 == compat_get_fastrpc_ioctl_control(ctrl32,
-							ctrl));
-		if (err)
-			return err;
-		err = filp->f_op->unlocked_ioctl(filp, FASTRPC_IOCTL_CONTROL,
-							(unsigned long)ctrl);
-		if (err)
-			return err;
-		err = get_user(p, &ctrl32->req);
-		if (err)
-			return err;
-		if (p == FASTRPC_CONTROL_KALLOC) {
-			err = get_user(p, &ctrl->kalloc.kalloc_support);
-			err |= put_user(p, &ctrl32->kalloc.kalloc_support);
-		}
-		return err;
-	}
 	default:
 		return -ENOIOCTLCMD;
 	}

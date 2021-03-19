@@ -34,15 +34,13 @@ static ssize_t enable_write(struct file *file, const char __user *data,
 	int i;
 	int next_idx;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		goto err;
 		size = -EINVAL;
 	}
-
-	buf[size] = '\0';
 
 	if (sscanf(buf, "%u\n", &i) != 1) {
 		size = -EINVAL;
@@ -107,15 +105,13 @@ static ssize_t pl_write(struct file *file, const char __user *data,
 	int ext_status = 0;
 	int i;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
 
 	if (sscanf(buf, "%u %u\n", &spdm_data->config_data.pl_freqs[0],
 	       &spdm_data->config_data.pl_freqs[1]) != 2) {
@@ -168,15 +164,13 @@ static ssize_t rejrate_low_write(struct file *file, const char __user *data,
 	struct spdm_args desc = { { 0 } };
 	int ext_status = 0;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
 
 	if (sscanf(buf, "%u %u\n", &spdm_data->config_data.reject_rate[0],
 	       &spdm_data->config_data.reject_rate[1]) != 2) {
@@ -230,16 +224,13 @@ static ssize_t rejrate_med_write(struct file *file, const char __user *data,
 	struct spdm_args desc = { { 0 } };
 	int ext_status = 0;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
-
 	if (sscanf(buf, "%u %u\n", &spdm_data->config_data.reject_rate[2],
 	       &spdm_data->config_data.reject_rate[3]) != 2) {
 		size = -EINVAL;
@@ -291,16 +282,13 @@ static ssize_t rejrate_high_write(struct file *file, const char __user *data,
 	struct spdm_args desc = { { 0 } };
 	int ext_status = 0;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
-
 	if (sscanf(buf, "%u %u\n", &spdm_data->config_data.reject_rate[4],
 	       &spdm_data->config_data.reject_rate[5]) != 2) {
 		size = -EINVAL;
@@ -352,16 +340,13 @@ static ssize_t resptime_low_write(struct file *file, const char __user *data,
 	struct spdm_args desc = { { 0 } };
 	int ext_status = 0;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
-
 	if (sscanf(buf, "%u %u\n", &spdm_data->config_data.response_time_us[0],
 	       &spdm_data->config_data.response_time_us[1]) != 2) {
 		size = -EINVAL;
@@ -413,16 +398,13 @@ static ssize_t resptime_med_write(struct file *file, const char __user *data,
 	struct spdm_args desc = { { 0 } };
 	int ext_status = 0;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
-
 	if (sscanf(buf, "%u %u\n", &spdm_data->config_data.response_time_us[2],
 	       &spdm_data->config_data.response_time_us[3]) != 2) {
 		size = -EINVAL;
@@ -474,16 +456,13 @@ static ssize_t resptime_high_write(struct file *file, const char __user *data,
 	struct spdm_args desc = { { 0 } };
 	int ext_status = 0;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
-
 	if (sscanf(buf, "%u %u\n", &spdm_data->config_data.response_time_us[4],
 	       &spdm_data->config_data.response_time_us[5]) != 2) {
 		size = -EINVAL;
@@ -536,16 +515,13 @@ static ssize_t cciresptime_low_write(struct file *file,
 	struct spdm_args desc = { { 0 } };
 	int ext_status = 0;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
-
 	if (sscanf(buf, "%u %u\n",
 		   &spdm_data->config_data.cci_response_time_us[0],
 		   &spdm_data->config_data.cci_response_time_us[1]) != 2) {
@@ -599,16 +575,13 @@ static ssize_t cciresptime_med_write(struct file *file,
 	struct spdm_args desc = { { 0 } };
 	int ext_status = 0;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
-
 	if (sscanf(buf, "%u %u\n",
 		   &spdm_data->config_data.cci_response_time_us[2],
 		   &spdm_data->config_data.cci_response_time_us[3]) != 2) {
@@ -662,16 +635,13 @@ static ssize_t cciresptime_high_write(struct file *file,
 	struct spdm_args desc = { { 0 } };
 	int ext_status = 0;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
-
 	if (sscanf(buf, "%u %u\n",
 		   &spdm_data->config_data.cci_response_time_us[4],
 		   &spdm_data->config_data.cci_response_time_us[5]) != 2){
@@ -724,16 +694,13 @@ static ssize_t cci_max_write(struct file *file, const char __user *data,
 	struct spdm_args desc = { { 0 } };
 	int ext_status = 0;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
-
 	if (sscanf(buf, "%u\n", &spdm_data->config_data.max_cci_freq) != 1) {
 		size = -EINVAL;
 		goto out;
@@ -781,16 +748,13 @@ static ssize_t vote_cfg_write(struct file *file, const char __user *data,
 	struct spdm_args desc = { { 0 } };
 	int ext_status = 0;
 
-	if (size > sizeof(buf) - 1)
+	if (size > sizeof(buf))
 		return -EINVAL;
 
 	if (copy_from_user(buf, data, size)) {
 		size = -EINVAL;
 		goto out;
 	}
-
-	buf[size] = '\0';
-
 	if (sscanf(buf, "%u %u %u %u\n", &spdm_data->config_data.upstep,
 	       &spdm_data->config_data.downstep,
 	       &spdm_data->config_data.max_vote,

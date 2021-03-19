@@ -386,7 +386,9 @@ static int dwc3_ep0_handle_status(struct dwc3 *dwc,
 		 */
 
 		ret = dwc3_ep0_delegate_req(dwc, ctrl);
-		return ret;
+		if (ret)
+			return ret;
+		break;
 
 	case USB_RECIP_ENDPOINT:
 		dep = dwc3_wIndex_to_dep(dwc, ctrl->wIndex);
