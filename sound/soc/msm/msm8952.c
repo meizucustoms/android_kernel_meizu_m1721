@@ -2828,13 +2828,6 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
 		return cali.ret;
 	}
 
-	pr_info("%s(): set speaker calibration data from crus_gb_cali_data\n", __func__);
-	ret = msm_cirrus_set_speaker_calibration_data(&cali);
-	if (ret) {
-		pr_err("%s(): failed setting calibration data (ret = %d)\n", __func__, ret);
-		return ret;
-	}
-
 	pr_info("%s(): experimental section: Flashing RX config...\n", __func__);
 	ret = msm_cirrus_flash_rx_config();
 	if (ret) {
@@ -2849,6 +2842,13 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
 		return ret;
 	}
 
+	pr_info("%s(): writing speaker calibration data\n", __func__);
+	ret = msm_cirrus_write_speaker_calibration_data(&cali);
+	if (ret) {
+		pr_err("%s(): failed writing calibration data (ret = %d)\n", __func__, ret);
+		return ret;
+	}
+	
     snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "AMP Playback");
     snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "AMP Capture");
     snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "SDIN");

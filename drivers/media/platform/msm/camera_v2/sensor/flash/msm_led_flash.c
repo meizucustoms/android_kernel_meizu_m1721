@@ -17,7 +17,6 @@
 
 #define CDBG(fmt, args...) pr_warn("msm_led_flash: " fmt, ##args)
 
-
 static struct v4l2_file_operations msm_led_flash_v4l2_subdev_fops;
 
 static long msm_led_flash_subdev_ioctl(struct v4l2_subdev *sd,
@@ -59,7 +58,6 @@ static struct v4l2_subdev_ops msm_flash_subdev_ops = {
 	.core = &msm_flash_subdev_core_ops,
 };
 
-#ifdef CONFIG_COMPAT
 static long msm_led_flash_subdev_do_ioctl(
 	struct file *file, unsigned int cmd, void *arg)
 {
@@ -81,8 +79,6 @@ static long msm_led_flash_subdev_do_ioctl(
 	vdev = video_devdata(file);
 	sd = vdev_to_v4l2_subdev(vdev);
 	u32 = (struct msm_flash_cfg_data_t32 *)arg;
-
-	flash_data.cfg_type = 0;
 
 	for (i = 0; i < MAX_LED_TRIGGERS; i++) {
 		flash_data.flash_current[i] = u32->flash_current[i];
@@ -149,7 +145,6 @@ static long msm_led_flash_subdev_fops_ioctl(struct file *file,
 {
 	return video_usercopy(file, cmd, arg, msm_led_flash_subdev_do_ioctl);
 }
-#endif
 
 static const struct v4l2_subdev_internal_ops msm_flash_internal_ops;
 
@@ -157,7 +152,6 @@ int msm_led_i2c_flash_create_v4lsubdev(void *data)
 {
 	struct msm_led_flash_ctrl_t *fctrl =
 		(struct msm_led_flash_ctrl_t *)data;
-	int rc;
 	CDBG("Enter\n");
 
 	if (!fctrl) {
@@ -171,18 +165,15 @@ int msm_led_i2c_flash_create_v4lsubdev(void *data)
 
 	fctrl->msm_sd.sd.internal_ops = &msm_flash_internal_ops;
 	fctrl->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	strcpy(fctrl->msm_sd.sd.name, "msm_flash");
+	snprintf(fctrl->msm_sd.sd.name, ARRAY_SIZE(fctrl->msm_sd.sd.name),
+		"msm_flash");
 	media_entity_init(&fctrl->msm_sd.sd.entity, 0, NULL, 0);
 	fctrl->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 	fctrl->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_LED_FLASH;
-	rc = msm_sd_register(&fctrl->msm_sd);
-	CDBG("%s: msm subdev registered with code %d\n", __func__, rc);
+	msm_sd_register(&fctrl->msm_sd);
 
-	msm_cam_copy_v4l2_subdev_fops(&msm_led_flash_v4l2_subdev_fops);
-#ifdef CONFIG_COMPAT
-	msm_led_flash_v4l2_subdev_fops.compat_ioctl32 =
-		msm_led_flash_subdev_fops_ioctl;
-#endif
+	msm_led_flash_v4l2_subdev_fops = v4l2_subdev_fops;
+	msm_led_flash_v4l2_subdev_fops.compat_ioctl32 = msm_led_flash_subdev_fops_ioctl;
 	fctrl->msm_sd.sd.devnode->fops = &msm_led_flash_v4l2_subdev_fops;
 
 	CDBG("probe success\n");

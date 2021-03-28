@@ -23,8 +23,6 @@
 #include "aw36413.h"
 #include "../../common/msm_camera_io_util.h"
 
-//#define AW36413_MSFL_SUPPORT
-
 static struct msm_led_flash_ctrl_t fctrl;
 
 static const struct i2c_device_id aw36413_i2c_id[] = {
@@ -38,18 +36,6 @@ static const struct of_device_id aw36413_i2c_trigger_dt_match[] = {
 MODULE_DEVICE_TABLE(of, aw36413_trigger_dt_match);
 
 static struct aw36413_cfg *aw36413 = NULL;
-
-#ifdef AW36413_MSFL_SUPPORT
-// For class and device creating
-static struct device *aw36413_msfl_dev;
-static dev_t aw36413_msfl_devt;
-static struct class *aw36413_msfl_class;
-static struct cdev *aw36413_msfl_cdev;
-static const struct file_operations aw36413_msfl_fops;
-
-// Brightness values (in mA)
-static long int msfl_br1 = 150, msfl_br2 = 150;
-#endif
 
 static int aw36413_reg_write(int device, unsigned int reg, unsigned int val) {
 	unsigned int ret;
@@ -245,116 +231,6 @@ static void aw36413_get_vendor_id(void) {
 	aw_info("done\n");
 }
 
-#ifdef AW36413_MSFL_SUPPORT
-static int msfl_store(struct device *dev,
-		struct device_attribute *attr, const char *buf, size_t count)
-{
-	int rc = 0, enable;
-	int brightness[2], countVar[2];
-
-	rc = sscanf(buf, "%ld %ld", &msfl_br1, &msfl_br2);
-	aw_info("sscanf rc = %d\n", rc);
-
-	aw_info("enter br1 = %ld, br2 = %ld\n", msfl_br1, msfl_br2);
-
-	if (!aw36413->hwenpwr) {
-		aw36413_hwen(AW36413_BOTH, AW36413_HWEN_ON);
-		mdelay(AW36413_HWEN_DELAY); // HWEN	delay
-	}
-
-	if (aw36413->vendor == 1) {
-        countVar[0] = 560;
-        countVar[1] = 280;
-    } else {
-        countVar[0] = 582;
-        countVar[1] = 291;
-    }
-    
-    if (msfl_br1 > 300)
-        brightness[0] = ((30000 + countVar[1]) / countVar[0]) - 1;     // 300 mA
-    else
-        brightness[0] = ((100 * msfl_br1 + countVar[1]) / countVar[0]) - 1; // Up to 300 mA
-
-	if (msfl_br2 > 300)
-        brightness[1] = ((30000 + countVar[1]) / countVar[0]) - 1;     // 300 mA
-    else
-        brightness[1] = ((100 * msfl_br2 + countVar[1]) / countVar[0]) - 1; // Up to 300 mA
-
-	if (!brightness[0])
-		enable = 9;
-	if (!brightness[1])
-		enable = 10;
-	if (!brightness[1] && !brightness[0])
-		enable = 0;
-
-	if (!brightness[0] || !brightness[1]) {
-        aw_err("Brightness error: %d[0] and %d[1]", brightness[0], brightness[1]);
-    }
-
-	aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED1_TORCH, brightness[0]);
-	aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED2_TORCH, brightness[1]);
-	aw36413_reg_write(AW36413_BOTH, REG_AW36413_TIMING, AW36413_TIMING_COUNT);
-	aw36413_reg_write(AW36413_BOTH, REG_AW36413_ENABLE, enable);
-
-	return rc;
-}
-
-static ssize_t msfl_show(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	return snprintf(buf, PAGE_SIZE, "%ld %ld\n", msfl_br1, msfl_br2);
-}
-
-static DEVICE_ATTR(led_control, 0664, msfl_show, msfl_store);
-
-static struct device_attribute msfl_attrs[] = {
-	&dev_attr_led_control,
-};
-
-static int aw36413_msfl_register(struct i2c_client *client) 
-{
-	int ret = 0, i = 0;
-
-	ret = alloc_chrdev_region(&aw36413_msfl_devt, 0, 1, "msfl");
-	if (ret) {
-		aw_err("Allocating char device region failed! ret = %d\n", ret);
-		return ret;
-	}
-
-	cdev_init(&aw36413_msfl_cdev, &aw36413_msfl_fops);
-	aw36413_msfl_cdev.owner = THIS_MODULE;
-
-	ret = cdev_add(&aw36413_msfl_cdev, aw36413_msfl_devt, 1);
-	if (ret) {
-		aw_err("Linking char device region to cdev failed! ret = %d\n", ret);
-		return ret;
-	}
-
-	aw36413_msfl_class = class_create(THIS_MODULE, "aw36413");
-	if (IS_ERR(aw36413_msfl_class)) {
-		aw_err("Creating msfl class failed! ret = %d\n", ret);
-		return -EFAULT;
-	}
-
-	aw36413_msfl_dev = device_create(aw36413_msfl_class, &client->dev,
-									 aw36413_msfl_devt, aw36413, "aw36413");
-	if (aw36413_msfl_dev == NULL) {
-		aw_err("Creating aw36413 msfl device failed! ret = %d\n", ret);
-		return -EFAULT;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(msfl_attrs); i++) {
-		ret = device_create_file(aw36413_msfl_dev, msfl_attrs[i]);
-		if (!aw36413_msfl_dev) {
-			aw_err("[%s] Creating aw36413 msfl device file failed! ret = %d\n", msfl_attrs[i]->attr.name, ret);
-			return -EFAULT;
-		}
-	}
-
-	return ret;
-}
-#endif
-
 static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
         const struct i2c_device_id *id) {
 	int ret;
@@ -401,10 +277,6 @@ static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
 		pr_err("%s failed to create classdev %d\n", __func__, __LINE__);
 		return ret;
 	}
-
-#ifdef AW36413_MSFL_SUPPORT
-	aw36413_msfl_register(client);
-#endif
     
 	aw_info("done\n");
 	aw36413->probed = 1;

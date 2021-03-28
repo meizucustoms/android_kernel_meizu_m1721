@@ -78,14 +78,6 @@
  */
 #define CRUS_PARAM_SET_F0_CAL	    0x00A1BF05
 
-/* CRUS_PARAM_CAL_ERR_VAL_[1/2/3]
- * If crus_temp_cal gave error, set these
- * variables 
- */
-#define CRUS_PARAM_CAL_ERR_VAL_1    0x00045948
-#define CRUS_PARAM_CAL_ERR_VAL_2    0x00000010
-#define CRUS_PARAM_CAL_ERR_VAL_3    0x0000001C
-
 #define CRUS_AFE_PARAM_ID_ENABLE	0x00010203
 
 struct crus_gb_ioctl_header {
@@ -116,5 +108,6 @@ int msm_cirrus_set_speaker_calibration_data(struct crus_gb_cali_data *cali);
 struct crus_gb_cali_data msm_cirrus_get_speaker_calibration_data(void);
 int msm_cirrus_flash_rx_config(void);
 int msm_cirrus_flash_tx_config(void);
+int msm_cirrus_write_speaker_calibration_data(struct crus_gb_cali_data *cali);
 
 #endif /* _UAPI_MSM_CIRRUS_SPK_PR_H */
