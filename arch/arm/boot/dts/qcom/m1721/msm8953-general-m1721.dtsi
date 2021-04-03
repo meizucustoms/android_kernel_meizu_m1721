@@ -438,47 +438,44 @@
 
         i2c@7af8000 { /* BLSP2 QUP4 */
                 cs35l35@40 {
-                        status = "ok";
-                        compatible = "cirrus,cs35l35";
-                        reg = <0x40>;
-						
-                        reset-gpios = <&tlmm 91 1>;
+			status = "ok";
+			compatible = "cirrus,cs35l35";
+			reg = <0x40>;
+			reset-gpios = <&tlmm 0x5b 0x1>;
+			irq-gpio = <&tlmm 0x5a 0x1>;
+			interrupt-parent = <&tlmm>;
+			interrupts = <0x5a 0x8>;
+			debounce = <0x5a 0x64>;
+			pinctrl-names = "cs35l35_irq_default";
+			pinctrl-0 = <&cs35l35_irq_default>;
+			cirrus,audio-channel = <0x0>;
+			cirrus,sp-drv-strength = <0x0>;
+			cirrus,boost-ctl = <0x7f>;
+			cirrus,boost-ipk = <0x19>;
 
-                        irq-gpio = <&tlmm 90 1>;
-                        interrupt-parent = <&tlmm>;
-						interrupts = <90 8>;
-						debounce = <90 100>;
-                        pinctrl-names = "cs35l35_irq";
-						pinctrl-0 = <&cs35l35_irq_default>;
+			cirrus,classh-internal-algo {
+				cirrus,classh-bst-overide;
+				cirrus,classh-bst-max-limit = <0x1>;
+				cirrus,classh-mem-depth = <0x1>;
+				cirrus,classh-release-rate = <0x3>;
+				cirrus,classh-headroom = <0x8>;
+				cirrus,classh-wk-fet-disable = <0x0>;
+				cirrus,classh-wk-fet-delay = <0x4>;
+				cirrus,classh-wk-fet-thld = <0x1>;
+				cirrus,classh-vpch-auto = <0x1>;
+				cirrus,classh-vpch-rate = <0x2>;
+				cirrus,classh-vpch-man = <0x5>;
+			};
 
-                        cirrus,audio-channel = <0>;
-                        cirrus,sp-drv-strength = <0>;
-                        cirrus,boost-ctl = <127>;
-                        cirrus,boost-ipk = <25>;
-
-                        cirrus,classh-internal-algo {
-                                cirrus,classh-bst-overide;
-                                cirrus,classh-bst-max-limit = <1>;
-                                cirrus,classh-mem-depth = <1>;
-                                cirrus,classh-release-rate = <3>;
-                                cirrus,classh-headroom = <8>;
-                                cirrus,classh-wk-fet-disable = <0>;
-                                cirrus,classh-wk-fet-delay = <4>;
-                                cirrus,classh-wk-fet-thld = <1>;
-                                cirrus,classh-vpch-auto = <1>;
-                                cirrus,classh-vpch-rate = <2>;
-                                cirrus,classh-vpch-man = <5>;
-                        };
-
-                        cirrus,monitor-signal-format {
-								cirrus,imon = [03 00 01];
-								cirrus,vmon = [03 00 00];
-								cirrus,vpmon = [00 04 00];
-								cirrus,vbstmon = [00 04 01];
-								cirrus,vpbrstat = [00 04 00];
-								cirrus,zerofill = [00 00 00];
-                        };
-                };
+			cirrus,monitor-signal-format {
+				cirrus,imon = [03 00 01];
+				cirrus,vmon = [03 00 00];
+				cirrus,vpmon = [00 04 00];
+				cirrus,vbstmon = [00 04 01];
+				cirrus,vpbrstat = [00 04 00];
+				cirrus,zerofill = [00 00 00];
+			};
+		};
 	};
 };
 

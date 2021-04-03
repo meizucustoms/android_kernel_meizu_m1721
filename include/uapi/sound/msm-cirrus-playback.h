@@ -15,9 +15,6 @@
 #include <linux/types.h>
 #include <linux/ioctl.h>
 
-#define SPK_CAL_DATA_LENGTH 30
-#define SPK_CAL_DATA_START_ADDR 0xD8
-
 #define CIRRUS_GB_FFPORT	    0x00A1AF00
 #define CIRRUS_GB_FBPORT		0x00A1BF00
 
@@ -25,13 +22,15 @@
 #define CRUS_MODULE_ID_RX		0x00000001
 
 /*
- * CRUS_PARAM_RX_SET_USECASE
- * 0 = Music Playback in firmware
- * 1 = VOICE Playback in firmware
- * 2 = Tuning file loaded using external
- *     config load command
+ * CRUS_PARAM_OPALUM
+ *
+ * For Opalum Speaker Protection
+ * controls in cspl driver
+ * 
+ * Used in crus_afe_set_param in
+ * Opalum functions of GB config    
  */
-#define CRUS_PARAM_RX_SET_USECASE   0x00A1AF02
+#define CRUS_PARAM_OPALUM        	0x00A1AF02
 
 /*
  * CRUS_PARAM_RX/TX_SET_CALIB
@@ -79,16 +78,7 @@
  */
 #define CRUS_PARAM_SET_F0_CAL	    0x00A1BF05
 
-/*
- * CRUS_PARAM_RX_CHANNEL_SWAP
- * initiate l/r channel swap transition
- */
-#define CRUS_PARAM_RX_CHANNEL_SWAP	0x00A1AF12
-
 #define CRUS_AFE_PARAM_ID_ENABLE	0x00010203
-
-#define MIN_CHAN_SWAP_SAMPLES	48
-#define MAX_CHAN_SWAP_SAMPLES	9600
 
 struct crus_gb_ioctl_header {
 	uint32_t module_id;
@@ -96,6 +86,10 @@ struct crus_gb_ioctl_header {
 	uint32_t data_length;
 	void *data;
 };
+
+/*
+ * Cirrus's audio HAL functions -> kernel functions
+ */
 
 struct crus_gb_cali_data {
 	// Calibration data
@@ -107,7 +101,13 @@ struct crus_gb_cali_data {
 	int ret;
 };
 
+#define SPK_CAL_DATA_LENGTH 30
+#define SPK_CAL_DATA_START_ADDR 0xD8
+
 int msm_cirrus_set_speaker_calibration_data(struct crus_gb_cali_data *cali);
 struct crus_gb_cali_data msm_cirrus_get_speaker_calibration_data(void);
+int msm_cirrus_flash_rx_config(void);
+int msm_cirrus_flash_tx_config(void);
+int msm_cirrus_write_speaker_calibration_data(struct crus_gb_cali_data *cali);
 
 #endif /* _UAPI_MSM_CIRRUS_SPK_PR_H */
