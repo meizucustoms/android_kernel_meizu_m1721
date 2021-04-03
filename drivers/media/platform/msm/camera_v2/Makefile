@@ -10,6 +10,10 @@ ccflags-y += -Idrivers/media/platform/msm/camera_v2/jpeg_dma
 ccflags-y += -Idrivers/media/platform/msm/camera_v2/fd
 ccflags-y += -Idrivers/media/platform/msm/camera_v2/common
 
+# For MeizuHW
+ccflags-y += -Idrivers/media/platform/msm/camera_v2/sensor/cci
+ccflags-y += -Idrivers/media/platform/msm/camera_v2/sensor/io
+
 obj-$(CONFIG_MSMB_CAMERA) += common/
 obj-$(CONFIG_MSMB_CAMERA) += msm.o
 obj-$(CONFIG_MSMB_CAMERA) += camera/
@@ -18,6 +22,7 @@ obj-$(CONFIG_MSMB_CAMERA) += sensor/
 obj-$(CONFIG_MSMB_CAMERA) += pproc/
 obj-$(CONFIG_MSMB_CAMERA) += isp/
 obj-$(CONFIG_MSMB_CAMERA) += ispif/
+obj-$(CONFIG_MACH_MEIZU_M1721) += meizu_hw.o
 obj-$(CONFIG_MSMB_JPEG) += jpeg_10/
 obj-$(CONFIG_MSM_JPEGDMA) += jpeg_dma/
 obj-$(CONFIG_MSMB_CAMERA) += msm_buf_mgr/

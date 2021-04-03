@@ -17,12 +17,14 @@
 #include "msm_camera_i2c_mux.h"
 #include <linux/regulator/rpm-smd-regulator.h>
 #include <linux/regulator/consumer.h>
+#include <media/meizu_hw.h>
 
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
 static struct msm_camera_i2c_fn_t msm_sensor_cci_func_tbl;
 static struct msm_camera_i2c_fn_t msm_sensor_secure_func_tbl;
+static struct meizu_camera_data   mzcamera;
 
 static void msm_sensor_adjust_mclk(struct msm_camera_power_ctrl_t *ctrl)
 {
@@ -269,13 +271,40 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 		return rc;
 	}
 
-	pr_debug("%s: read id: 0x%x expected id 0x%x:\n",
+	pr_err("%s: read id: 0x%x expected id 0x%x: (att: 1)\n",
 			__func__, chipid, slave_info->sensor_id);
-	if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
-		pr_err("%s chip id %x does not match %x\n",
-				__func__, chipid, slave_info->sensor_id);
-		return -ENODEV;
+
+	meizu_sensor_parse_id(&mzcamera, s_ctrl);
+	if (rc < 0) {
+		pr_err("%s meizu camera id check failed with code 0x%02x\n",
+				__func__, rc);
+		return rc;
 	}
+
+	if (mzcamera.back.id && mzcamera.front.id && mzcamera.bokeh.id) {
+		meizu_camera_print_data(&mzcamera);
+	}
+
+	if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
+		pr_err("%s chip id %x does not match %x (%s) | try again\n",
+				__func__, chipid, slave_info->sensor_id, sensor_name);
+		rc = sensor_i2c_client->i2c_func_tbl->i2c_read(
+		 	 sensor_i2c_client, slave_info->sensor_id_reg_addr,
+		 	 &chipid, MSM_CAMERA_I2C_WORD_DATA);
+		if (rc < 0) {
+			pr_err("%s: %s: read id failed\n", __func__, sensor_name);
+			return rc;
+		}
+
+		pr_err("%s: read id: 0x%x expected id 0x%x: (att: 2)\n",
+				__func__, chipid, slave_info->sensor_id);
+		if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
+			pr_err("%s chip id %x does not match %x (%s) | att 2, return.\n",
+				__func__, chipid, slave_info->sensor_id, sensor_name);
+			return rc;
+		}
+	}
+	return rc;
 	return rc;
 }
 
