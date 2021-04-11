@@ -2867,13 +2867,12 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
         if (card->num_rtd <= i)
             return 0;
 
-        if (card->rtd[i].dai_link && card->rtd[i].dai_link->codec_name && !strcmp(card->rtd[i].dai_link->codec_name, "cs35l35.8-0040"))
-            break;
+        if (card->rtd[i].dai_link && card->rtd[i].dai_link->codec_name && 
+			!strcmp(card->rtd[i].dai_link->codec_name, "cs35l35.8-0040"))
+            	break;
 		
         i++;
     }
-
-	pr_info("%s(): found cs35l35\n", __func__);
 
 	pr_info("%s(): get speaker calibration data from proinfo\n", __func__);
 	cali = msm_cirrus_get_speaker_calibration_data();
@@ -2882,13 +2881,27 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
 		return cali.ret;
 	}
 
-	pr_info("%s(): set speaker calibration data from crus_gb_cali_data\n", __func__);
-	ret = msm_cirrus_set_speaker_calibration_data(&cali);
+	pr_info("%s(): experimental section: Flashing RX config...\n", __func__);
+	ret = msm_cirrus_flash_rx_config();
 	if (ret) {
-		pr_err("%s(): failed setting calibration data (ret = %d)\n", __func__, ret);
+		pr_err("%s(): failed to flash RX config: %d\n", __func__, ret);
 		return ret;
 	}
 
+	pr_info("%s(): experimental section: Flashing TX config...\n", __func__);
+	ret = msm_cirrus_flash_tx_config();
+	if (ret) {
+		pr_err("%s(): failed to flash TX config: %d\n", __func__, ret);
+		return ret;
+	}
+
+	pr_info("%s(): writing speaker calibration data\n", __func__);
+	ret = msm_cirrus_write_speaker_calibration_data(&cali);
+	if (ret) {
+		pr_err("%s(): failed writing calibration data (ret = %d)\n", __func__, ret);
+		return ret;
+	}
+	
     snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "AMP Playback");
     snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "AMP Capture");
     snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "SDIN");

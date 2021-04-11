@@ -58,23 +58,17 @@ struct crus_triple_data_t {
 /* Payload struct for setting the RX and TX use cases */
 struct crus_rx_run_case_ctrl_t {
 	int32_t value;
-	int32_t status_l;
-	int32_t checksum_l;
-	int32_t z_l;
-	int32_t status_r;
-	int32_t checksum_r;
-	int32_t z_r;
+	int32_t status;
+	int32_t checksum;
+	int32_t z;
 	int32_t atemp;
 };
 
 /* Payload struct for getting calibration result from DSP module */
 struct cirrus_cal_result_t {
-	int32_t status_l;
-	int32_t checksum_l;
-	int32_t z_l;
-	int32_t status_r;
-	int32_t checksum_r;
-	int32_t z_r;
+	int32_t status;
+	int32_t checksum;
+	int32_t z;
 };
 
 #define APR_CHUNK_SIZE		256

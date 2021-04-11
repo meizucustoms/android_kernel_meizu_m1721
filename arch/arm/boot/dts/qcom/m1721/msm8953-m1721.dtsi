@@ -12,9 +12,9 @@
  */
 
 #include "msm-audio-m1721.dtsi"
-#include "msm8953-ports-m1721.dtsi"
+#include "msm8953-pinctrl-m1721.dtsi"
 #include "msm8953-general-m1721.dtsi"
 #include "msm8953-display-m1721.dtsi"
 #include "msm8953-camera-sensor-qrd-m1721.dtsi"
-#include "msm8953-pinctrl-m1721.dtsi"
 #include "msm8953-memory-m1721.dtsi"
+#include "msm8953-batterydata-m1721.dtsi"
