@@ -20,10 +20,6 @@
 #include <linux/cpumask.h>
 #include <linux/thread_info.h>
 
-#ifndef CONFIG_SMP
-# error "<asm/smp.h> included in non-SMP build"
-#endif
-
 #define raw_smp_processor_id() (current_thread_info()->cpu)
 
 struct seq_file;
@@ -60,6 +56,9 @@ asmlinkage void secondary_start_kernel(void);
  */
 struct secondary_data {
 	void *stack;
+#ifdef CONFIG_THREAD_INFO_IN_TASK
+	struct task_struct *task;
+#endif
 };
 extern struct secondary_data secondary_data;
 extern void secondary_entry(void);

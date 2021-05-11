@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -325,6 +325,12 @@ int ipa2_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 	int result;
 	u32 offset = 0;
 	size_t tmp;
+	gfp_t flag = GFP_KERNEL | (ipa_ctx->use_dma_zone ? GFP_DMA : 0);
+
+	if (!ipa_ctx->nat_mem.is_dev_init) {
+		IPAERR_RL("Nat table not initialized\n");
+		return -EPERM;
+	}
 
 	IPADBG("\n");
 	if (init->table_entries == 0) {
@@ -338,6 +344,9 @@ int ipa2_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 		IPAERR_RL("Detected overflow\n");
 		return -EPERM;
 	}
+
+	mutex_lock(&ipa_ctx->nat_mem.lock);
+
 	/* Check Table Entry offset is not
 	   beyond allocated size */
 	tmp = init->ipv4_rules_offset +
@@ -347,6 +356,7 @@ int ipa2_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 		IPAERR_RL("offset:%d entrys:%d size:%zu mem_size:%zu\n",
 			init->ipv4_rules_offset, (init->table_entries + 1),
 			tmp, ipa_ctx->nat_mem.size);
+		mutex_unlock(&ipa_ctx->nat_mem.lock);
 		return -EPERM;
 	}
 
@@ -354,6 +364,7 @@ int ipa2_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 	if (init->expn_rules_offset >
 		UINT_MAX - (TBL_ENTRY_SIZE * init->expn_table_entries)) {
 		IPAERR_RL("Detected overflow\n");
+		mutex_unlock(&ipa_ctx->nat_mem.lock);
 		return -EPERM;
 	}
 	/* Check Expn Table Entry offset is not
@@ -365,6 +376,7 @@ int ipa2_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 		IPAERR_RL("offset:%d entrys:%d size:%zu mem_size:%zu\n",
 			init->expn_rules_offset, init->expn_table_entries,
 			tmp, ipa_ctx->nat_mem.size);
+		mutex_unlock(&ipa_ctx->nat_mem.lock);
 		return -EPERM;
 	}
 
@@ -372,6 +384,7 @@ int ipa2_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 	if (init->index_offset >
 		UINT_MAX - (INDX_TBL_ENTRY_SIZE * (init->table_entries + 1))) {
 		IPAERR_RL("Detected overflow\n");
+		mutex_unlock(&ipa_ctx->nat_mem.lock);
 		return -EPERM;
 	}
 	/* Check Indx Table Entry offset is not
@@ -383,6 +396,7 @@ int ipa2_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 		IPAERR_RL("offset:%d entrys:%d size:%zu mem_size:%zu\n",
 			init->index_offset, (init->table_entries + 1),
 			tmp, ipa_ctx->nat_mem.size);
+		mutex_unlock(&ipa_ctx->nat_mem.lock);
 		return -EPERM;
 	}
 
@@ -390,6 +404,7 @@ int ipa2_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 	if (init->index_expn_offset >
 		(UINT_MAX - (INDX_TBL_ENTRY_SIZE * init->expn_table_entries))) {
 		IPAERR_RL("Detected overflow\n");
+		mutex_unlock(&ipa_ctx->nat_mem.lock);
 		return -EPERM;
 	}
 	/* Check Expn Table entry offset is not
@@ -401,12 +416,13 @@ int ipa2_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 		IPAERR_RL("offset:%d entrys:%d size:%zu mem_size:%zu\n",
 			init->index_expn_offset, init->expn_table_entries,
 			tmp, ipa_ctx->nat_mem.size);
+		mutex_unlock(&ipa_ctx->nat_mem.lock);
 		return -EPERM;
 	}
 
 	memset(&desc, 0, sizeof(desc));
 	/* NO-OP IC for ensuring that IPA pipeline is empty */
-	reg_write_nop = kzalloc(sizeof(*reg_write_nop), GFP_KERNEL);
+	reg_write_nop = kzalloc(sizeof(*reg_write_nop), flag);
 	if (!reg_write_nop) {
 		IPAERR("no mem\n");
 		result = -ENOMEM;
@@ -424,7 +440,7 @@ int ipa2_nat_init_cmd(struct ipa_ioc_v4_nat_init *init)
 	desc[0].pyld = (void *)reg_write_nop;
 	desc[0].len = sizeof(*reg_write_nop);
 
-	cmd = kmalloc(size, GFP_KERNEL);
+	cmd = kmalloc(size, flag);
 	if (!cmd) {
 		IPAERR("Failed to alloc immediate command object\n");
 		result = -ENOMEM;
@@ -549,6 +565,7 @@ free_mem:
 free_nop:
 	kfree(reg_write_nop);
 bail:
+	mutex_unlock(&ipa_ctx->nat_mem.lock);
 	return result;
 }
 
@@ -569,6 +586,12 @@ int ipa2_nat_dma_cmd(struct ipa_ioc_nat_dma_cmd *dma)
 	struct ipa_desc *desc = NULL;
 	u16 size = 0, cnt = 0;
 	int ret = 0;
+	gfp_t flag = GFP_KERNEL | (ipa_ctx->use_dma_zone ? GFP_DMA : 0);
+
+	if (!ipa_ctx->nat_mem.is_dev_init) {
+		IPAERR_RL("Nat table not initialized\n");
+		return -EPERM;
+	}
 
 	IPADBG("\n");
 	if (dma->entries <= 0) {
@@ -652,7 +675,7 @@ int ipa2_nat_dma_cmd(struct ipa_ioc_nat_dma_cmd *dma)
 	}
 
 	size = sizeof(struct ipa_nat_dma);
-	cmd = kzalloc(size, GFP_KERNEL);
+	cmd = kzalloc(size, flag);
 	if (cmd == NULL) {
 		IPAERR("Failed to alloc memory\n");
 		ret = -ENOMEM;
@@ -660,7 +683,7 @@ int ipa2_nat_dma_cmd(struct ipa_ioc_nat_dma_cmd *dma)
 	}
 
 	/* NO-OP IC for ensuring that IPA pipeline is empty */
-	reg_write_nop = kzalloc(sizeof(*reg_write_nop), GFP_KERNEL);
+	reg_write_nop = kzalloc(sizeof(*reg_write_nop), flag);
 	if (!reg_write_nop) {
 		IPAERR("Failed to alloc memory\n");
 		ret = -ENOMEM;
@@ -754,6 +777,17 @@ int ipa2_nat_del_cmd(struct ipa_ioc_v4_nat_del *del)
 	u8 mem_type = IPA_NAT_SHARED_MEMORY;
 	u32 base_addr = IPA_NAT_PHYS_MEM_OFFSET;
 	int result;
+	gfp_t flag = GFP_KERNEL | (ipa_ctx->use_dma_zone ? GFP_DMA : 0);
+
+	if (!ipa_ctx->nat_mem.is_dev_init) {
+		IPAERR_RL("Nat table not initialized\n");
+		return -EPERM;
+	}
+
+	if (!ipa_ctx->nat_mem.public_ip_addr) {
+		IPAERR_RL("Public IP addr not assigned and trying to delete\n");
+		return -EPERM;
+	}
 
 	IPADBG("\n");
 	if (ipa_ctx->nat_mem.is_tmp_mem) {
@@ -770,7 +804,7 @@ int ipa2_nat_del_cmd(struct ipa_ioc_v4_nat_del *del)
 
 	memset(&desc, 0, sizeof(desc));
 	/* NO-OP IC for ensuring that IPA pipeline is empty */
-	reg_write_nop = kzalloc(sizeof(*reg_write_nop), GFP_KERNEL);
+	reg_write_nop = kzalloc(sizeof(*reg_write_nop), flag);
 	if (!reg_write_nop) {
 		IPAERR("no mem\n");
 		result = -ENOMEM;
@@ -788,7 +822,7 @@ int ipa2_nat_del_cmd(struct ipa_ioc_v4_nat_del *del)
 	desc[0].pyld = (void *)reg_write_nop;
 	desc[0].len = sizeof(*reg_write_nop);
 
-	cmd = kmalloc(size, GFP_KERNEL);
+	cmd = kmalloc(size, flag);
 	if (cmd == NULL) {
 		IPAERR("Failed to alloc immediate command object\n");
 		result = -ENOMEM;

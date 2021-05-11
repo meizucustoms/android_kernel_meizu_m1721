@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -13,7 +13,6 @@
 #include "ipa_i.h"
 #include "ipahal/ipahal.h"
 
-#define IPA_FLT_TABLE_INDEX_NOT_FOUND		(-1)
 #define IPA_FLT_STATUS_OF_ADD_FAILED		(-1)
 #define IPA_FLT_STATUS_OF_DEL_FAILED		(-1)
 #define IPA_FLT_STATUS_OF_MDFY_FAILED		(-1)
@@ -807,7 +806,7 @@ static bool ipa_flt_skip_pipe_config(int pipe)
 		return true;
 	}
 
-	if ((ipa3_get_ep_mapping(IPA_CLIENT_APPS_LAN_WAN_PROD) == pipe
+	if ((ipa3_get_ep_mapping(IPA_CLIENT_APPS_WAN_PROD) == pipe
 		&& ipa3_ctx->modem_cfg_emb_pipe_flt)) {
 		IPADBG_LOW("skip %d\n", pipe);
 		return true;
@@ -1100,8 +1099,8 @@ static int __ipa_validate_flt_rule(const struct ipa_flt_rule *rule,
 	}
 
 	if (rule->rule_id) {
-		if (rule->rule_id >= IPA_RULE_ID_MIN_VAL &&
-		    rule->rule_id <= IPA_RULE_ID_MAX_VAL) {
+		if (rule->rule_id < IPA_RULE_ID_MIN ||
+		    rule->rule_id >= IPA_RULE_ID_MAX) {
 			IPAERR("invalid rule_id provided 0x%x\n"
 				"rule_id 0x%x - 0x%x  are auto generated\n",
 				rule->rule_id,
@@ -1366,7 +1365,7 @@ error:
 static int __ipa_add_flt_get_ep_idx(enum ipa_client_type ep, int *ipa_ep_idx)
 {
 	*ipa_ep_idx = ipa3_get_ep_mapping(ep);
-	if (*ipa_ep_idx == IPA_FLT_TABLE_INDEX_NOT_FOUND) {
+	if (*ipa_ep_idx < 0) {
 		IPAERR("ep not valid ep=%d\n", ep);
 		return -EINVAL;
 	}
@@ -1498,6 +1497,13 @@ int ipa3_add_flt_rule_after(struct ipa_ioc_add_flt_rule_after *rules)
 	entry = ipa3_id_find(rules->add_after_hdl);
 	if (entry == NULL) {
 		IPAERR_RL("lookup failed\n");
+		result = -EINVAL;
+		goto bail;
+	}
+
+	if (entry->cookie != IPA_FLT_COOKIE) {
+		IPAERR_RL("Invalid cookie value =  %u flt hdl id = %d\n",
+			entry->cookie, rules->add_after_hdl);
 		result = -EINVAL;
 		goto bail;
 	}
@@ -1738,34 +1744,41 @@ void ipa3_install_dflt_flt_rules(u32 ipa_ep_idx)
 
 	mutex_lock(&ipa3_ctx->lock);
 	tbl = &ipa3_ctx->flt_tbl[ipa_ep_idx][IPA_IP_v4];
-	tbl->sticky_rear = true;
 	rule.action = IPA_PASS_TO_EXCEPTION;
-	__ipa_add_flt_rule(tbl, IPA_IP_v4, &rule, false,
+	__ipa_add_flt_rule(tbl, IPA_IP_v4, &rule, true,
 			&ep->dflt_flt4_rule_hdl);
 	ipa3_ctx->ctrl->ipa3_commit_flt(IPA_IP_v4);
+	tbl->sticky_rear = true;
 
 	tbl = &ipa3_ctx->flt_tbl[ipa_ep_idx][IPA_IP_v6];
-	tbl->sticky_rear = true;
 	rule.action = IPA_PASS_TO_EXCEPTION;
-	__ipa_add_flt_rule(tbl, IPA_IP_v6, &rule, false,
+	__ipa_add_flt_rule(tbl, IPA_IP_v6, &rule, true,
 			&ep->dflt_flt6_rule_hdl);
 	ipa3_ctx->ctrl->ipa3_commit_flt(IPA_IP_v6);
+	tbl->sticky_rear = true;
 	mutex_unlock(&ipa3_ctx->lock);
 }
 
 void ipa3_delete_dflt_flt_rules(u32 ipa_ep_idx)
 {
 	struct ipa3_ep_context *ep = &ipa3_ctx->ep[ipa_ep_idx];
+	struct ipa3_flt_tbl *tbl;
 
 	mutex_lock(&ipa3_ctx->lock);
 	if (ep->dflt_flt4_rule_hdl) {
+		tbl = &ipa3_ctx->flt_tbl[ipa_ep_idx][IPA_IP_v4];
 		__ipa_del_flt_rule(ep->dflt_flt4_rule_hdl);
 		ipa3_ctx->ctrl->ipa3_commit_flt(IPA_IP_v4);
+		/* Reset the sticky flag. */
+		tbl->sticky_rear = false;
 		ep->dflt_flt4_rule_hdl = 0;
 	}
 	if (ep->dflt_flt6_rule_hdl) {
+		tbl = &ipa3_ctx->flt_tbl[ipa_ep_idx][IPA_IP_v6];
 		__ipa_del_flt_rule(ep->dflt_flt6_rule_hdl);
 		ipa3_ctx->ctrl->ipa3_commit_flt(IPA_IP_v6);
+		/* Reset the sticky flag. */
+		tbl->sticky_rear = false;
 		ep->dflt_flt6_rule_hdl = 0;
 	}
 	mutex_unlock(&ipa3_ctx->lock);

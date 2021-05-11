@@ -1,4 +1,4 @@
-/* Copyright (c) 2009-2014, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -20,8 +20,6 @@
 #include <soc/qcom/camera2.h>
 #include "msm_camera_i2c.h"
 #include "msm_sd.h"
-#include <media/v4l2-ioctl.h>
-
 
 
 struct msm_led_flash_ctrl_t;
@@ -86,6 +84,9 @@ int32_t msm_led_i2c_trigger_get_subdev_id(struct msm_led_flash_ctrl_t *fctrl,
 	void *arg);
 
 int32_t msm_led_i2c_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
+	void *data);
+
+int32_t msm_led_torch_create_classdev(struct platform_device *pdev,
 	void *data);
 
 int msm_flash_led_init(struct msm_led_flash_ctrl_t *fctrl);

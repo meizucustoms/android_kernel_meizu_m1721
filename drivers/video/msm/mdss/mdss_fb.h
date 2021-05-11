@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -233,6 +233,8 @@ struct msm_mdp_interface {
 				int dest_ctrl);
 	int (*input_event_handler)(struct msm_fb_data_type *mfd);
 	int (*pp_release_fnc)(struct msm_fb_data_type *mfd);
+	void (*signal_retire_fence)(struct msm_fb_data_type *mfd,
+					int retire_cnt);
 	void *private1;
 };
 
@@ -253,6 +255,12 @@ struct msm_fb_backup_type {
 	bool   atomic_commit;
 };
 
+struct msm_fb_fps_info {
+	u32 frame_count;
+	ktime_t last_sampled_time_us;
+	u32 measured_fps;
+};
+
 struct msm_fb_data_type {
 	u32 key;
 	u32 index;
@@ -271,6 +279,7 @@ struct msm_fb_data_type {
 
 	int idle_time;
 	u32 idle_state;
+	struct msm_fb_fps_info fps_info;
 	struct delayed_work idle_notify_work;
 
 	bool atomic_commit_pending;
@@ -304,6 +313,7 @@ struct msm_fb_data_type {
 	bool allow_bl_update;
 	u32 bl_level_scaled;
 	struct mutex bl_lock;
+	struct mutex mdss_sysfs_lock;
 	bool ipc_resume;
 
 	struct platform_device *pdev;
@@ -421,12 +431,21 @@ static inline bool mdss_fb_is_power_on_lp(struct msm_fb_data_type *mfd)
 	return mdss_panel_is_power_on_lp(mfd->panel_power_state);
 }
 
+static inline bool mdss_fb_is_power_on_ulp(struct msm_fb_data_type *mfd)
+{
+	return mdss_panel_is_power_on_ulp(mfd->panel_power_state);
+}
+
 static inline bool mdss_fb_is_hdmi_primary(struct msm_fb_data_type *mfd)
 {
 	return (mfd && (mfd->index == 0) &&
 		(mfd->panel_info->type == DTV_PANEL));
 }
 
+static inline void mdss_fb_init_fps_info(struct msm_fb_data_type *mfd)
+{
+	memset(&mfd->fps_info, 0, sizeof(mfd->fps_info));
+}
 int mdss_fb_get_phys_info(dma_addr_t *start, unsigned long *len, int fb_num);
 void mdss_fb_set_backlight(struct msm_fb_data_type *mfd, u32 bkl_lvl);
 void mdss_fb_update_backlight(struct msm_fb_data_type *mfd);
@@ -450,4 +469,5 @@ u32 mdss_fb_get_mode_switch(struct msm_fb_data_type *mfd);
 void mdss_fb_report_panel_dead(struct msm_fb_data_type *mfd);
 void mdss_panelinfo_to_fb_var(struct mdss_panel_info *pinfo,
 						struct fb_var_screeninfo *var);
+void mdss_fb_calc_fps(struct msm_fb_data_type *mfd);
 #endif /* MDSS_FB_H */

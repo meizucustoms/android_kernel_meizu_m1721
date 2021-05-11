@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -51,6 +51,7 @@ int __ipa_generate_rt_hw_rule_v2(enum ipa_ip_type ip,
 	u32 tmp[IPA_RT_FLT_HW_RULE_BUF_SIZE/4];
 	u8 *start;
 	int pipe_idx;
+	struct ipa_hdr_entry *hdr_entry;
 
 	if (buf == NULL) {
 		memset(tmp, 0, (IPA_RT_FLT_HW_RULE_BUF_SIZE/4));
@@ -74,6 +75,18 @@ int __ipa_generate_rt_hw_rule_v2(enum ipa_ip_type ip,
 	}
 	rule_hdr->u.hdr.pipe_dest_idx = pipe_idx;
 	rule_hdr->u.hdr.system = !ipa_ctx->hdr_tbl_lcl;
+
+	/* Adding check to confirm still
+	 * header entry present in header table or not
+	 */
+
+	if (entry->hdr) {
+		hdr_entry = ipa_id_find(entry->rule.hdr_hdl);
+		if (!hdr_entry || hdr_entry->cookie != IPA_HDR_COOKIE) {
+			IPAERR_RL("Header entry already deleted\n");
+			return -EPERM;
+		}
+	}
 	if (entry->hdr) {
 		if (entry->hdr->cookie == IPA_HDR_COOKIE) {
 			rule_hdr->u.hdr.hdr_offset =
@@ -94,7 +107,7 @@ int __ipa_generate_rt_hw_rule_v2(enum ipa_ip_type ip,
 		return -EPERM;
 	}
 
-	IPADBG("en_rule 0x%x\n", en_rule);
+	IPADBG_LOW("en_rule 0x%x\n", en_rule);
 
 	rule_hdr->u.hdr.en_rule = en_rule;
 	ipa_write_32(rule_hdr->u.word, (u8 *)rule_hdr);
@@ -140,6 +153,8 @@ int __ipa_generate_rt_hw_rule_v2_5(enum ipa_ip_type ip,
 	u32 tmp[IPA_RT_FLT_HW_RULE_BUF_SIZE/4];
 	u8 *start;
 	int pipe_idx;
+	struct ipa_hdr_entry *hdr_entry;
+	struct ipa_hdr_proc_ctx_entry *hdr_proc_entry;
 
 	if (buf == NULL) {
 		memset(tmp, 0, IPA_RT_FLT_HW_RULE_BUF_SIZE);
@@ -162,6 +177,24 @@ int __ipa_generate_rt_hw_rule_v2_5(enum ipa_ip_type ip,
 		return -EPERM;
 	}
 	rule_hdr->u.hdr_v2_5.pipe_dest_idx = pipe_idx;
+	/* Adding check to confirm still
+	 * header entry present in header table or not
+	 */
+
+	if (entry->hdr) {
+		hdr_entry = ipa_id_find(entry->rule.hdr_hdl);
+		if (!hdr_entry || hdr_entry->cookie != IPA_HDR_COOKIE) {
+			IPAERR_RL("Header entry already deleted\n");
+			return -EPERM;
+		}
+	} else if (entry->proc_ctx) {
+		hdr_proc_entry = ipa_id_find(entry->rule.hdr_proc_ctx_hdl);
+		if (!hdr_proc_entry ||
+			hdr_proc_entry->cookie != IPA_PROC_HDR_COOKIE) {
+			IPAERR_RL("Proc header entry already deleted\n");
+			return -EPERM;
+		}
+	}
 	if (entry->proc_ctx || (entry->hdr && entry->hdr->is_hdr_proc_ctx)) {
 		struct ipa_hdr_proc_ctx_entry *proc_ctx;
 
@@ -497,7 +530,9 @@ static void __ipa_reap_sys_rt_tbls(enum ipa_ip_type ip)
 	set = &ipa_ctx->rt_tbl_set[ip];
 	list_for_each_entry(tbl, &set->head_rt_tbl_list, link) {
 		if (tbl->prev_mem.phys_base) {
-			IPADBG("reaping rt tbl name=%s ip=%d\n", tbl->name, ip);
+			IPADBG_LOW("reaping rt");
+			IPADBG_LOW("tbl name=%s ip=%d\n",
+				tbl->name, ip);
 			dma_free_coherent(ipa_ctx->pdev, tbl->prev_mem.size,
 					tbl->prev_mem.base,
 					tbl->prev_mem.phys_base);
@@ -510,8 +545,9 @@ static void __ipa_reap_sys_rt_tbls(enum ipa_ip_type ip)
 		list_del(&tbl->link);
 		WARN_ON(tbl->prev_mem.phys_base != 0);
 		if (tbl->curr_mem.phys_base) {
-			IPADBG("reaping sys rt tbl name=%s ip=%d\n", tbl->name,
-					ip);
+			IPADBG_LOW("reaping sys");
+			IPADBG_LOW("rt tbl name=%s ip=%d\n",
+				tbl->name, ip);
 			dma_free_coherent(ipa_ctx->pdev, tbl->curr_mem.size,
 					tbl->curr_mem.base,
 					tbl->curr_mem.phys_base);
@@ -529,6 +565,7 @@ int __ipa_commit_rt_v1_1(enum ipa_ip_type ip)
 	struct ipa_ip_v6_routing_init *v6;
 	u16 avail;
 	u16 size;
+	gfp_t flag = GFP_KERNEL | (ipa_ctx->use_dma_zone ? GFP_DMA : 0);
 
 	mem = kmalloc(sizeof(struct ipa_mem_buffer), GFP_KERNEL);
 	if (!mem) {
@@ -545,7 +582,7 @@ int __ipa_commit_rt_v1_1(enum ipa_ip_type ip)
 			IPA_MEM_PART(v6_rt_size_ddr);
 		size = sizeof(struct ipa_ip_v6_routing_init);
 	}
-	cmd = kmalloc(size, GFP_KERNEL);
+	cmd = kmalloc(size, flag);
 	if (!cmd) {
 		IPAERR("failed to alloc immediate command object\n");
 		goto fail_alloc_cmd;
@@ -702,6 +739,7 @@ int __ipa_commit_rt_v2(enum ipa_ip_type ip)
 	struct ipa_mem_buffer head;
 	struct ipa_hw_imm_cmd_dma_shared_mem *cmd1 = NULL;
 	struct ipa_hw_imm_cmd_dma_shared_mem *cmd2 = NULL;
+	gfp_t flag = GFP_KERNEL | (ipa_ctx->use_dma_zone ? GFP_DMA : 0);
 	u16 avail;
 	u32 num_modem_rt_index;
 	int rc = 0;
@@ -752,7 +790,7 @@ int __ipa_commit_rt_v2(enum ipa_ip_type ip)
 	}
 
 	cmd1 = kzalloc(sizeof(struct ipa_hw_imm_cmd_dma_shared_mem),
-		GFP_KERNEL);
+		flag);
 	if (cmd1 == NULL) {
 		IPAERR("Failed to alloc immediate command object\n");
 		rc = -ENOMEM;
@@ -769,7 +807,7 @@ int __ipa_commit_rt_v2(enum ipa_ip_type ip)
 
 	if (lcl) {
 		cmd2 = kzalloc(sizeof(struct ipa_hw_imm_cmd_dma_shared_mem),
-			GFP_KERNEL);
+			flag);
 		if (cmd2 == NULL) {
 			IPAERR("Failed to alloc immediate command object\n");
 			rc = -ENOMEM;
@@ -970,7 +1008,7 @@ static int __ipa_del_rt_tbl(struct ipa_rt_tbl *entry)
 		list_del(&entry->link);
 		clear_bit(entry->idx, &ipa_ctx->rt_idx_bitmap[ip]);
 		entry->set->tbl_cnt--;
-		IPADBG("del rt tbl_idx=%d tbl_cnt=%d\n", entry->idx,
+		IPADBG_LOW("del rt tbl_idx=%d tbl_cnt=%d\n", entry->idx,
 				entry->set->tbl_cnt);
 		kmem_cache_free(ipa_ctx->rt_tbl_cache, entry);
 	} else {
@@ -978,7 +1016,7 @@ static int __ipa_del_rt_tbl(struct ipa_rt_tbl *entry)
 				&ipa_ctx->reap_rt_tbl_set[ip].head_rt_tbl_list);
 		clear_bit(entry->idx, &ipa_ctx->rt_idx_bitmap[ip]);
 		entry->set->tbl_cnt--;
-		IPADBG("del sys rt tbl_idx=%d tbl_cnt=%d\n", entry->idx,
+		IPADBG_LOW("del sys rt tbl_idx=%d tbl_cnt=%d\n", entry->idx,
 				entry->set->tbl_cnt);
 	}
 
@@ -1027,9 +1065,8 @@ static int __ipa_add_rt_rule(enum ipa_ip_type ip, const char *name,
 	 * tables
 	 */
 	if (!strncmp(tbl->name, IPA_DFLT_RT_TBL_NAME, IPA_RESOURCE_NAME_MAX) &&
-	    (tbl->rule_cnt > 0) && (at_rear != 0)) {
-		IPAERR("cannot add rule at end of tbl rule_cnt=%d at_rear=%d\n",
-		       tbl->rule_cnt, at_rear);
+	    (tbl->rule_cnt > 0)) {
+		IPAERR("cannot add rules to default rt table\n");
 		goto error;
 	}
 
@@ -1059,7 +1096,8 @@ static int __ipa_add_rt_rule(enum ipa_ip_type ip, const char *name,
 		WARN_ON(1);
 		goto ipa_insert_failed;
 	}
-	IPADBG("add rt rule tbl_idx=%d rule_cnt=%d\n", tbl->idx, tbl->rule_cnt);
+	IPADBG_LOW("add rt rule tbl_idx=%d", tbl->idx);
+	IPADBG_LOW("rule_cnt=%d\n", tbl->rule_cnt);
 	*rule_hdl = id;
 	entry->id = id;
 
@@ -1124,6 +1162,8 @@ int __ipa_del_rt_rule(u32 rule_hdl)
 {
 	struct ipa_rt_entry *entry;
 	int id;
+	struct ipa_hdr_entry *hdr_entry;
+	struct ipa_hdr_proc_ctx_entry *hdr_proc_entry;
 
 	entry = ipa_id_find(rule_hdl);
 
@@ -1137,13 +1177,40 @@ int __ipa_del_rt_rule(u32 rule_hdl)
 		return -EINVAL;
 	}
 
+	if (!strcmp(entry->tbl->name, IPA_DFLT_RT_TBL_NAME)) {
+		IPADBG("Deleting rule from default rt table idx=%u\n",
+			entry->tbl->idx);
+		if (entry->tbl->rule_cnt == 1) {
+			IPAERR_RL("Default tbl last rule cannot be deleted\n");
+			return -EINVAL;
+		}
+	}
+	/* Adding check to confirm still
+	 * header entry present in header table or not
+	 */
+
+	if (entry->hdr) {
+		hdr_entry = ipa_id_find(entry->rule.hdr_hdl);
+		if (!hdr_entry || hdr_entry->cookie != IPA_HDR_COOKIE) {
+			IPAERR_RL("Header entry already deleted\n");
+			return -EINVAL;
+		}
+	} else if (entry->proc_ctx) {
+		hdr_proc_entry = ipa_id_find(entry->rule.hdr_proc_ctx_hdl);
+		if (!hdr_proc_entry ||
+			hdr_proc_entry->cookie != IPA_PROC_HDR_COOKIE) {
+			IPAERR_RL("Proc header entry already deleted\n");
+			return -EINVAL;
+		}
+	}
+
 	if (entry->hdr)
 		__ipa_release_hdr(entry->hdr->id);
 	else if (entry->proc_ctx)
 		__ipa_release_hdr_proc_ctx(entry->proc_ctx->id);
 	list_del(&entry->link);
 	entry->tbl->rule_cnt--;
-	IPADBG("del rt rule tbl_idx=%d rule_cnt=%d\n", entry->tbl->idx,
+	IPADBG_LOW("del rt rule tbl_idx=%d rule_cnt=%d\n", entry->tbl->idx,
 			entry->tbl->rule_cnt);
 	if (entry->tbl->rule_cnt == 0 && entry->tbl->ref_cnt == 0) {
 		if (__ipa_del_rt_tbl(entry->tbl))
@@ -1400,7 +1467,7 @@ int ipa2_put_rt_tbl(u32 rt_tbl_hdl)
 {
 	struct ipa_rt_tbl *entry;
 	enum ipa_ip_type ip = IPA_IP_MAX;
-	int result;
+	int result = 0;
 
 	mutex_lock(&ipa_ctx->lock);
 	entry = ipa_id_find(rt_tbl_hdl);
@@ -1448,6 +1515,7 @@ static int __ipa_mdfy_rt_rule(struct ipa_rt_rule_mdfy *rtrule)
 {
 	struct ipa_rt_entry *entry;
 	struct ipa_hdr_entry *hdr = NULL;
+	struct ipa_hdr_entry *hdr_entry;
 
 	if (rtrule->rule.hdr_hdl) {
 		hdr = ipa_id_find(rtrule->rule.hdr_hdl);
@@ -1468,6 +1536,22 @@ static int __ipa_mdfy_rt_rule(struct ipa_rt_rule_mdfy *rtrule)
 		goto error;
 	}
 
+	if (!strcmp(entry->tbl->name, IPA_DFLT_RT_TBL_NAME)) {
+		IPAERR_RL("Default tbl rule cannot be modified\n");
+		return -EINVAL;
+	}
+
+	/* Adding check to confirm still
+	 * header entry present in header table or not
+	 */
+
+	if (entry->hdr) {
+		hdr_entry = ipa_id_find(entry->rule.hdr_hdl);
+		if (!hdr_entry || hdr_entry->cookie != IPA_HDR_COOKIE) {
+			IPAERR_RL("Header entry already deleted\n");
+			return -EPERM;
+		}
+	}
 	if (entry->hdr)
 		entry->hdr->ref_cnt--;
 

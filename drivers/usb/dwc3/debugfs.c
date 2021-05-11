@@ -634,7 +634,7 @@ static ssize_t dwc3_store_ep_num(struct file *file, const char __user *ubuf,
 	unsigned int		num, dir, temp;
 	unsigned long		flags;
 
-	if (copy_from_user(kbuf, ubuf, count > 10 ? 10 : count))
+	if (copy_from_user(kbuf, ubuf, min_t(size_t, sizeof(kbuf) - 1, count)))
 		return -EFAULT;
 
 	if (sscanf(kbuf, "%u %u", &num, &dir) != 2)
@@ -1049,8 +1049,11 @@ static int dwc3_gadget_int_events_show(struct seq_file *s, void *unused)
 		seq_printf(s, "%d\t", dwc->bh_completion_time[i]);
 	seq_putc(s, '\n');
 
-	seq_printf(s, "t_pwr evt irq : %lld\t",
+	seq_printf(s, "t_pwr evt irq : %lld\n",
 			ktime_to_us(dwc->t_pwr_evt_irq));
+
+	seq_printf(s, "l1_remote_wakeup_cnt : %lu\n",
+		dwc->l1_remote_wakeup_cnt);
 
 	spin_unlock_irqrestore(&dwc->lock, flags);
 	return 0;

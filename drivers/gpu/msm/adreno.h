@@ -1,4 +1,4 @@
-/* Copyright (c) 2008-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2008-2017,2020, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -123,6 +123,8 @@
 #define ADRENO_QUIRK_FAULT_DETECT_MASK BIT(3)
 /* Disable RB sampler datapath clock gating optimization */
 #define ADRENO_QUIRK_DISABLE_RB_DP2CLOCKGATING BIT(4)
+/* Disable local memory(LM) feature to avoid corner case error */
+#define ADRENO_QUIRK_DISABLE_LMLOADKILL BIT(5)
 
 /* Flags to control command packet settings */
 #define KGSL_CMD_FLAGS_NONE             0
@@ -180,6 +182,7 @@ enum adreno_gpurev {
 #define ADRENO_TIMEOUT_FAULT BIT(2)
 #define ADRENO_IOMMU_PAGE_FAULT BIT(3)
 #define ADRENO_PREEMPT_FAULT BIT(4)
+#define ADRENO_CTX_DETATCH_TIMEOUT_FAULT BIT(5)
 
 #define ADRENO_SPTP_PC_CTRL 0
 #define ADRENO_PPD_CTRL     1
@@ -562,6 +565,8 @@ enum adreno_regs {
 	ADRENO_REG_RBBM_RBBM_CTL,
 	ADRENO_REG_UCHE_INVALIDATE0,
 	ADRENO_REG_UCHE_INVALIDATE1,
+	ADRENO_REG_RBBM_PERFCTR_RBBM_0_LO,
+	ADRENO_REG_RBBM_PERFCTR_RBBM_0_HI,
 	ADRENO_REG_RBBM_PERFCTR_LOAD_VALUE_LO,
 	ADRENO_REG_RBBM_PERFCTR_LOAD_VALUE_HI,
 	ADRENO_REG_RBBM_SECVID_TRUST_CONTROL,
@@ -923,6 +928,8 @@ int adreno_efuse_map(struct adreno_device *adreno_dev);
 int adreno_efuse_read_u32(struct adreno_device *adreno_dev, unsigned int offset,
 		unsigned int *val);
 void adreno_efuse_unmap(struct adreno_device *adreno_dev);
+
+u32 adreno_get_ucode_version(const u32 *data);
 
 #define ADRENO_TARGET(_name, _id) \
 static inline int adreno_is_##_name(struct adreno_device *adreno_dev) \
@@ -1487,4 +1494,25 @@ static inline void adreno_ringbuffer_set_pagetable(struct adreno_ringbuffer *rb,
 	spin_unlock_irqrestore(&rb->preempt_lock, flags);
 }
 
+static inline bool is_power_counter_overflow(struct adreno_device *adreno_dev,
+	unsigned int reg, unsigned int prev_val, unsigned int *perfctr_pwr_hi)
+{
+	unsigned int val;
+	bool ret = false;
+
+	/*
+	 * If prev_val is zero, it is first read after perf counter reset.
+	 * So set perfctr_pwr_hi register to zero.
+	 */
+	if (prev_val == 0) {
+		*perfctr_pwr_hi = 0;
+		return ret;
+	}
+	adreno_readreg(adreno_dev, ADRENO_REG_RBBM_PERFCTR_RBBM_0_HI, &val);
+	if (val != *perfctr_pwr_hi) {
+		*perfctr_pwr_hi = val;
+		ret = true;
+	}
+	return ret;
+}
 #endif /*__ADRENO_H */

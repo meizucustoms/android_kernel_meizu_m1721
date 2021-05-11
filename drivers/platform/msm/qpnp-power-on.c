@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -107,6 +107,7 @@
 #define QPNP_PON_S2_CNTL_EN			BIT(7)
 #define QPNP_PON_S2_RESET_ENABLE		BIT(7)
 #define QPNP_PON_DELAY_BIT_SHIFT		6
+#define QPNP_PON_GEN2_DELAY_BIT_SHIFT		14
 
 #define QPNP_PON_S1_TIMER_MASK			(0xF)
 #define QPNP_PON_S2_TIMER_MASK			(0x7)
@@ -147,12 +148,17 @@
 #define PON_S1_COUNT_MAX			0xF
 #define QPNP_PON_MIN_DBC_US			(USEC_PER_SEC / 64)
 #define QPNP_PON_MAX_DBC_US			(USEC_PER_SEC * 2)
+#define QPNP_PON_GEN2_MIN_DBC_US		62
+#define QPNP_PON_GEN2_MAX_DBC_US		(USEC_PER_SEC / 4)
 
 #define QPNP_KEY_STATUS_DELAY			msecs_to_jiffies(250)
 
 #define QPNP_PON_BUFFER_SIZE			9
 
 #define QPNP_POFF_REASON_UVLO			13
+
+/* Wakeup event timeout */
+#define WAKEUP_TIMEOUT_MSEC			3000
 
 enum qpnp_pon_version {
 	QPNP_PON_GEN1_V1,
@@ -390,23 +396,31 @@ EXPORT_SYMBOL(qpnp_pon_check_hard_reset_stored);
 static int qpnp_pon_set_dbc(struct qpnp_pon *pon, u32 delay)
 {
 	int rc = 0;
-	u32 delay_reg;
+	u32 val;
 
 	if (delay == pon->dbc_time_us)
 		goto out;
+
 	if (pon->pon_input)
 		mutex_lock(&pon->pon_input->mutex);
 
-	if (delay < QPNP_PON_MIN_DBC_US)
-		delay = QPNP_PON_MIN_DBC_US;
-	else if (delay > QPNP_PON_MAX_DBC_US)
-		delay = QPNP_PON_MAX_DBC_US;
+	if (is_pon_gen2(pon)) {
+		if (delay < QPNP_PON_GEN2_MIN_DBC_US)
+			delay = QPNP_PON_GEN2_MIN_DBC_US;
+		else if (delay > QPNP_PON_GEN2_MAX_DBC_US)
+			delay = QPNP_PON_GEN2_MAX_DBC_US;
+		val = (delay << QPNP_PON_GEN2_DELAY_BIT_SHIFT) / USEC_PER_SEC;
+	} else {
+		if (delay < QPNP_PON_MIN_DBC_US)
+			delay = QPNP_PON_MIN_DBC_US;
+		else if (delay > QPNP_PON_MAX_DBC_US)
+			delay = QPNP_PON_MAX_DBC_US;
+		val = (delay << QPNP_PON_DELAY_BIT_SHIFT) / USEC_PER_SEC;
+	}
 
-	delay_reg = (delay << QPNP_PON_DELAY_BIT_SHIFT) / USEC_PER_SEC;
-	delay_reg = ilog2(delay_reg);
+	val = ilog2(val);
 	rc = qpnp_pon_masked_write(pon, QPNP_PON_DBC_CTL(pon),
-					QPNP_PON_DBC_DELAY_MASK(pon),
-					delay_reg);
+					QPNP_PON_DBC_DELAY_MASK(pon), val);
 	if (rc) {
 		dev_err(&pon->spmi->dev, "Unable to set PON debounce\n");
 		goto unlock;
@@ -434,8 +448,12 @@ static int qpnp_pon_get_dbc(struct qpnp_pon *pon, u32 *delay)
 	}
 	val &= QPNP_PON_DBC_DELAY_MASK(pon);
 
-	*delay = USEC_PER_SEC /
-		(1 << (QPNP_PON_DELAY_BIT_SHIFT - val));
+	if (is_pon_gen2(pon))
+		*delay = USEC_PER_SEC /
+			(1 << (QPNP_PON_GEN2_DELAY_BIT_SHIFT - val));
+	else
+		*delay = USEC_PER_SEC /
+			(1 << (QPNP_PON_DELAY_BIT_SHIFT - val));
 
 	return rc;
 }
@@ -787,6 +805,9 @@ qpnp_pon_input_dispatch(struct qpnp_pon *pon, u32 pon_type)
 	/* Check if key reporting is supported */
 	if (!cfg->key_code)
 		return 0;
+
+	if (device_may_wakeup(&pon->spmi->dev))
+		pm_wakeup_event(&pon->spmi->dev, WAKEUP_TIMEOUT_MSEC);
 
 	if (pon->kpdpwr_dbc_enable && cfg->pon_type == PON_KPDPWR) {
 		elapsed_us = ktime_us_delta(ktime_get(),

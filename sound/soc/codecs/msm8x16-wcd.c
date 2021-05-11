@@ -1,5 +1,4 @@
-/* Copyright (c) 2015-2016, The Linux Foundation. All rights reserved.
- * Copyright (C) 2017 XiaoMi, Inc.
+/* Copyright (c) 2015-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -50,7 +49,8 @@
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000)
 #define MSM8X16_WCD_FORMATS (SNDRV_PCM_FMTBIT_S16_LE |\
 		SNDRV_PCM_FMTBIT_S24_LE |\
-		SNDRV_PCM_FMTBIT_S24_3LE)
+		SNDRV_PCM_FMTBIT_S24_3LE |\
+		SNDRV_PCM_FMTBIT_S32_LE)
 
 #define NUM_INTERPOLATORS	3
 #define BITS_PER_REG		8
@@ -3891,12 +3891,22 @@ static int msm8x16_wcd_codec_config_compander(struct snd_soc_codec *codec,
 		msm8x16_wcd->comp_enabled[interp_n]);
 
 	/* compander is not enabled */
-	if (!msm8x16_wcd->comp_enabled[interp_n])
+	if (!msm8x16_wcd->comp_enabled[interp_n]) {
+		if (interp_n < MSM8X16_WCD_RX3)
+			if (get_codec_version(msm8x16_wcd) >= DIANGU)
+				snd_soc_update_bits(codec,
+					MSM8X16_WCD_A_ANALOG_RX_COM_BIAS_DAC,
+					0x08, 0x00);
 		return 0;
+	}
 
 	switch (msm8x16_wcd->comp_enabled[interp_n]) {
 	case COMPANDER_1:
 		if (SND_SOC_DAPM_EVENT_ON(event)) {
+			if (get_codec_version(msm8x16_wcd) >= DIANGU)
+				snd_soc_update_bits(codec,
+					MSM8X16_WCD_A_ANALOG_RX_COM_BIAS_DAC,
+					0x08, 0x08);
 			/* Enable Compander Clock */
 			snd_soc_update_bits(codec,
 				MSM8X16_WCD_A_CDC_COMP0_B2_CTL, 0x0F, 0x09);
@@ -4079,11 +4089,6 @@ void wcd_imped_config(struct snd_soc_codec *codec,
 			 __func__);
 		return;
 	}
-	if (value >= wcd_imped_val[ARRAY_SIZE(wcd_imped_val) - 1]) {
-		pr_err("%s, invalid imped, greater than 48 Ohm\n = %d\n",
-			__func__, value);
-		return;
-	}
 
 	codec_version = get_codec_version(msm8x16_wcd);
 
@@ -4094,9 +4099,9 @@ void wcd_imped_config(struct snd_soc_codec *codec,
 		case CONGA:
 			/*
 			 * For 32Ohm load and higher loads, Set 0x19E
-			 * bit 5 to 1 (POS_6_DB_DI). For loads lower
+			 * bit 5 to 1 (POS_0_DB_DI). For loads lower
 			 * than 32Ohm (such as 16Ohm load), Set 0x19E
-			 * bit 5 to 0 (POS_1P5_DB_DI)
+			 * bit 5 to 0 (POS_M4P5_DB_DI)
 			 */
 			if (value >= 32)
 				snd_soc_update_bits(codec,
@@ -4502,6 +4507,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"RX2 MIX1 INP2", "RX3", "I2S RX3"},
 	{"RX2 MIX1 INP2", "IIR1", "IIR1"},
 	{"RX2 MIX1 INP2", "IIR2", "IIR2"},
+	{"RX2 MIX1 INP3", "RX1", "I2S RX1"},
+	{"RX2 MIX1 INP3", "RX2", "I2S RX2"},
+	{"RX2 MIX1 INP3", "RX3", "I2S RX3"},
 
 	{"RX3 MIX1 INP1", "RX1", "I2S RX1"},
 	{"RX3 MIX1 INP1", "RX2", "I2S RX2"},
@@ -4513,6 +4521,9 @@ static const struct snd_soc_dapm_route audio_map[] = {
 	{"RX3 MIX1 INP2", "RX3", "I2S RX3"},
 	{"RX3 MIX1 INP2", "IIR1", "IIR1"},
 	{"RX3 MIX1 INP2", "IIR2", "IIR2"},
+	{"RX3 MIX1 INP3", "RX1", "I2S RX1"},
+	{"RX3 MIX1 INP3", "RX2", "I2S RX2"},
+	{"RX3 MIX1 INP3", "RX3", "I2S RX3"},
 
 	{"RX1 MIX2 INP1", "IIR1", "IIR1"},
 	{"RX2 MIX2 INP1", "IIR1", "IIR1"},
@@ -4743,13 +4754,24 @@ static int msm8x16_wcd_hw_params(struct snd_pcm_substream *substream,
 	}
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
-		snd_soc_update_bits(dai->codec,
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			snd_soc_update_bits(dai->codec,
 				MSM8X16_WCD_A_CDC_CLK_RX_I2S_CTL, 0x20, 0x20);
+		} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+			snd_soc_update_bits(dai->codec,
+				MSM8X16_WCD_A_CDC_CLK_TX_I2S_CTL, 0x20, 0x20);
+		}
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 	case SNDRV_PCM_FORMAT_S24_3LE:
-		snd_soc_update_bits(dai->codec,
+	case SNDRV_PCM_FORMAT_S32_LE:
+		if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
+			snd_soc_update_bits(dai->codec,
 				MSM8X16_WCD_A_CDC_CLK_RX_I2S_CTL, 0x20, 0x00);
+		} else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+			snd_soc_update_bits(dai->codec,
+				MSM8X16_WCD_A_CDC_CLK_TX_I2S_CTL, 0x20, 0x00);
+		}
 		break;
 	default:
 		dev_err(dai->codec->dev, "%s: wrong format selected\n",
@@ -5466,7 +5488,7 @@ static struct regulator *wcd8x16_wcd_codec_find_regulator(
 			return msm8x16->supplies[i].consumer;
 	}
 
-	dev_err(msm8x16->dev, "Error: regulator not found:%s\n"
+	dev_dbg(msm8x16->dev, "Error: regulator not found:%s\n"
 				, name);
 	return NULL;
 }
@@ -5477,13 +5499,20 @@ static int msm8x16_wcd_device_down(struct snd_soc_codec *codec)
 	struct msm8x16_wcd_priv *msm8x16_wcd_priv =
 		snd_soc_codec_get_drvdata(codec);
 	int i;
+	unsigned int tx_1_en;
+	unsigned int tx_2_en;
 
 	pdata = snd_soc_card_get_drvdata(codec->component.card);
 	dev_dbg(codec->dev, "%s: device down!\n", __func__);
+
+	tx_1_en = msm8x16_wcd_read(codec, MSM8X16_WCD_A_ANALOG_TX_1_EN);
+	tx_2_en = msm8x16_wcd_read(codec, MSM8X16_WCD_A_ANALOG_TX_2_EN);
+	tx_1_en = tx_1_en & 0x7f;
+	tx_2_en = tx_2_en & 0x7f;
 	msm8x16_wcd_write(codec,
-		MSM8X16_WCD_A_ANALOG_TX_1_EN, 0x3);
+		MSM8X16_WCD_A_ANALOG_TX_1_EN, tx_1_en);
 	msm8x16_wcd_write(codec,
-		MSM8X16_WCD_A_ANALOG_TX_2_EN, 0x3);
+		MSM8X16_WCD_A_ANALOG_TX_2_EN, tx_2_en);
 	if (msm8x16_wcd_priv->boost_option == BOOST_ON_FOREVER) {
 		if ((snd_soc_read(codec, MSM8X16_WCD_A_ANALOG_SPKR_DRV_CTL)
 			& 0x80) == 0) {
@@ -5738,6 +5767,7 @@ static int msm8x16_wcd_codec_probe(struct snd_soc_codec *codec)
 	struct msm8x16_wcd *msm8x16_wcd;
 	struct msm8x16_wcd_pdata *pdata;
 	int i, ret;
+	const char *subsys_name = NULL;
 
 	dev_dbg(codec->dev, "%s()\n", __func__);
 
@@ -5867,9 +5897,19 @@ static int msm8x16_wcd_codec_probe(struct snd_soc_codec *codec)
 	/* Set initial cap mode */
 	msm8x16_wcd_configure_cap(codec, false, false);
 	registered_codec = codec;
-	adsp_state_notifier =
-	    subsys_notif_register_notifier("adsp",
-					   &adsp_state_notifier_block);
+	ret = of_property_read_string(codec->dev->of_node,
+				"qcom,subsys-name",
+				&subsys_name);
+	if (ret) {
+		dev_dbg(codec->dev, "missing subsys-name entry in dt node\n");
+		adsp_state_notifier =
+			subsys_notif_register_notifier("adsp",
+			&adsp_state_notifier_block);
+	} else {
+		adsp_state_notifier =
+			subsys_notif_register_notifier(subsys_name,
+			&adsp_state_notifier_block);
+	}
 	if (!adsp_state_notifier) {
 		dev_err(codec->dev, "Failed to register adsp state notifier\n");
 		iounmap(msm8x16_wcd->dig_base);

@@ -34,8 +34,8 @@
 #define DCMD_SLOT 31
 #define NUM_SLOTS 32
 
-/* 1 sec */
-#define HALT_TIMEOUT_MS 1000
+/* 10 sec */
+#define HALT_TIMEOUT_MS 10000
 
 static int cmdq_halt_poll(struct mmc_host *mmc, bool halt);
 static int cmdq_halt(struct mmc_host *mmc, bool halt);
@@ -331,7 +331,7 @@ static int cmdq_host_alloc_tdl(struct cmdq_host *cq_host)
 	if (!cq_host->desc_base || !cq_host->trans_desc_base)
 		return -ENOMEM;
 
-	pr_info("desc-base: 0x%p trans-base: 0x%p\n desc_dma 0x%llx trans_dma: 0x%llx\n",
+	pr_debug("desc-base: 0x%pK trans-base: 0x%pK\n desc_dma 0x%llx trans_dma: 0x%llx\n",
 		 cq_host->desc_base, cq_host->trans_desc_base,
 		(unsigned long long)cq_host->desc_dma_base,
 		(unsigned long long) cq_host->trans_desc_dma_base);
@@ -761,6 +761,13 @@ static int cmdq_request(struct mmc_host *mmc, struct mmc_request *mrq)
 ring_doorbell:
 	/* Ensure the task descriptor list is flushed before ringing doorbell */
 	wmb();
+
+	if (test_bit(CMDQ_STATE_ERR, &mmc->cmdq_ctx.curr_state)) {
+		pr_err("%s: %s: CQ in err state, ending current req\n",
+			mmc_hostname(mmc), __func__);
+		return 0;
+	}
+
 	if (cmdq_readl(cq_host, CQTDBR) & (1 << tag)) {
 		cmdq_dumpregs(cq_host);
 		BUG_ON(1);
@@ -796,10 +803,10 @@ static void cmdq_finish_data(struct mmc_host *mmc, unsigned int tag)
 irqreturn_t cmdq_irq(struct mmc_host *mmc, int err)
 {
 	u32 status;
-	unsigned long tag = 0, comp_status;
+	unsigned long tag = 0, err_tag = 0, comp_status = 0;
 	struct cmdq_host *cq_host = (struct cmdq_host *)mmc_cmdq_private(mmc);
 	unsigned long err_info = 0;
-	struct mmc_request *mrq;
+	struct mmc_request *mrq = NULL, *err_mrq;
 	int ret;
 	u32 dbr_set = 0;
 
@@ -886,7 +893,7 @@ irqreturn_t cmdq_irq(struct mmc_host *mmc, int err)
 				mrq->cmd->error = err;
 			else
 				mrq->data->error = err;
-		} else if (err_info & CQ_DTEFV) {
+		} else {
 			tag = GET_DAT_ERR_TAG(err_info);
 			pr_err("%s: Dat err  tag: %lu\n", __func__, tag);
 			mrq = get_req_by_tag(cq_host, tag);
@@ -913,6 +920,7 @@ skip_cqterri:
 		 * CQE detected a reponse error from device
 		 * In most cases, this would require a reset.
 		 */
+		comp_status = cmdq_readl(cq_host, CQTCN);
 		if (status & CQIS_RED) {
 			/*
 			 * will check if the RED error is due to a bkops
@@ -926,10 +934,31 @@ skip_cqterri:
 			mrq->cmdq_req->resp_err = true;
 			pr_err("%s: Response error (0x%08x) from card !!!",
 				mmc_hostname(mmc), cmdq_readl(cq_host, CQCRA));
-		} else {
-			mrq->cmdq_req->resp_idx = cmdq_readl(cq_host, CQCRI);
-			mrq->cmdq_req->resp_arg = cmdq_readl(cq_host, CQCRA);
+
+			/*
+			 * If RED error is detected for WP violation, there is
+			 * a chance that the error occurred on the previous
+			 * executed task which has a completion notification.
+			 * So handle request completion in error handler
+			 */
+			if (cmdq_readl(cq_host, CQCRA) & CQ_WP_RED) {
+				for_each_set_bit(err_tag, &comp_status,
+						cq_host->num_slots) {
+					/* set err the corresponding mrq */
+					err_mrq = get_req_by_tag(cq_host,
+							err_tag);
+					err_mrq->cmdq_req->resp_err = true;
+				}
+			}
 		}
+		/*
+		 * The following register info are needed for error recovery
+		 */
+		mrq->cmdq_req->resp_idx = cmdq_readl(cq_host, CQCRI);
+		mrq->cmdq_req->resp_arg = cmdq_readl(cq_host, CQCRA);
+		mrq->cmdq_req->dev_pend = cmdq_readl(cq_host, CQDPT);
+		mrq->cmdq_req->err_info = err_info;
+		mrq->cmdq_req->cqtcn = comp_status;
 
 		cmdq_finish_data(mmc, tag);
 	} else {
@@ -964,6 +993,9 @@ skip_cqterri:
 				MMC_TRACE(mmc, "%s: completing tag -> %lu\n",
 					__func__, tag);
 				cmdq_finish_data(mmc, tag);
+			} else {
+				pr_err("%s: tag:%lu finish_data already done\n",
+						mmc_hostname(mmc), tag);
 			}
 		}
 	}
@@ -971,6 +1003,9 @@ skip_cqterri:
 	if (status & CQIS_HAC) {
 		if (cq_host->ops->post_cqe_halt)
 			cq_host->ops->post_cqe_halt(mmc);
+		/* halt done: re-enable legacy interrupts */
+		if (cq_host->ops->clear_set_irqs)
+			cq_host->ops->clear_set_irqs(mmc, false);
 		/* halt is completed, wakeup waiting thread */
 		complete(&cq_host->halt_comp);
 	}
@@ -1028,6 +1063,7 @@ static int cmdq_halt(struct mmc_host *mmc, bool halt)
 {
 	struct cmdq_host *cq_host = (struct cmdq_host *)mmc_cmdq_private(mmc);
 	u32 ret = 0;
+	u32 config = 0;
 	int retries = 3;
 
 	cmdq_runtime_pm_get(cq_host);
@@ -1037,16 +1073,31 @@ static int cmdq_halt(struct mmc_host *mmc, bool halt)
 				    CQCTL);
 			ret = wait_for_completion_timeout(&cq_host->halt_comp,
 					  msecs_to_jiffies(HALT_TIMEOUT_MS));
-			if (!ret && !(cmdq_readl(cq_host, CQCTL) & HALT)) {
-				retries--;
-				continue;
+			if (!ret) {
+				pr_warn("%s: %s: HAC int timeout\n",
+					mmc_hostname(mmc), __func__);
+				if ((cmdq_readl(cq_host, CQCTL) & HALT)) {
+					/*
+					 * Don't retry if CQE is halted but irq
+					 * is not triggered in timeout period.
+					 * And since we are returning error,
+					 * un-halt CQE. Since irq was not fired
+					 * yet, no need to set other params
+					 */
+					retries = 0;
+					config = cmdq_readl(cq_host, CQCTL);
+					config &= ~HALT;
+					cmdq_writel(cq_host, config, CQCTL);
+				} else {
+					pr_warn("%s: %s: retryng halt (%d)\n",
+						mmc_hostname(mmc), __func__,
+						retries);
+					retries--;
+					continue;
+				}
 			} else {
 				MMC_TRACE(mmc, "%s: halt done , retries: %d\n",
 					__func__, retries);
-				/* halt done: re-enable legacy interrupts */
-				if (cq_host->ops->clear_set_irqs)
-					cq_host->ops->clear_set_irqs(mmc,
-								false);
 				break;
 			}
 		}
@@ -1106,6 +1157,45 @@ static void cmdq_dumpstate(struct mmc_host *mmc)
 	cmdq_runtime_pm_put(cq_host);
 }
 
+static struct mmc_request *cmdq_get_mrq_by_tag(struct mmc_host *mmc, int tag)
+{
+	struct cmdq_host *cq_host = (struct cmdq_host *)mmc_cmdq_private(mmc);
+	struct mmc_request *mrq = get_req_by_tag(cq_host, tag);
+
+	return mrq;
+}
+
+static void cmdq_err_info(struct mmc_host *mmc,
+		struct mmc_cmdq_err_info *err_data, struct mmc_request *mrq) {
+
+	err_data->remove_task = false;
+	err_data->fail_comp_task = false;
+	err_data->fail_dev_pend = false;
+	err_data->timedout = false;
+	err_data->max_slot = NUM_SLOTS;
+	err_data->dcmd_slot = DCMD_SLOT;
+
+	err_data->comp_status = mrq->cmdq_req->cqtcn;
+	err_data->cq_terri = mrq->cmdq_req->err_info;
+	err_data->dev_pend = mrq->cmdq_req->dev_pend;
+	err_data->resp_err = mrq->cmdq_req->resp_err;
+	err_data->tag = mrq->cmdq_req->tag;
+
+	mrq->cmdq_req->cqtcn = 0;
+	mrq->cmdq_req->err_info = 0;
+	mrq->cmdq_req->dev_pend = 0;
+	if (mrq->cmdq_req->resp_err)
+		mrq->cmdq_req->resp_err = false;
+
+	err_data->data_cmd = GET_DAT_ERR_CMD(err_data->cq_terri);
+	err_data->data_tag = GET_DAT_ERR_TAG(err_data->cq_terri);
+	err_data->data_valid = (err_data->cq_terri & CQ_DTEFV);
+
+	err_data->cmd = GET_CMD_ERR_CMD(err_data->cq_terri);
+	err_data->cmd_tag = GET_CMD_ERR_TAG(err_data->cq_terri);
+	err_data->cmd_valid = (err_data->cq_terri & CQ_RMEFV);
+}
+
 static int cmdq_late_init(struct mmc_host *mmc)
 {
 	struct sdhci_host *host = mmc_priv(mmc);
@@ -1133,6 +1223,8 @@ static const struct mmc_cmdq_host_ops cmdq_host_ops = {
 	.halt = cmdq_halt,
 	.reset	= cmdq_reset,
 	.dumpstate = cmdq_dumpstate,
+	.err_info = cmdq_err_info,
+	.get_mrq_by_tag = cmdq_get_mrq_by_tag,
 };
 
 struct cmdq_host *cmdq_pltfm_init(struct platform_device *pdev)
