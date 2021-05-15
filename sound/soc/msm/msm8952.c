@@ -49,18 +49,10 @@
 
 #define DEFAULT_MCLK_RATE 9600000
 
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-int ext_pa_gpio = 0;
-int ext_pa_status = 0;
-#endif
 
 #define WCD_MBHC_DEF_RLOADS 5
 #define MAX_WSA_CODEC_NAME_LENGTH 80
 #define MSM_DT_MAX_PROP_SIZE 80
-
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-#define EXT_PA_MODE  5
-#endif
 
 enum btsco_rates {
 	RATE_8KHZ_ID,
@@ -98,24 +90,14 @@ static int msm8952_wsa_switch_event(struct snd_soc_dapm_widget *w,
 static struct wcd_mbhc_config mbhc_cfg = {
 	.read_fw_bin = false,
 	.calibration = NULL,
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	.detect_extn_cable = false,
-#else
 	.detect_extn_cable = true,
-#endif
 	.mono_stero_detection = false,
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = false,
 	.key_code[0] = KEY_MEDIA,
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
 	.key_code[1] = BTN_1,
 	.key_code[2] = BTN_2,
 	.key_code[3] = 0,
-#else
-	.key_code[1] = KEY_VOICECOMMAND,
-	.key_code[2] = KEY_VOLUMEUP,
-	.key_code[3] = KEY_VOLUMEDOWN,
-#endif
 	.key_code[4] = 0,
 	.key_code[5] = 0,
 	.key_code[6] = 0,
@@ -261,9 +243,6 @@ int is_ext_spk_gpio_support(struct platform_device *pdev,
 {
 	const char *spk_ext_pa = "qcom,msm-spk-ext-pa";
 
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	int ret;
-#endif
 	pr_debug("%s:Enter\n", __func__);
 
 	pdata->spk_ext_pa_gpio = of_get_named_gpio(pdev->dev.of_node,
@@ -278,20 +257,7 @@ int is_ext_spk_gpio_support(struct platform_device *pdev,
 				__func__, pdata->spk_ext_pa_gpio);
 			return -EINVAL;
 		}
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-		ext_pa_gpio = pdata->spk_ext_pa_gpio;
-		ret = msm_get_gpioset_index(CLIENT_WCD_INT,
-						"ext_pa_gpio");
-		if (ret < 0) {
-			pr_err("%s: gpio set name does not exist: %s",
-						__func__, "ext_pa_gpio");
-			return ret;
-		}
-#endif
 	}
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	gpio_direction_output(pdata->spk_ext_pa_gpio, 0);
-#endif
 	return 0;
 }
 
@@ -299,12 +265,7 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 {
 	struct snd_soc_card *card = codec->component.card;
 	struct msm8916_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
 	int ret;
-#endif
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	int pa_mode = EXT_PA_MODE;
-#endif
 
 	if (!gpio_is_valid(pdata->spk_ext_pa_gpio)) {
 		pr_err("%s: Invalid gpio: %d\n", __func__,
@@ -312,49 +273,25 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 		return false;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	ext_pa_status = enable;
-#endif
-
 	pr_debug("%s: %s external speaker PA\n", __func__,
 		enable ? "Enable" : "Disable");
 
 	if (enable) {
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-		while (pa_mode > 0) {
-			gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, 0);
-			udelay(2);
-			gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
-			udelay(2);
-			pa_mode--;
-		}
-#else
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-		ret = msm_gpioset_activate(CLIENT_WCD_INT, "ext_pa_gpio");
-#else
 		ret = msm_gpioset_activate(CLIENT_WCD_INT, "ext_spk_gpio");
-#endif
 		if (ret) {
 			pr_err("%s: gpio set cannot be de-activated %s\n",
 					__func__, "ext_spk_gpio");
 			return ret;
 		}
 		gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
-#endif
 	} else {
 		gpio_set_value_cansleep(pdata->spk_ext_pa_gpio, enable);
-#ifndef CONFIG_MACH_XIAOMI_MIDO
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-		ret = msm_gpioset_suspend(CLIENT_WCD_INT, "ext_pa_gpio");
-#else
 		ret = msm_gpioset_suspend(CLIENT_WCD_INT, "ext_spk_gpio");
-#endif
 		if (ret) {
 			pr_err("%s: gpio set cannot be de-activated %s\n",
 					__func__, "ext_spk_gpio");
 			return ret;
 		}
-#endif
 	}
 	return 0;
 }
@@ -1609,7 +1546,7 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 		return NULL;
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm8952_wcd_cal)->X) = (Y))
-#if (defined CONFIG_MACH_XIAOMI_MIDO) || (defined CONFIG_MACH_XIAOMI_TISSOT)
+#ifdef CONFIG_MACH_MEIZU_M1721
 	S(v_hs_max, 1600);
 #else
 	S(v_hs_max, 1500);
@@ -1636,30 +1573,6 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 	 * 210-290 == Button 2
 	 * 360-680 == Button 3
 	 */
-#ifdef CONFIG_MACH_XIAOMI_MIDO
-	btn_low[0] = 73;
-	btn_high[0] = 73;
-	btn_low[1] = 233;
-	btn_high[1] = 233;
-	btn_low[2] = 438;
-	btn_high[2] = 438;
-	btn_low[3] = 438;
-	btn_high[3] = 438;
-	btn_low[4] = 438;
-	btn_high[4] = 438;
-#else
-#ifdef CONFIG_MACH_XIAOMI_TISSOT
-	btn_low[0] = 91;
-	btn_high[0] = 91;
-	btn_low[1] = 259;
-	btn_high[1] = 259;
-	btn_low[2] = 488;
-	btn_high[2] = 488;
-	btn_low[3] = 488;
-	btn_high[3] = 488;
-	btn_low[4] = 488;
-	btn_high[4] = 488;
-#else
 	btn_low[0] = 75;
 	btn_high[0] = 75;
 	btn_low[1] = 150;
@@ -1670,8 +1583,6 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 	btn_high[3] = 450;
 	btn_low[4] = 500;
 	btn_high[4] = 500;
-#endif
-#endif
 	return msm8952_wcd_cal;
 }
 

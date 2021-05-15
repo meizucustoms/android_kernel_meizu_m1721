@@ -1,23 +1,17 @@
-# Xiaomi configuration options
+# Meizu configuration options
 
-config MACH_XIAOMI_MSM8953
-	bool "Xiaomi MSM8953"
+config MACH_MEIZU_MSM8953
+	bool "Meizu MSM8953"
 	depends on ARCH_MSM8953
 	help
-	  Support for MSM8953 Xiaomi variants
+	  Support for MSM8953 Meizu variants
 
-menu "Xiaomi board selection"
+menu "Meizu board selection"
 
-config MACH_XIAOMI_MIDO
-        bool "Mido board"
-        select MACH_XIAOMI_MSM8953
+config MACH_MEIZU_M1721
+        bool "M1721 board"
+        select MACH_MEIZU_MSM8953
         help
-          Support for Xiaomi Redmi note 3
-
-config MACH_XIAOMI_TISSOT
-	bool "Tissot board"
-	select MACH_XIAOMI_MSM8953
-	help
-	  Support for Xiomi MI A1 tissot
+          Support for Meizu M6 Note
 
 endmenu

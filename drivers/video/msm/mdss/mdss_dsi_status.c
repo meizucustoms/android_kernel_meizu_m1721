@@ -31,7 +31,7 @@
 #include "mdss_panel.h"
 #include "mdss_mdp.h"
 
-#ifdef CONFIG_MACH_XIAOMI_MIDO
+#ifdef CONFIG_MACH_MEIZU_M1721
 #define STATUS_CHECK_INTERVAL_MS 2000
 #define STATUS_CHECK_INTERVAL_MIN_MS 200
 #define DSI_STATUS_CHECK_INIT -1
