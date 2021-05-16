@@ -1243,6 +1243,25 @@ static struct snd_soc_dai_link msm8952_tdm_fe_dai[] = {
 
 static struct snd_soc_dai_link msm8952_common_be_dai[] = {
 	/* Backend I2S DAI Links */
+#ifdef CONFIG_CIRRUS_PLAYBACK
+	{
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_dai_name = "cs35l35-pcm",
+		.codec_name = "cs35l35.8-0040",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm8952_quat_mi2s_be_ops,
+		.ignore_pmdown_time = 1, /* dai link has playback support */
+		.ignore_suspend = 1,
+	},
+#else
 	{
 		.name = LPASS_BE_QUAT_MI2S_RX,
 		.stream_name = "Quaternary MI2S Playback",
@@ -1258,6 +1277,7 @@ static struct snd_soc_dai_link msm8952_common_be_dai[] = {
 		.ignore_pmdown_time = 1, /* dai link has playback support */
 		.ignore_suspend = 1,
 	},
+#endif
 	/* Primary AUX PCM Backend DAI Links */
 	{
 		.name = LPASS_BE_AUXPCM_RX,
@@ -1288,6 +1308,22 @@ static struct snd_soc_dai_link msm8952_common_be_dai[] = {
 		.ops = &msm_pri_auxpcm_be_ops,
 		.ignore_suspend = 1,
 	},
+#ifdef CONFIG_CIRRUS_PLAYBACK
+	{
+		.name = LPASS_BE_QUAT_MI2S_TX,
+		.stream_name = "Quaternary MI2S Capture",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_dai_name = "cs35l35-pcm",
+		.codec_name = "cs35l35.8-0040",
+		.no_pcm = 1,
+		.dpcm_capture = 1,
+		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm8952_quat_mi2s_be_ops,
+		.ignore_suspend = 1,
+	},
+#else
 	{
 		.name = LPASS_BE_QUAT_MI2S_TX,
 		.stream_name = "Quaternary MI2S Capture",
@@ -1302,6 +1338,7 @@ static struct snd_soc_dai_link msm8952_common_be_dai[] = {
 		.ops = &msm8952_quat_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
+#endif
 	{
 		.name = LPASS_BE_INT_BT_SCO_RX,
 		.stream_name = "Internal BT-SCO Playback",

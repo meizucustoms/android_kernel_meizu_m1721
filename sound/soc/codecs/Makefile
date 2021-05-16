@@ -33,6 +33,7 @@ snd-soc-ak5386-objs := ak5386.o
 snd-soc-arizona-objs := arizona.o
 snd-soc-cq93vc-objs := cq93vc.o
 snd-soc-cs35l32-objs := cs35l32.o
+snd-soc-cs35l35-objs := cs35l35.o
 snd-soc-cs42l51-objs := cs42l51.o
 snd-soc-cs42l51-i2c-objs := cs42l51-i2c.o
 snd-soc-cs42l52-objs := cs42l52.o

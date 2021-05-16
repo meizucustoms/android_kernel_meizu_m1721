@@ -32,6 +32,11 @@
 #include "../codecs/msm8x16-wcd.h"
 #include "../codecs/wsa881x-analog.h"
 #include <linux/regulator/consumer.h>
+
+#ifdef CONFIG_CIRRUS_PLAYBACK
+#include <uapi/sound/msm-cirrus-playback.h>
+#endif
+
 #define DRV_NAME "msm8952-asoc-wcd"
 
 #define BTSCO_RATE_8KHZ 8000
@@ -70,6 +75,9 @@ static int mi2s_rx_bit_format = SNDRV_PCM_FORMAT_S16_LE;
 static int mi2s_rx_bits_per_sample = 16;
 static int mi2s_rx_sample_rate = SAMPLING_RATE_48KHZ;
 
+#ifdef CONFIG_CIRRUS_PLAYBACK
+static atomic_t quat_mi2s_rsc_ref;
+#endif
 static atomic_t quat_mi2s_clk_ref;
 static atomic_t quin_mi2s_clk_ref;
 static atomic_t auxpcm_mi2s_clk_ref;
@@ -161,6 +169,26 @@ static struct afe_clk_set wsa_ana_clk = {
 	Q6AFE_LPASS_CLK_ROOT_DEFAULT,
 	0,
 };
+
+#ifdef CONFIG_CIRRUS_PLAYBACK
+static struct afe_clk_set mi2s_osr_clk = {
+	AFE_API_VERSION_I2S_CONFIG,
+	Q6AFE_LPASS_CLK_ID_MCLK_2,
+	Q6AFE_LPASS_OSR_CLK_12_P288_MHZ,
+	Q6AFE_LPASS_CLK_ATTRIBUTE_COUPLE_NO,
+	Q6AFE_LPASS_CLK_ROOT_DEFAULT,
+	0,
+};
+
+static struct afe_clk_set mi2s_sclk_clk = {
+	AFE_API_VERSION_I2S_CONFIG,
+	Q6AFE_LPASS_CLK_ID_QUAD_MI2S_IBIT,
+	Q6AFE_LPASS_OSR_CLK_1_P536_MHZ,
+	Q6AFE_LPASS_CLK_ATTRIBUTE_COUPLE_NO,
+	Q6AFE_LPASS_CLK_ROOT_DEFAULT,
+	0,
+};
+#endif
 
 static char const *rx_bit_format_text[] = {"S16_LE", "S24_LE", "S24_3LE"};
 static const char *const mi2s_ch_text[] = {"One", "Two"};
@@ -1412,6 +1440,9 @@ static int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct msm8916_asoc_mach_data *pdata =
 			snd_soc_card_get_drvdata(card);
 	int ret = 0, val = 0;
+#ifdef CONFIG_CIRRUS_PLAYBACK
+	u16 port_id;
+#endif
 
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
 				substream->name, substream->stream);
@@ -1421,21 +1452,71 @@ static int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
 		return -EINVAL;
 	}
 
+#ifdef CONFIG_CIRRUS_PLAYBACK
+	if (substream->stream)
+        port_id = AFE_PORT_ID_SECONDARY_MI2S_TX;
+    else
+        port_id = AFE_PORT_ID_SECONDARY_MI2S_RX;
+#endif
+
 	if (pdata->vaddr_gpio_mux_mic_ctl) {
 		val = ioread32(pdata->vaddr_gpio_mux_mic_ctl);
 		val = val | 0x02020002;
 		iowrite32(val, pdata->vaddr_gpio_mux_mic_ctl);
 	}
+
+#ifdef CONFIG_CIRRUS_PLAYBACK
+	 if (atomic_inc_return(&quat_mi2s_rsc_ref) == 1) {
+        mi2s_osr_clk.enable = 1;
+        ret = afe_set_lpass_clock_v2(port_id, &mi2s_osr_clk);
+        if (ret < 0) {
+            pr_err("%s(): afe lpass osr fail! ret = %d\n", __func__, ret);
+            return ret;
+        }
+        mi2s_sclk_clk.enable = 1;
+        ret = afe_set_lpass_clock_v2(port_id, &mi2s_sclk_clk);
+        if (ret < 0) {
+            pr_err("%s(): afe lpass sclk fail! ret = %d\n", __func__, ret);
+            return ret;
+        }
+        
+        ret = snd_soc_dai_set_fmt(cpu_dai, 0x4000);
+        if (ret < 0) {
+            pr_err("%s(): set fmt cpu dai failed (0x4000), err:%d\n", __func__, ret);
+        }
+        
+        ret = snd_soc_dai_set_fmt(cpu_dai, 0x4001);
+        if (ret < 0) {
+            pr_err("%s(): set fmt cpu dai failed (0x4001), err:%d\n", __func__, ret);
+        }
+        
+        ret = snd_soc_codec_set_sysclk(codec, 0, 0, 
+                    Q6AFE_LPASS_OSR_CLK_12_P288_MHZ, 0);
+        if (ret < 0) {
+            pr_err("%s(): set sysclk failed, err:%d\n", __func__, ret);
+        }
+        
+        ret = snd_soc_dai_set_sysclk(codec_dai, 0, 
+                    Q6AFE_LPASS_OSR_CLK_1_P536_MHZ, 0);
+        if (ret < 0) {
+            pr_err("%s(): set dai_sysclk failed, err:%d\n", __func__, ret);
+        }
+    }
+#endif
+
+#ifndef CONFIG_CIRRUS_PLAYBACK
 	ret = msm_mi2s_sclk_ctl(substream, true);
 	if (ret < 0) {
 		pr_err("failed to enable sclk\n");
 		return ret;
 	}
+#endif
 	ret = msm_gpioset_activate(CLIENT_WCD_INT, "quat_i2s");
 	if (ret < 0) {
 		pr_err("failed to enable codec gpios\n");
 		goto err;
 	}
+#ifndef CONFIG_CIRRUS_PLAYBACK
 	if (atomic_inc_return(&quat_mi2s_clk_ref) == 1) {
 		ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
 		if (ret < 0)
@@ -1446,20 +1527,51 @@ err:
 	ret = msm_mi2s_sclk_ctl(substream, false);
 	if (ret < 0)
 		pr_err("failed to disable sclk\n");
+#else
+err:
+#endif
 	return ret;
 }
 
 static void msm_quat_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 {
 	int ret;
+#ifdef CONFIG_CIRRUS_PLAYBACK
+	u16 port_id;
+#endif
 
 	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
 				substream->name, substream->stream);
+
+#ifdef CONFIG_CIRRUS_PLAYBACK
+	if (substream->stream)
+        port_id = AFE_PORT_ID_SECONDARY_MI2S_TX;
+    else
+        port_id = AFE_PORT_ID_SECONDARY_MI2S_RX;
+#endif
+
+#ifdef CONFIG_CIRRUS_PLAYBACK
+	if (atomic_dec_return(&quat_mi2s_rsc_ref) == 0) {
+        mi2s_osr_clk.enable = 0;
+        ret = afe_set_lpass_clock_v2(port_id, &mi2s_osr_clk);
+        if (ret < 0) {
+            pr_err("%s(): afe lpass osr fail! ret = %d\n", __func__, ret);
+            return;
+        }
+        mi2s_sclk_clk.enable = 0;
+        ret = afe_set_lpass_clock_v2(port_id, &mi2s_sclk_clk);
+        if (ret < 0) {
+            pr_err("%s(): afe lpass sclk fail! ret = %d\n", __func__, ret);
+            return;
+        }
+    }
+#else
 	ret = msm_mi2s_sclk_ctl(substream, false);
 	if (ret < 0)
 		pr_err("%s:clock disable failed\n", __func__);
 	if (atomic_read(&quat_mi2s_clk_ref) > 0)
 		atomic_dec(&quat_mi2s_clk_ref);
+#endif
 	ret = msm_gpioset_suspend(CLIENT_WCD_INT, "quat_i2s");
 	if (ret < 0) {
 		pr_err("%s: gpio set cannot be de-activated %sd",
@@ -2449,6 +2561,38 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.ops = &msm8952_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
+#ifdef CONFIG_CIRRUS_PLAYBACK
+	{
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_name =  "cs35l35.8-0040",
+		.codec_dai_name = "cs35l35-pcm",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+		.dpcm_playback = 1,
+		.no_pcm = 1,
+		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_mi2s_rx_be_hw_params_fixup,
+		.ops = &msm8952_quat_mi2s_be_ops,
+		.ignore_pmdown_time = 1, /* dai link has playback support */
+		.ignore_suspend = 1,
+	},
+	{
+		.name = LPASS_BE_QUAT_MI2S_TX,
+		.stream_name = "Quaternary MI2S Capture",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-hostless",
+		.codec_dai_name = "cs35l35-pcm",
+		.codec_name = "cs35l35.8-0040",
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ops = &msm8952_quat_mi2s_be_ops,
+		.ignore_suspend = 1,
+		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
+	},
+#else
 	{
 		.name = LPASS_BE_QUAT_MI2S_RX,
 		.stream_name = "Quaternary MI2S Playback",
@@ -2478,6 +2622,7 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.ops = &msm8952_quat_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
+#endif
 	/* Primary AUX PCM Backend DAI Links */
 	{
 		.name = LPASS_BE_AUXPCM_RX,
@@ -2761,10 +2906,73 @@ static struct snd_soc_codec_conf msm8952_codec_conf[] = {
 	},
 };
 
+#ifdef CONFIG_CIRRUS_PLAYBACK
+static int cs35l35_late_probe(struct snd_soc_card *card)
+{
+    int i = 0;
+	struct crus_gb_cali_data cali;
+	int ret = 0;
+
+    pr_info("%s(): enter\n", __func__);
+
+    while (true) {
+        if (card->num_rtd <= i)
+            return 0;
+
+        if (card->rtd[i].dai_link && card->rtd[i].dai_link->codec_name && 
+			!strcmp(card->rtd[i].dai_link->codec_name, "cs35l35.8-0040"))
+            	break;
+		
+        i++;
+    }
+
+	pr_info("%s(): get speaker calibration data from proinfo\n", __func__);
+	cali = msm_cirrus_get_speaker_calibration_data();
+	if (cali.ret) {
+		pr_err("%s(): failed getting calibration data (ret = %d)\n", __func__, cali.ret);
+		return cali.ret;
+	}
+
+	pr_info("%s(): experimental section: Flashing RX config...\n", __func__);
+	ret = msm_cirrus_flash_rx_config();
+	if (ret) {
+		pr_err("%s(): failed to flash RX config: %d\n", __func__, ret);
+		return ret;
+	}
+
+	pr_info("%s(): experimental section: Flashing TX config...\n", __func__);
+	ret = msm_cirrus_flash_tx_config();
+	if (ret) {
+		pr_err("%s(): failed to flash TX config: %d\n", __func__, ret);
+		return ret;
+	}
+
+	pr_info("%s(): writing speaker calibration data\n", __func__);
+	ret = msm_cirrus_write_speaker_calibration_data(&cali);
+	if (ret) {
+		pr_err("%s(): failed writing calibration data (ret = %d)\n", __func__, ret);
+		return ret;
+	}
+	
+    snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "AMP Playback");
+    snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "AMP Capture");
+    snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "SDIN");
+    snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "SDOUT");
+    snd_soc_dapm_ignore_suspend(&card->rtd[i].codec->dapm, "SPK");
+    snd_soc_dapm_sync(&card->rtd[i].codec->dapm);
+
+    pr_info("%s(): exit\n", __func__);
+    return 0;
+}
+#endif
+
 static struct snd_soc_card bear_card = {
 	/* snd_soc_card_msm8952 */
 	.name		= "msm8952-snd-card",
 	.dai_link	= msm8952_dai,
+#ifdef CONFIG_CIRRUS_PLAYBACK
+	.late_probe = cs35l35_late_probe,
+#endif
 	.num_links	= ARRAY_SIZE(msm8952_dai),
 };
 
