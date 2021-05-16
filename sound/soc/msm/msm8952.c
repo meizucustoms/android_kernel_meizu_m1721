@@ -1685,6 +1685,18 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 	 * 210-290 == Button 2
 	 * 360-680 == Button 3
 	 */
+#ifdef CONFIG_MACH_MEIZU_M1721
+	btn_low[0] = 73;
+	btn_high[0] = 73;
+	btn_low[1] = 233;
+	btn_high[1] = 233;
+	btn_low[2] = 438;
+	btn_high[2] = 438;
+	btn_low[3] = 438;
+	btn_high[3] = 438;
+	btn_low[4] = 438;
+	btn_high[4] = 438;
+#else
 	btn_low[0] = 75;
 	btn_high[0] = 75;
 	btn_low[1] = 150;
@@ -1695,6 +1707,7 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 	btn_high[3] = 450;
 	btn_low[4] = 500;
 	btn_high[4] = 500;
+#endif
 	return msm8952_wcd_cal;
 }
 
