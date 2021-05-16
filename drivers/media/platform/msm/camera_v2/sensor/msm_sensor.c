@@ -18,6 +18,10 @@
 #include <linux/regulator/rpm-smd-regulator.h>
 #include <linux/regulator/consumer.h>
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+#include <media/meizu_hw.h>
+#endif
+
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
 
@@ -269,6 +273,7 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 		return rc;
 	}
 
+#ifndef CONFIG_MACH_MEIZU_M1721
 	pr_debug("%s: read id: 0x%x expected id 0x%x:\n",
 			__func__, chipid, slave_info->sensor_id);
 	if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
@@ -276,6 +281,42 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 				__func__, chipid, slave_info->sensor_id);
 		return -ENODEV;
 	}
+#else
+	pr_err("%s: read id: 0x%x expected id 0x%x: (att: 1)\n",
+			__func__, chipid, slave_info->sensor_id);
+
+	meizu_sensor_parse_id(&mzcamera, s_ctrl);
+	if (rc < 0) {
+		pr_err("%s meizu camera id check failed with code 0x%02x\n",
+				__func__, rc);
+		return rc;
+	}
+
+	if (mzcamera.back.id && mzcamera.front.id && mzcamera.bokeh.id) {
+		meizu_camera_print_data(&mzcamera);
+	}
+
+	if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
+		pr_err("%s chip id %x does not match %x (%s) | trying again\n",
+				__func__, chipid, slave_info->sensor_id, sensor_name);
+		
+		rc = sensor_i2c_client->i2c_func_tbl->i2c_read(
+		 	 sensor_i2c_client, slave_info->sensor_id_reg_addr,
+		 	 &chipid, MSM_CAMERA_I2C_WORD_DATA);
+		if (rc < 0) {
+			pr_err("%s: %s: read id failed\n", __func__, sensor_name);
+			return rc;
+		}
+
+		pr_err("%s: read id: 0x%x expected id 0x%x: (att: 2)\n",
+				__func__, chipid, slave_info->sensor_id);
+		if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
+			pr_err("%s chip id %x does not match %x (%s) | att 2, abort.\n",
+				__func__, chipid, slave_info->sensor_id, sensor_name);
+			return rc;
+		}
+	}
+#endif
 	return rc;
 }
 
