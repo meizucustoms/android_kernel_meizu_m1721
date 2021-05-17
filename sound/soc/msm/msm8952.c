@@ -1490,13 +1490,13 @@ static int msm_quat_mi2s_snd_startup(struct snd_pcm_substream *substream)
             pr_err("%s(): set fmt cpu dai failed (0x4001), err:%d\n", __func__, ret);
         }
         
-        ret = snd_soc_codec_set_sysclk(codec, 0, 0, 
+        ret = snd_soc_codec_set_sysclk(rtd->codec_dai->codec, 0, 0, 
                     Q6AFE_LPASS_OSR_CLK_12_P288_MHZ, 0);
         if (ret < 0) {
             pr_err("%s(): set sysclk failed, err:%d\n", __func__, ret);
         }
         
-        ret = snd_soc_dai_set_sysclk(codec_dai, 0, 
+        ret = snd_soc_dai_set_sysclk(rtd->codec_dai, 0, 
                     Q6AFE_LPASS_OSR_CLK_1_P536_MHZ, 0);
         if (ret < 0) {
             pr_err("%s(): set dai_sysclk failed, err:%d\n", __func__, ret);
