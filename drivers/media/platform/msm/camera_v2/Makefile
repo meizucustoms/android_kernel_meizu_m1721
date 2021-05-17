@@ -14,7 +14,7 @@ ifdef CONFIG_MACH_MEIZU_M1721
 ccflags-y += -Idrivers/media/platform/msm/camera_v2/sensor/cci
 ccflags-y += -Idrivers/media/platform/msm/camera_v2/sensor/io
 
-obj-$(CONFIG_MSMB_CAMERA) += meizu_hw.c
+obj-$(CONFIG_MSMB_CAMERA) += meizu_hw.o
 endif
 
 obj-$(CONFIG_MSMB_CAMERA) += common/
