@@ -20,6 +20,8 @@
 
 #ifdef CONFIG_MACH_MEIZU_M1721
 #include <media/meizu_hw.h>
+
+struct meizu_camera_data mzcamera;
 #endif
 
 #undef CDBG
