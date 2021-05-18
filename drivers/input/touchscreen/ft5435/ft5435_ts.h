@@ -39,7 +39,6 @@
 
 #define USB_CHARGE_DETECT
 #define FOCALTECH_ITO_TEST			1
-#define FOCALTECH_MAX_VKEY_NUM 3
 
 struct fw_upgrade_info {
 	bool auto_cal;
@@ -50,11 +49,7 @@ struct fw_upgrade_info {
 	u16 delay_readid;
 	u16 delay_erase_flash;
 };
-struct virkey{
-	int keycode;
-	int x;
-	int y;
-};
+
 struct ft5435_ts_platform_data {
 	struct fw_upgrade_info info;
 	const char *name;
@@ -77,15 +72,12 @@ struct ft5435_ts_platform_data {
 	u32 hard_rst_dly;
 	u32 soft_rst_dly;
 	u32 num_max_touches;
-	bool fw_vkey_support;
 	bool no_force_update;
 	bool i2c_pull_up;
 	bool ignore_id_check;
 	bool resume_in_workqueue;
 	int (*power_init) (bool);
 	int (*power_on) (bool);
-	int num_virkey;
-	struct virkey vkeys[FOCALTECH_MAX_VKEY_NUM];
 };
 struct ft5435_rawdata_test_result {
 	int result;
