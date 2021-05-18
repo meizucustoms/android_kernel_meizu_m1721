@@ -1334,24 +1334,14 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	struct cs35l35_private *cs35l35;
 	struct cs35l35_platform_data *pdata =
 		dev_get_platdata(&i2c_client->dev);
-    struct gpio_desc *desc;
     struct device_node *np = i2c_client->dev.of_node;
     struct device *dev = &i2c_client->dev;
-    struct pinctrl_state *cs35l35_reset;
     struct pinctrl *p;
 	int i;
 	int ret = 0;
 	unsigned int devid = 0;
-	unsigned int reg, pin;
-    unsigned int val = 0;
-    u32 debounceInfo[2];
-    u32 interruptInfo[2];
-    u32 debounce;
-    
-    debounceInfo[0] = 0;
-    debounceInfo[1] = 0;
-    interruptInfo[0] = 0;
-    interruptInfo[1] = 0;
+	unsigned int reg;
+    u32 debounce[2] = { 0, 0 };
     
     printk("%s@%d ++\n", __func__, __LINE__);
 
@@ -1404,61 +1394,34 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
     
 	ret = regulator_bulk_enable(cs35l35->num_supplies,
 					cs35l35->supplies);
-	if (ret == 0) {
-        printk("%s@%d - reset start\n", __func__, __LINE__);
-        
-        // initialize pinctrl reset pin
-        p = devm_pinctrl_get(dev);
-        if (p != 0) {
-            cs35l35_reset = pinctrl_lookup_state(p, "cs35l35_irq_default");
-        }
-        pinctrl_select_state(p, cs35l35_reset);
-        
-        // Set reset gpio
-        val = of_get_named_gpio_flags(i2c_client->dev.of_node, "reset-gpios", 0, 0);
-        cs35l35->reset_gpio = val;
-        
-        // Reset pin check and request
-        printk("%s@%d\n", __func__, __LINE__);
-        if (val < 0 || val == -2) {
-            dev_err(dev, "%s: error! spk_pa__reset_gpio is :%d\n", __func__, val);
-            goto err;
-        } else {
-            ret = gpio_request_one(val, 0, "spk_reset");
-            printk("%s@%d\n", __func__, __LINE__);
-            
-            if (ret != 0) {
-                dev_err(dev,"%s: request spk_pa_gpio fail! error :%d\n", __func__, ret);
-                goto err;
-            }
-        }
-        
-        // open device node for codec
-        pin = 0xffffffff;
-        desc = gpio_to_desc(cs35l35->reset_gpio);
-        gpiod_direction_output_raw(desc, 1);
-        of_property_read_u32_array(np, "debounce", debounceInfo, 2);
-        of_property_read_u32_array(np, "interrupts", interruptInfo, 2);
-        
-        printk("%s@%d\n", __func__, __LINE__);
-        
-        debounce = debounceInfo[1];
-        desc = gpio_to_desc(debounceInfo[0]);
-        gpiod_set_debounce(desc, debounce);
-        pin = irq_of_parse_and_map(np, 0);
-        
-        // HACK
-        pin = 90;
-        
-        printk("DEBUG: cs35l35 on 8-0040: %s: irq_of_parse_and_map on line %d = %d (HACK)\n", __func__, __LINE__, pin);
-        
-        printk("%s@%d - reset successful!\n", __func__, __LINE__);
-    } else {
+	if (ret != 0) {
 		dev_err(&i2c_client->dev,
 			"Failed to enable core supplies: %d\n",
 			ret);
 		return ret;
 	}
+	
+	p = devm_pinctrl_get(dev);
+	if (p != 0)
+		pinctrl_select_state(p, pinctrl_lookup_state(p, "cs35l35_irq_default"));
+	
+	cs35l35->reset_gpio = 
+		of_get_named_gpio_flags(i2c_client->dev.of_node, "reset-gpios", 0, 0);
+	if (cs35l35->reset_gpio < 0) {
+		dev_err(dev, "%s: invalid reset GPIO: %d\n", __func__, cs35l35->reset_gpio);
+		goto err;
+	}
+
+	ret = gpio_request_one(cs35l35->reset_gpio, 0, "cs35l35_reset");
+	if (ret != 0) {
+		dev_err(dev,"%s: failed to request reset GPIO: %d\n", __func__, ret);
+		goto err;
+	}
+	
+	gpio_direction_output(cs35l35->reset_gpio, 1);
+
+	of_property_read_u32_array(np, "debounce", debounce, 2);
+	gpio_set_debounce(debounce[0], debounce[1]);
 
 	ret = regmap_register_patch(cs35l35->regmap, cs35l35_errata_patch,
 		ARRAY_SIZE(cs35l35_errata_patch));
@@ -1473,7 +1436,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		"irq", GPIOD_IN);
 	if (IS_ERR(cs35l35->irq_gpio))
 		return PTR_ERR(cs35l35->irq_gpio);
-    
+
 	ret = devm_request_threaded_irq(&i2c_client->dev,
 					gpiod_to_irq(cs35l35->irq_gpio),
 					NULL, cs35l35_irq,
