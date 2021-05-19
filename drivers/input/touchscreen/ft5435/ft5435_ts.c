@@ -1114,8 +1114,6 @@ static irqreturn_t ft5435_ts_interrupt(int irq, void *dev_id)
 	}
 #endif
 
-
-
 	rc = ft5435_i2c_read(data->client, &reg, 1,
 			buf, data->tch_data_len);
 	if (rc < 0) {

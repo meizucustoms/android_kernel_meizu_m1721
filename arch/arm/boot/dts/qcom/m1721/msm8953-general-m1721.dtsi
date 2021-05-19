@@ -313,12 +313,7 @@
             focaltech,fw-delay-readid-ms = <10>;
             focaltech,fw-delay-era-flsh-ms = <2000>;
             focaltech,fw-auto-cal;
-            focaltech,fw-vkey-support;
             focaltech,resume-in-workqueue;
-            focaltech,num-virtual-key = <3>;
-            focal,virtual_key_1 = <172 500 2040>;/*home*/
-            focal,virtual_key_2 = <139 200 2040>;/*menu*/
-            focal,virtual_key_3 = <158 800 2040>;/*back*/
         };
 
 		goodix_ts@5d {
