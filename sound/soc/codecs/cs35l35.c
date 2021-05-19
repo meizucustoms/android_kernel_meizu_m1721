@@ -35,9 +35,9 @@
 #include <sound/initval.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
-#include <sound/soc-dapm.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
+#include <sound/soc-dapm.h>
 
 #include "cs35l35.h"
 
@@ -891,7 +891,7 @@ static irqreturn_t cs35l35_irq(int irq, void *data) {
   unsigned int sticky1, sticky2, sticky3, sticky4;
   unsigned int mask1, mask2, mask3, mask4, current1;
 
-  printk("%s@%d ++\n", __func__, __LINE__);
+  pr_info_ratelimited("%s: triggered\n", __func__);
 
   /* ack the irq by reading all status registers */
   regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_4, &sticky4);
@@ -1247,9 +1247,12 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
   if (IS_ERR(cs35l35->irq_gpio))
     return PTR_ERR(cs35l35->irq_gpio);
 
-  ret =
-      request_threaded_irq(gpiod_to_irq(cs35l35->irq_gpio), NULL, cs35l35_irq,
-                           IRQF_ONESHOT | IRQF_TRIGGER_LOW, "cs35l35", cs35l35);
+  pr_info("%s: IRQ GPIO is %d (irq: %d).\n", __func__,
+          desc_to_gpio(cs35l35->irq_gpio), gpiod_to_irq(cs35l35->irq_gpio));
+
+  ret = request_threaded_irq(gpiod_to_irq(cs35l35->irq_gpio), NULL, cs35l35_irq,
+                             IRQF_ONESHOT | IRQF_TRIGGER_HIGH,
+                             "cs35l35", cs35l35);
   if (ret != 0) {
     dev_err(&i2c_client->dev, "Failed to request IRQ: %d\n", ret);
     goto err;
@@ -1314,6 +1317,15 @@ err:
 }
 
 static int cs35l35_i2c_remove(struct i2c_client *client) {
+  struct cs35l35_private *cs35l35 =
+      (struct cs35l35_private *)client->dev.driver_data;
+
+  if (cs35l35 == NULL) {
+    pr_err("%s: cs35l35 is null", __func__);
+  } else {
+    free_irq(gpiod_to_irq(cs35l35->irq_gpio), cs35l35);
+  }
+
   snd_soc_unregister_codec(&client->dev);
   kfree(i2c_get_clientdata(client));
   return 0;
