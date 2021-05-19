@@ -1060,7 +1060,7 @@ static irqreturn_t ft5435_ts_interrupt(int irq, void *dev_id)
 #if 1
 	struct ft5435_ts_data *data = dev_id;
 	struct input_dev *ip_dev;
-	int rc, i, j;
+	int rc, i;
 	u32 id, x, y, status, num_touches;
 	u8 reg = 0x00, *buf;
 	bool update_input = false;
@@ -3627,7 +3627,6 @@ static int ft5435_ts_probe(struct i2c_client *client,
 	u8 reg_addr;
 	int err, len;
 	u8 w_buf[FT_MAX_WR_BUF] = {0};
-	int i;
 	int retry = 3;
 	char tp_temp_info[80];
 	printk("~~~~~ ft5435_ts_probe start\n");
