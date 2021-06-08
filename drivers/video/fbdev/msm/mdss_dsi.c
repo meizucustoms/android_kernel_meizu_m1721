@@ -37,6 +37,10 @@
 #include "mdss_dba_utils.h"
 #include "mdss_smmu.h"
 
+#ifdef CONFIG_MACH_XIAOMI_C6
+char fts_lcd_name[40];
+#endif
+
 #define XO_CLK_RATE	19200000
 #define CMDLINE_DSI_CTL_NUM_STRING_LEN 2
 
@@ -3079,6 +3083,12 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 end:
 	if (strcmp(panel_name, NONE_PANEL))
 		dsi_pan_node = mdss_dsi_pref_prim_panel(pdev);
+
+#ifdef CONFIG_MACH_XIAOMI_C6
+	strncpy(fts_lcd_name, panel_name + 14, strlen(panel_name) - 14);
+	fts_lcd_name[strlen(fts_lcd_name)] = '\0';
+#endif
+
 exit:
 	return dsi_pan_node;
 }
