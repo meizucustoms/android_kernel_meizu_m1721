@@ -1,5 +1,5 @@
 /************************************************************************
-* Copyright (C) 2010-2017, Focaltech Systems (R)£¬All Rights Reserved.
+* Copyright (C) 2010-2017, Focaltech Systems (R)ï¿½ï¿½All Rights Reserved.
 *
 * File Name: focaltech_flash.h
 *
@@ -53,6 +53,14 @@ enum FILE_SIZE_TYPE {
 	FW_SIZE,
 	FW2_SIZE,
 	FW3_SIZE,
+#ifdef CONFIG_MACH_MEIZU_M1721
+	FW_BLACK_SIZE,
+	FW_WHITE_SIZE,
+	FW2_BLACK_SIZE,
+	FW2_WHITE_SIZE,
+	FW3_BLACK_SIZE,
+	FW3_WHITE_SIZE
+#endif
 	PRAMBOOT_SIZE,
 	LCD_CFG_SIZE
 };
@@ -106,6 +114,14 @@ extern struct fts_upgrade_fun fts_updatefun;
 extern u8 CTPM_FW[];
 extern u8 CTPM_FW2[];
 extern u8 CTPM_FW3[];
+#ifdef CONFIG_MACH_MEIZU_M1721
+extern u8 CTPM_FW_BLACK[];
+extern u8 CTPM_FW2_BLACK[];
+extern u8 CTPM_FW3_BLACK[];
+extern u8 CTPM_FW_WHITE[];
+extern u8 CTPM_FW2_WHITE[];
+extern u8 CTPM_FW3_WHITE[];
+#endif
 extern u8 aucFW_PRAM_BOOT[];
 extern u8 CTPM_LCD_CFG[];
 extern u8 *g_fw_file;

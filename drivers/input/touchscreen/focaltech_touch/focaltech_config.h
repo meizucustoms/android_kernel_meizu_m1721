@@ -85,7 +85,7 @@
 /*
  * choose your ic chip type of focaltech
  */
-#define FTS_CHIP_TYPE   _FT3267
+#define FTS_CHIP_TYPE   _FT5346 // todo: set correct chip.
 
 /******************* Enables *********************/
 /*********** 1 to enable, 0 to disable ***********/
@@ -204,8 +204,8 @@
  * FTS_GET_VENDOR_ID_NUM >= 2, compatible with FTS_VENDOR_2_ID
  * FTS_GET_VENDOR_ID_NUM == 3, compatible with FTS_VENDOR_3_ID
  */
-#define FTS_VENDOR_1_ID                         0x00
-#define FTS_VENDOR_2_ID                         0x00
+#define FTS_VENDOR_1_ID                         0x80
+#define FTS_VENDOR_2_ID                         0x82
 #define FTS_VENDOR_3_ID                         0x00
 
 /*
@@ -227,6 +227,16 @@
  * define your own fw_app, the sample one is invalid
  */
 #define FTS_UPGRADE_FW3_APP		"include/firmware/FT8716_app_sample.i"
+
+#ifdef CONFIG_MACH_MEIZU_M1721
+#define FTS_UPGRADE_FW1_BLACK_APP		"Meizu_m1721_firmware_black_color.i"
+#define FTS_UPGRADE_FW2_BLACK_APP		"Meizu_m1721_firmware2_black_color.i"
+#define FTS_UPGRADE_FW3_BLACK_APP		"Meizu_m1721_firmware3_black_color.i"
+
+#define FTS_UPGRADE_FW1_WHITE_APP		"Meizu_m1721_firmware_white_color.i"
+#define FTS_UPGRADE_FW2_WHITE_APP		"Meizu_m1721_firmware2_white_color.i"
+#define FTS_UPGRADE_FW3_WHITE_APP		"Meizu_m1721_firmware3_white_color.i"
+#endif
 
 /*
  * lcd_cfg.i file for lcd cfg upgrade

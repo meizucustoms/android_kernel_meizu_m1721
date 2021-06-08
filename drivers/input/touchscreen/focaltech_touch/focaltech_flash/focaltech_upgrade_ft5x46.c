@@ -38,6 +38,10 @@
 #include "../focaltech_flash.h"
 #include "focaltech_upgrade_common.h"
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+#include <linux/input/focaltech_mdss.h>
+#endif
+
 /*****************************************************************************
 * Static variables
 *****************************************************************************/
@@ -48,6 +52,11 @@
 #define CONFIG_PROJECT_ID_OFFSET    (0x20)
 #define CONFIG_VENDOR_ID_ADDR       (CONFIG_START_ADDR+CONFIG_VENDOR_ID_OFFSET)
 #define CONFIG_PROJECT_ID_ADDR      (CONFIG_START_ADDR+CONFIG_PROJECT_ID_OFFSET)
+
+#ifdef CONFIG_MACH_MEIZU_M1721
+#define CONFIG_LCM_ID_OFFSET        (0x06)
+#define CONFIG_LCM_ID_ADDR       (CONFIG_START_ADDR+CONFIG_LCM_ID_OFFSET)
+#endif
 /*****************************************************************************
 * Global variable or extern global variabls/functions
 *****************************************************************************/
@@ -148,58 +157,114 @@ static int fts_ft5x46_get_i_file(struct i2c_client *client, int fw_valid)
 {
 	int ret = 0;
 
-#if (FTS_GET_VENDOR_ID_NUM != 0)
 	u8 vendor_id = 0;
+	u8 lcm_id = 0;
+	u8 rw_buf[10];
 
 	if (fw_valid)
 		ret = fts_i2c_read_reg(client, FTS_REG_VENDOR_ID, &vendor_id);
 	else
 		ret = fts_ft5x46_get_vendor_id_flash(client, &vendor_id);
-
-	FTS_DEBUG("[UPGRADE] tp_vendor_id=%x", vendor_id);
+		
 	if (ret < 0) {
 		FTS_ERROR("Get upgrade file fail because of Vendor ID wrong");
 		return ret;
 	}
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+	// Get LCM id
+	rw_buf[0] = 0x03;
+	rw_buf[1] = 0x00;
+	rw_buf[2] = (u8)(CONFIG_LCM_ID_ADDR >> 8);
+	rw_buf[3] = (u8)(CONFIG_LCM_ID_ADDR);
+
+	ret = fts_i2c_write(client, rw_buf, 4);
+
+	// Must wait, otherwise LCM id read will fail
+	usleep_range(10000, 20000);
+
+	ret = fts_i2c_read(client, NULL, 0, lcm_id, 1);
+	if (ret < 0) {
+		FTS_ERROR("[UPGRADE] Failed to read LCM id: %d", ret);
+		return ret;
+	}
+
+	FTS_DEBUG("[UPGRADE] lcm_id=%x, vendor_id=%x, lcd_name=%s", lcm_id, vendor_id, fts_lcd_name);
+
+	if (vendor_id != 0x80 && vendor_id != 0x82) {
+		FTS_ERROR("[UPGRADE] Invalid vendor id: %x", vendor_id);
+		return ret;
+	}
+
+	if (vendor_id == 0x82) {
+		// LCD: hx8399c holitech
+		
+		if (lcm_id == 0x31) {
+			g_fw_file = CTPM_FW2_BLACK;
+			g_fw_len = fts_getsize(FW2_BLACK_SIZE);
+			FTS_DEBUG("[UPGRADE] fw2/black, size=%d", g_fw_len);
+		} else {
+			g_fw_file = CTPM_FW2_WHITE;
+			g_fw_len = fts_getsize(FW2_WHITE_SIZE);
+			FTS_DEBUG("[UPGRADE] fw2/white, size=%d", g_fw_len);
+		}
+	} else if (strstr(fts_lcd_name, "txd")) {
+		// LCD: nili7807d txdkj
+
+		if (lcm_id == 0x31) {
+			g_fw_file = CTPM_FW3_BLACK;
+			g_fw_len = fts_getsize(FW3_BLACK_SIZE);
+			FTS_DEBUG("[UPGRADE] fw3/black, size=%d", g_fw_len);
+		} else {
+			g_fw_file = CTPM_FW3_WHITE;
+			g_fw_len = fts_getsize(FW3_WHITE_SIZE);
+			FTS_DEBUG("[UPGRADE] fw3/white, size=%d", g_fw_len);
+		}
+	} else {
+		// LCD: hx8399c tcl
+
+		if (lcm_id == 0x31) {
+			g_fw_file = CTPM_FW_BLACK;
+			g_fw_len = fts_getsize(FW_BLACK_SIZE);
+			FTS_DEBUG("[UPGRADE] fw1/black, size=%d", g_fw_len);
+		} else {
+			g_fw_file = CTPM_FW_WHITE;
+			g_fw_len = fts_getsize(FW_WHITE_SIZE);
+			FTS_DEBUG("[UPGRADE] fw1/white, size=%d", g_fw_len);
+		}
+	}
+
+	return 0;
+#else
 	FTS_INFO("[UPGRADE]tp vendor id:%x, FTS_VENDOR_ID:%02x %02x %02x",
 		 vendor_id, FTS_VENDOR_1_ID, FTS_VENDOR_2_ID, FTS_VENDOR_3_ID);
+
 	ret = 0;
+
 	switch (vendor_id) {
-#if (FTS_GET_VENDOR_ID_NUM >= 1)
 	case FTS_VENDOR_1_ID:
 		g_fw_file = CTPM_FW;
 		g_fw_len = fts_getsize(FW_SIZE);
 		FTS_DEBUG("[UPGRADE]FW FILE:CTPM_FW, SIZE:%x", g_fw_len);
 		break;
-#endif
-#if (FTS_GET_VENDOR_ID_NUM >= 2)
 	case FTS_VENDOR_2_ID:
 		g_fw_file = CTPM_FW2;
 		g_fw_len = fts_getsize(FW2_SIZE);
 		FTS_DEBUG("[UPGRADE]FW FILE:CTPM_FW2, SIZE:%x", g_fw_len);
 		break;
-#endif
-#if (FTS_GET_VENDOR_ID_NUM >= 3)
 	case FTS_VENDOR_3_ID:
 		g_fw_file = CTPM_FW3;
 		g_fw_len = fts_getsize(FW3_SIZE);
 		FTS_DEBUG("[UPGRADE]FW FILE:CTPM_FW3, SIZE:%x", g_fw_len);
 		break;
-#endif
 	default:
 		FTS_ERROR("[UPGRADE]Vendor ID check fail, get fw file fail");
 		ret = -EIO;
 		break;
 	}
-#else
-	/* (FTS_GET_VENDOR_ID_NUM == 0) */
-	g_fw_file = CTPM_FW;
-	g_fw_len = fts_getsize(FW_SIZE);
-	FTS_DEBUG("[UPGRADE]FW FILE:CTPM_FW, SIZE:%x", g_fw_len);
-#endif
 
 	return ret;
+#endif
 }
 
 /************************************************************************

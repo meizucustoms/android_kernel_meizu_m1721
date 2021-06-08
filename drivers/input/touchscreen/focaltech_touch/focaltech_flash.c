@@ -62,6 +62,32 @@ u8 CTPM_FW3[] = {
 };
 #endif
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+u8 CTPM_FW_BLACK = { 
+#include FTS_UPGRADE_FW1_BLACK_APP
+};
+
+u8 CTPM_FW2_BLACK = { 
+#include FTS_UPGRADE_FW2_BLACK_APP
+};
+
+u8 CTPM_FW3_BLACK = { 
+#include FTS_UPGRADE_FW3_BLACK_APP
+};
+
+u8 CTPM_FW_WHITE = { 
+#include FTS_UPGRADE_FW1_WHITE_APP
+};
+
+u8 CTPM_FW2_WHITE = { 
+#include FTS_UPGRADE_FW2_WHITE_APP
+};
+
+u8 CTPM_FW3_WHITE = { 
+#include FTS_UPGRADE_FW3_WHITE_APP
+};
+#endif
+
 u8 aucFW_PRAM_BOOT[] = {
 #ifdef FTS_UPGRADE_PRAMBOOT
 #include FTS_UPGRADE_PRAMBOOT
@@ -274,6 +300,20 @@ u32 fts_getsize(u8 fw_type)
 #if (FTS_GET_VENDOR_ID_NUM >= 3)
 	else if (fw_type == FW3_SIZE)
 		fw_len = sizeof(CTPM_FW3);
+#endif
+#ifdef CONFIG_MACH_MEIZU_M1721
+	else if (fw_type == FW_BLACK_SIZE)
+		fw_len = sizeof(CTPM_FW_BLACK)
+	else if (fw_type == FW2_BLACK_SIZE)
+		fw_len = sizeof(CTPM_FW2_BLACK)
+	else if (fw_type == FW3_BLACK_SIZE)
+		fw_len = sizeof(CTPM_FW3_BLACK)
+	else if (fw_type == FW_WHITE_SIZE)
+		fw_len = sizeof(CTPM_FW_WHITE)
+	else if (fw_type == FW2_WHITE_SIZE)
+		fw_len = sizeof(CTPM_FW2_WHITE)
+	else if (fw_type == FW3_WHITE_SIZE)
+		fw_len = sizeof(CTPM_FW3_WHITE)
 #endif
 #if (FTS_CHIP_TYPE == _FT8006)
 	else if (fw_type == LCD_CFG_SIZE)

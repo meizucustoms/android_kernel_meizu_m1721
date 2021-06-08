@@ -27,6 +27,10 @@
 #include <linux/msm-bus.h>
 #include <linux/pm_qos.h>
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+#include <linux/input/focaltech_mdss.h>
+#endif
+
 #include "mdss.h"
 #include "mdss_panel.h"
 #include "mdss_dsi.h"
@@ -2956,6 +2960,12 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 end:
 	if (strcmp(panel_name, NONE_PANEL))
 		dsi_pan_node = mdss_dsi_pref_prim_panel(pdev);
+
+#ifdef CONFIG_MACH_MEIZU_M1721
+	strncpy(lcd_name, panel_name + 14, strlen(panel_name) - 14);
+	fts_lcd_name[strlen(panel_name) - 14] = '\0';
+#endif
+
 exit:
 	return dsi_pan_node;
 }
