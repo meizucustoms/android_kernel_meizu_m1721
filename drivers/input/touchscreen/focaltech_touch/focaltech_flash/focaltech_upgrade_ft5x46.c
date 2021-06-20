@@ -82,7 +82,7 @@ struct fts_upgrade_fun fts_updatefun = {
 /*****************************************************************************
 * Static function prototypes
 *****************************************************************************/
-#if (FTS_GET_VENDOR_ID_NUM != 0)
+#if (FTS_GET_VENDOR_ID_NUM != 0) || (defined CONFIG_MACH_MEIZU_M1721)
 /************************************************************************
 * Name: fts_ft5x46_get_vendor_id_flash
 * Brief:
@@ -183,7 +183,7 @@ static int fts_ft5x46_get_i_file(struct i2c_client *client, int fw_valid)
 	// Must wait, otherwise LCM id read will fail
 	usleep_range(10000, 20000);
 
-	ret = fts_i2c_read(client, NULL, 0, lcm_id, 1);
+	ret = fts_i2c_read(client, NULL, 0, &lcm_id, 1);
 	if (ret < 0) {
 		FTS_ERROR("[UPGRADE] Failed to read LCM id: %d", ret);
 		return ret;

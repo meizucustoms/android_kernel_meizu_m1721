@@ -50,7 +50,7 @@ static struct mdss_dsi_data *mdss_dsi_res;
 static struct pm_qos_request mdss_dsi_pm_qos_request;
 
 #ifdef CONFIG_MACH_MEIZU_M1721
-int panel_suspend_reset_flag = 0;
+char fts_lcd_name[40] = "NOT_SET_YET";
 #endif
 
 static void mdss_dsi_pm_qos_add_request(struct mdss_dsi_ctrl_pdata *ctrl_pdata)
@@ -302,13 +302,6 @@ static int mdss_dsi_panel_power_off(struct mdss_panel_data *pdata)
 
 	if (mdss_dsi_pinctrl_set_state(ctrl_pdata, false))
 		pr_debug("reset disable: pinctrl not enabled\n");
-
-#ifdef CONFIG_MACH_MEIZU_M1721
-	if (panel_suspend_reset_flag == 2)
-		msleep(1); /* delay 1ms */
-	else if (panel_suspend_reset_flag == 3)
-		msleep(4); /* delay 4ms */
-#endif
 
 	ret = msm_dss_enable_vreg(
 		ctrl_pdata->panel_power_data.vreg_config,
@@ -2911,13 +2904,6 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 		}
 		pr_info("%s: cmdline:%s panel_name:%s\n",
 			__func__, panel_cfg, panel_name);
-#ifdef CONFIG_MACH_MEIZU_M1721
-		if (!strcmp(panel_name, "qcom,mdss_dsi_otm1911_fhd_video"))
-			panel_suspend_reset_flag = 2;
-		else if (!strcmp(panel_name, "qcom,mdss_dsi_ili9885_boe_fhd_video"))
-			panel_suspend_reset_flag = 3;
-        else
-#endif
 		if (!strcmp(panel_name, NONE_PANEL))
 			goto exit;
 
@@ -2962,8 +2948,8 @@ end:
 		dsi_pan_node = mdss_dsi_pref_prim_panel(pdev);
 
 #ifdef CONFIG_MACH_MEIZU_M1721
-	strncpy(lcd_name, panel_name + 14, strlen(panel_name) - 14);
-	fts_lcd_name[strlen(panel_name) - 14] = '\0';
+	strncpy(fts_lcd_name, panel_name + 14, strlen(panel_name) - 14);
+	fts_lcd_name[strlen(fts_lcd_name)] = '\0';
 #endif
 
 exit:

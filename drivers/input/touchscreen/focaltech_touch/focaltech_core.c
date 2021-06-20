@@ -379,30 +379,6 @@ static void fts_release_all_finger(void)
 	mutex_unlock(&fts_wq_data->report_mutex);
 }
 
-
-#if (FTS_DEBUG_EN && (FTS_DEBUG_LEVEL == 2))
-static void fts_show_touch_buffer(u8 *buf, int point_num)
-{
-	int len = point_num * FTS_ONE_TCH_LEN;
-	int count = 0;
-	int i;
-
-	memset(g_sz_debug, 0, 1024);
-	if (len > (POINT_READ_BUF-3))
-		len = POINT_READ_BUF-3;
-	else if (len == 0) {
-		len += FTS_ONE_TCH_LEN;
-
-	count += snprintf(g_sz_debug, 1024, "%02X,%02X,%02X",
-			buf[0], buf[1], buf[2]);
-	for (i = 0; i < len; i++)
-		count += snprintf(g_sz_debug+count, 1024-count,
-				",%02X", buf[i+3]);
-
-	FTS_DEBUG("buffer: %s", g_sz_debug);
-}
-#endif
-
 static int fts_input_dev_report_key_event(struct ts_event *event,
 					struct fts_ts_data *data)
 {
@@ -828,24 +804,44 @@ static int fts_gpio_configure(struct fts_ts_data *data)
 	FTS_FUNC_ENTER();
 	/* request irq gpio */
 	if (gpio_is_valid(data->pdata->irq_gpio)) {
-		err = gpio_request(data->pdata->irq_gpio, "fts_irq_gpio");
-		if (err) {
-			FTS_ERROR("[GPIO]irq gpio request failed");
-			goto err_irq_gpio_req;
+		err = gpio_request(data->pdata->irq_gpio, "fts_ts_irq_gpio");
+		if (err < 0) {
+			// HACK
+
+			gpio_free(data->pdata->irq_gpio); 
+				// ^ Goodix can assign GPIO before Focaltech.
+			msleep(10); 
+				// ^ To be sure that GPIO is free
+
+			err = gpio_request(data->pdata->irq_gpio, "fts_ts_irq_gpio");
+			if (err < 0) {
+				FTS_ERROR("[GPIO]irq gpio request failed");
+				goto err_irq_gpio_req;
+			}
 		}
 
 		err = gpio_direction_input(data->pdata->irq_gpio);
-		if (err) {
+		if (err < 0) {
 			FTS_ERROR("[GPIO]set_direction for irq gpio failed");
 			goto err_irq_gpio_dir;
 		}
 	}
 	/* request reset gpio */
 	if (gpio_is_valid(data->pdata->reset_gpio)) {
-		err = gpio_request(data->pdata->reset_gpio, "fts_reset_gpio");
-		if (err) {
-			FTS_ERROR("[GPIO]reset gpio request failed");
-			goto err_irq_gpio_dir;
+		err = gpio_request(data->pdata->reset_gpio, "fts_ts_reset_gpio");
+		if (err < 0) {
+			// HACK
+
+			gpio_free(data->pdata->reset_gpio); 
+				// ^ Goodix can assign GPIO before Focaltech.
+			msleep(10); 
+				// ^ To be sure that GPIO is free
+
+			err = gpio_request(data->pdata->reset_gpio, "fts_ts_reset_gpio");
+			if (err < 0) {
+				FTS_ERROR("[GPIO]reset gpio request failed");
+				goto err_irq_gpio_dir;
+			}
 		}
 
 		err = gpio_direction_output(data->pdata->reset_gpio, 1);
@@ -975,10 +971,14 @@ static int fts_parse_dt(struct device *dev, struct fts_ts_platform_data *pdata)
 	if (pdata->reset_gpio < 0)
 		FTS_ERROR("Unable to get reset_gpio");
 
+	FTS_DEBUG("reset gpio=%d", pdata->reset_gpio);
+
 	pdata->irq_gpio = of_get_named_gpio_flags(np, "focaltech,irq-gpio",
 					0, &pdata->irq_gpio_flags);
 	if (pdata->irq_gpio < 0)
 		FTS_ERROR("Unable to get irq_gpio");
+
+	FTS_DEBUG("irq gpio=%d", pdata->irq_gpio);
 
 	rc = of_property_read_u32(np, "focaltech,max-touch-number", &temp_val);
 	if (!rc) {
