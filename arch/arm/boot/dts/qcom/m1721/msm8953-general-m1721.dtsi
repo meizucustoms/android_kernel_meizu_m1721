@@ -252,6 +252,23 @@
             spi-max-frequency = <8000000>;
         };
     };
+
+    i2c@78b6000 {
+        status = "ok";
+
+        sm5424-charger@49 {
+            compatible = "qcom,sm5424-charger";
+            reg = <0x49>;
+            status = "ok";
+            
+            qcom,float-voltage-mv = <4400>;
+            qcom,iterm-ma = <300>;
+            qcom,nINT-gpio = <9>;
+            qcom,parallel-charger;
+            qcom,recharge-mv = <100>;
+            qcom,switch-freq = <2>;
+        };
+    }
         
 	i2c@78b7000 {
         focaltech@38 {
