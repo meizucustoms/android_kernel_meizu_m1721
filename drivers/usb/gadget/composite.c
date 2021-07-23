@@ -874,6 +874,7 @@ static int set_config(struct usb_composite_dev *cdev,
 	else
 		power = CONFIG_USB_GADGET_VBUS_DRAW;
 
+done:
 #ifdef CONFIG_MACH_MEIZU_M1721
 	if (is_usb_charge_only_mode()) {
 		mz_info("usb: enabled boost (900mA)\n");
@@ -881,7 +882,6 @@ static int set_config(struct usb_composite_dev *cdev,
 	}
 #endif
 
-done:
 	usb_gadget_vbus_draw(gadget, power);
 	if (result >= 0 && cdev->delayed_status)
 		result = USB_GADGET_DELAYED_STATUS;
