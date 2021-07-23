@@ -506,6 +506,14 @@ config QPNP_SMBCHARGER
 	  The driver also offers relevant information to userspace via the
 	  power supply framework.
 
+config SM5424_CHARGER
+	tristate "SM5424 charger driver"
+	depends on SPMI || MSM_SPMI
+	depends on OF_SPMI
+	help
+		Say Y here to enable the SM5424 charger with fast charging
+		up to 3.5A. Requires Qualcomm CPU to work.
+
 config FUELGAUGE_STC3117
 	tristate "STC3117 fuel gauge driver"
 	default n
