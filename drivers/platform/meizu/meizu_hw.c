@@ -20,7 +20,12 @@
 #include <linux/errno.h>
 #include <linux/device.h>
 #include <linux/types.h>
+
+#define MZHW_USED_FOR_CAMERA
+
 #include <media/meizu_hw.h>
+
+struct class *mzhw_class;
 
 int meizu_sensor_parse_id(struct meizu_camera_data *camera,
                           struct msm_sensor_ctrl_t *s_ctrl) {

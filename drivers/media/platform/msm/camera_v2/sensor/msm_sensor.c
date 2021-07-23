@@ -17,6 +17,8 @@
 #include "msm_camera_i2c_mux.h"
 #include <linux/regulator/rpm-smd-regulator.h>
 #include <linux/regulator/consumer.h>
+
+#define MZHW_USED_FOR_CAMERA
 #include <media/meizu_hw.h>
 
 #undef CDBG
