@@ -28,6 +28,10 @@
 #define SSUSB_GADGET_VBUS_DRAW_UNITS 8
 #define HSUSB_GADGET_VBUS_DRAW_UNITS 2
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+#include <media/meizu_hw.h>
+#endif
+
 static bool enable_l1_for_hs;
 module_param(enable_l1_for_hs, bool, S_IRUGO | S_IWUSR);
 MODULE_PARM_DESC(enable_l1_for_hs, "Enable support for L1 LPM for HS devices");
@@ -869,6 +873,13 @@ static int set_config(struct usb_composite_dev *cdev,
 		power = SSUSB_GADGET_VBUS_DRAW;
 	else
 		power = CONFIG_USB_GADGET_VBUS_DRAW;
+
+#ifdef CONFIG_MACH_MEIZU_M1721
+	if (is_usb_charge_only_mode()) {
+		mz_info("usb: enabled boost (900mA)\n");
+		power = SSUSB_GADGET_VBUS_DRAW;
+	}
+#endif
 
 done:
 	usb_gadget_vbus_draw(gadget, power);

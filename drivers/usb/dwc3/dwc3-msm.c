@@ -52,6 +52,11 @@
 #include "debug.h"
 #include "xhci.h"
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+#include <media/meizu_hw.h>
+extern struct class *mzhw_class;
+#endif
+
 #define DWC3_IDEV_CHG_MAX 2000
 #define DWC3_HVDCP_CHG_MAX 2000
 
@@ -2712,6 +2717,52 @@ static int dwc3_msm_get_clk_gdsc(struct dwc3_msm *mdwc)
 	return 0;
 }
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+static bool usb_charge_only = false;
+
+bool is_usb_charge_only_mode(void) {
+	return usb_charge_only;
+}
+
+static ssize_t usb_charge_only_store(struct device *dev, struct device_attribute *attr,
+			 						 const char *buf, size_t count)
+{
+	int state = 0, power = 0, ret = 0;
+	struct dwc3_msm *mdwc = dev_get_drvdata(dev);
+
+	ret = sscanf(buf, "%d", &state);
+	if (ret != 1) {
+		pr_err("usb_charge_only: failed to get state (%d)\n", state);
+		return count;
+	}
+
+	if (state != usb_charge_only) {
+		usb_charge_only = state;
+
+		if (usb_charge_only) {
+			power = 900;
+		} else {
+			power = 500;
+		}
+
+		dwc3_msm_gadget_vbus_draw(mdwc, power);
+
+		pr_info("usb_charge_only: charge only mode was %s\n", usb_charge_only ? "enabled" : "disabled");
+	}
+
+	return count;
+}
+
+static ssize_t usb_charge_only_show(struct device *dev, struct device_attribute *attr, 
+									char *buf)
+{
+  return sprintf(buf, "%d\n", usb_charge_only);
+}
+
+static DEVICE_ATTR(usb_charge_only, 0664, usb_charge_only_show, usb_charge_only_store);
+
+#endif
+
 static int dwc3_msm_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node, *dwc3_node;
@@ -2725,6 +2776,10 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	int ret = 0;
 	int ext_hub_reset_gpio;
 	u32 val;
+
+#ifdef CONFIG_MACH_MEIZU_M1721
+	struct device *mzdev;
+#endif
 
 	mdwc = devm_kzalloc(&pdev->dev, sizeof(*mdwc), GFP_KERNEL);
 	if (!mdwc)
@@ -3082,6 +3137,26 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		mdwc->id_state = DWC3_ID_GROUND;
 		dwc3_ext_event_notify(mdwc);
 	}
+
+#ifdef CONFIG_MACH_MEIZU_M1721
+	mzdev = kzalloc(sizeof(*mzdev), GFP_KERNEL);
+	if (!mzdev) {
+		mz_err("usb: failed to allocate memory\n");
+		return 0;
+	}
+
+	mzdev->class = mzhw_class;
+	dev_set_name(mzdev, "usb_charge");
+	dev_set_drvdata(mzdev, mdwc);
+
+	ret = device_register(mzdev);
+	if (ret) {
+		mz_err("usb: failed to register device\n");
+		return 0;
+	}
+
+	ret = device_create_file(mzdev, &dev_attr_usb_charge_only);
+#endif
 
 	return 0;
 
