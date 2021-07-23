@@ -14,14 +14,23 @@
  *
  */
 
- #include "msm_sensor.h"
- #include "msm_cci.h"
+#include "msm_sensor.h"
+#include "msm_cci.h"
+#include <linux/types.h>
+
+#ifndef __MEIZU_HW_H
+#define __MEIZU_HW_H
 
 // Cool logs
 #define mz_info(fmt, args...) pr_info("mzhw: %s: " fmt, __func__, ##args)
 #define mz_warn(fmt, args...) pr_warn("mzhw: %s: " fmt, __func__, ##args)
 #define mz_err(fmt, args...) pr_err("mzhw: %s: " fmt, __func__, ##args)
 
+/* MeizuHW class */
+struct class *mzhw_class;
+int meizu_hw_class_init(void);
+
+/* camera_v2 changes */
 struct meizu_camera_sensor {
     unsigned int id;
     char name[24];
@@ -37,3 +46,8 @@ struct meizu_camera_data {
 int meizu_sensor_parse_id(struct meizu_camera_data *camera,
                           struct msm_sensor_ctrl_t *s_ctrl);
 int meizu_camera_print_data(struct meizu_camera_data *camera);
+
+/* DWC3-MSM changes */
+bool is_usb_charge_only_mode(void); 
+
+#endif /* __MEIZU_HW_H */

@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/errno.h>
+#include <linux/device.h>
 #include <linux/types.h>
 #include <media/meizu_hw.h>
 
@@ -156,8 +157,22 @@ int meizu_camera_print_data(struct meizu_camera_data *camera) {
     return 0;
 }
 
+int meizu_hw_class_init(void) {
+    if (!mzhw_class || !IS_ERR(mzhw_class)) {
+        mzhw_class = class_create(THIS_MODULE, "mzhw");
+        if (IS_ERR(mzhw_class)) {
+            mz_err("Failed to register mzhw class.\n");
+            return PTR_ERR(mzhw_class);
+        }
+    }
+
+    return 0;
+}
+
 static int __init meizu_hw_init(void) {
-	mz_info("init done!\n");
+    meizu_hw_class_init();
+
+	mz_info("inited.\n");
 	return 0;
 }
 
