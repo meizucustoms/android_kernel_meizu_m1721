@@ -122,7 +122,7 @@ enum power_supply_property sm5424_psy_properties[7] = {
     POWER_SUPPLY_PROP_CONSTANT_CHARGE_CURRENT_MAX};
 
 // Mark debug info as warnings?
-#define SM5424_DEBUG_HIGH_LEVEL
+//#define SM5424_DEBUG_HIGH_LEVEL
 
 #ifdef SM5424_DEBUG_HIGH_LEVEL
 #define sm5424_dbg(fmt, args...) pr_warn("sm5424: %s: " fmt, __func__, ##args);
