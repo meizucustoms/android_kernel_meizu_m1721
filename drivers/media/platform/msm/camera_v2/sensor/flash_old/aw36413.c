@@ -26,6 +26,8 @@
 
 static struct msm_led_flash_ctrl_t fctrl;
 
+static struct proc_dir_entry *aw36413_msfl;
+
 static const struct i2c_device_id aw36413_i2c_id[] = {
     {"awinic,aw36413", (kernel_ulong_t)&fctrl},
     {},
@@ -37,10 +39,6 @@ static const struct of_device_id aw36413_i2c_trigger_dt_match[] = {
 MODULE_DEVICE_TABLE(of, aw36413_trigger_dt_match);
 
 static struct aw36413_cfg *aw36413 = NULL;
-
-// MSFLv3
-static unsigned int torch_brightness[2] = { 200, 200 };
-static unsigned int flash_brightness[2] = { 900, 900 };
 
 static int aw36413_reg_write(int device, unsigned int reg, unsigned int val) {
   unsigned int ret;
@@ -241,7 +239,7 @@ static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
   }
 
   aw36413_get_vendor_id();
-  ret = msm_i2c_torch_create_classdev(&client->dev, NULL);
+  ret = msm_i2c_torch_create_classdev(&client->dev);
   if (ret) {
     pr_err("%s: failed to create classdev %d\n", __func__, __LINE__);
     return ret;
@@ -356,13 +354,13 @@ static int msm_flash_aw36413_led_high(struct msm_led_flash_ctrl_t *fctrl) {
     aw_info("cci_master = %d\n", fctrl->cci_i2c_master);
   }
 
-  if (fctrl->flash_op_current[0] > 900)
-    brightness[0] = 37;
+  if (fctrl->flash_op_current[0] > 1500)
+    brightness[0] = 63;
   else
     brightness[0] = ((100 * fctrl->flash_op_current[0] + 1170) / 2344) - 1;
 
-  if (fctrl->flash_op_current[1] > 900)
-    brightness[1] = 37;
+  if (fctrl->flash_op_current[1] > 1500)
+    brightness[1] = 63;
   else
     brightness[1] = ((100 * fctrl->flash_op_current[1] + 1170) / 2344) - 1;
 
@@ -416,14 +414,14 @@ static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl) {
     countVar[1] = 291;
   }
 
-  if (fctrl->flash_op_current[0] > 200)
-    brightness[0] = ((20000 + countVar[1]) / countVar[0]) - 1;
+  if (fctrl->flash_op_current[0] > 300)
+    brightness[0] = ((30000 + countVar[1]) / countVar[0]) - 1;
   else
     brightness[0] =
         ((100 * fctrl->flash_op_current[0] + countVar[1]) / countVar[0]) - 1;
 
-  if (fctrl->flash_op_current[1] > 200)
-    brightness[1] = ((20000 + countVar[1]) / countVar[0]) - 1;
+  if (fctrl->flash_op_current[1] > 300)
+    brightness[1] = ((30000 + countVar[1]) / countVar[0]) - 1;
   else
     brightness[1] =
         ((100 * fctrl->flash_op_current[1] + countVar[1]) / countVar[0]) - 1;
@@ -456,9 +454,78 @@ static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl) {
   return 0;
 }
 
+static int32_t
+msm_led_aw36413_i2c_trigger_get_subdev_id(struct msm_led_flash_ctrl_t *fctrl,
+                                          void *arg) {
+  aw_info("enter\n");
+
+  if (!arg) {
+    aw_err("arg not found\n");
+    return -EINVAL;
+  }
+
+  arg = &fctrl->subdev_id;
+  aw_info("subdev id = %d\n", fctrl->subdev_id);
+  return 0;
+}
+
+static int32_t
+msm_led_aw36413_i2c_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
+                                   void *data) {
+  int ret;
+  struct msm_flash_cfg_data_t *cfg = (struct msm_flash_cfg_data_t *)data;
+
+  aw_info("enter\n");
+  if (!fctrl->func_tbl) {
+    aw_err("no function table\n");
+    return -EINVAL;
+  }
+
+  aw_info("cfg_type = %d\n", cfg->cfg_type);
+
+  switch (cfg->cfg_type) {
+  case CFG_FLASH_INIT:
+    if (fctrl->func_tbl->flash_led_init)
+      ret = fctrl->func_tbl->flash_led_init(fctrl);
+    break;
+  case CFG_FLASH_RELEASE:
+    if (fctrl->func_tbl->flash_led_release)
+      ret = fctrl->func_tbl->flash_led_release(fctrl);
+    break;
+  case CFG_FLASH_OFF:
+    if (fctrl->func_tbl->flash_led_off)
+      ret = fctrl->func_tbl->flash_led_off(fctrl);
+    break;
+  case CFG_FLASH_LOW:
+    fctrl->flash_op_current[0] = cfg->flash_current[0];
+    fctrl->flash_op_current[1] = cfg->flash_current[1];
+    aw_info("[LED1 | %d mA] [LED2 | %d mA] [LED3 | %d mA] [LED4 | %d mA]\n",
+            fctrl->flash_op_current[0], fctrl->flash_op_current[0],
+            fctrl->flash_op_current[1], fctrl->flash_op_current[1]);
+    if (fctrl->func_tbl->flash_led_low)
+      ret = fctrl->func_tbl->flash_led_low(fctrl);
+    break;
+  case CFG_FLASH_HIGH:
+    fctrl->flash_op_current[0] = cfg->flash_current[0];
+    fctrl->flash_op_current[1] = cfg->flash_current[1];
+    aw_info("[LED1 | %d mA] [LED2 | %d mA] [LED3 | %d mA] [LED4 | %d mA]\n",
+            fctrl->flash_op_current[0], fctrl->flash_op_current[0],
+            fctrl->flash_op_current[1], fctrl->flash_op_current[1]);
+    if (fctrl->func_tbl->flash_led_high)
+      ret = fctrl->func_tbl->flash_led_high(fctrl);
+    break;
+  default:
+    aw_warn("invalid cfg_type = %d\n", cfg->cfg_type);
+    ret = -EFAULT;
+    break;
+  }
+
+  return ret;
+}
+
 static struct msm_flash_fn_t aw36413_func_tbl = {
-    .flash_get_subdev_id = msm_led_i2c_trigger_get_subdev_id,
-    .flash_led_config = msm_flash_i2c_trigger_config,
+    .flash_get_subdev_id = msm_led_aw36413_i2c_trigger_get_subdev_id,
+    .flash_led_config = msm_led_aw36413_i2c_trigger_config,
     .flash_led_init = msm_flash_aw36413_led_init,
     .flash_led_release = msm_flash_aw36413_led_release,
     .flash_led_off = msm_flash_aw36413_led_off,
@@ -476,15 +543,134 @@ static struct msm_led_flash_ctrl_t fctrl = {
     .flash_device_type = MSM_CAMERA_I2C_DEVICE,
     .cci_i2c_master = MASTER_0,
     .led_state = MSM_CAMERA_LED_OFF,
+    .subdev_id = 0,
+};
+
+static int32_t msfl_br[2] = {150, 150};
+
+static int aw36413_torch_with_brightness(void) {
+  int countVar[2], brightness[2];
+  int enable = 11;
+
+  aw_info("enter\n");
+
+  if (aw36413->vendor == 1) {
+    countVar[0] = 560;
+    countVar[1] = 280;
+  } else {
+    countVar[0] = 582;
+    countVar[1] = 291;
+  }
+
+  if (msfl_br[0] > 300)
+    brightness[0] = ((30000 + countVar[1]) / countVar[0]) - 1;
+  else
+    brightness[0] = ((100 * msfl_br[0] + countVar[1]) / countVar[0]) - 1;
+
+  if (msfl_br[1] > 300)
+    brightness[1] = ((30000 + countVar[1]) / countVar[0]) - 1;
+  else
+    brightness[1] = ((100 * msfl_br[1] + countVar[1]) / countVar[0]) - 1;
+
+  if (!brightness[0])
+    enable = 9;
+  if (!brightness[1])
+    enable = 10;
+  if (!brightness[1] && !brightness[0])
+    enable = 0;
+
+  if (!brightness[0] || !brightness[1]) {
+    aw_err("Brightness error: %d[0] and %d[1]", brightness[0], brightness[1]);
+  }
+
+  if (aw36413->hwenpwr) {
+    aw36413_hwen(AW36413_BOTH, AW36413_HWEN_OFF);
+    mdelay(AW36413_HWEN_DELAY); // HWEN	delay
+  }
+  aw36413_hwen(AW36413_BOTH, AW36413_HWEN_ON);
+  mdelay(AW36413_HWEN_DELAY); // HWEN	delay
+  aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED1_TORCH, brightness[0]);
+  aw36413_reg_write(AW36413_BOTH, REG_AW36413_LED2_TORCH, brightness[1]);
+  aw36413_reg_write(AW36413_BOTH, REG_AW36413_TIMING, AW36413_TIMING_COUNT);
+  aw36413_reg_write(AW36413_BOTH, REG_AW36413_ENABLE, enable);
+  return 0;
+}
+
+static ssize_t aw36413_msfl_write(struct file *file, const char __user *ubuf,
+                                  size_t count, loff_t *ppos) {
+  int br1, br2, ret;
+  char buf[10];
+
+  if (count > 10)
+    count = 10;
+
+  ret = copy_from_user(buf, ubuf, count);
+  if (ret) {
+    aw_err("error on %d line\n", __LINE__);
+    return ret;
+  }
+
+  aw_err("write copied buf: %s\n", buf);
+
+  ret = sscanf(buf, "%d,%d", &br1, &br2);
+  if (ret != 2) {
+    aw_err("error on %d line\n", __LINE__);
+    return ret;
+  }
+
+  msfl_br[0] = br1;
+  msfl_br[1] = br2;
+
+  if (br1 < 10 && br2 < 10) {
+    msfl_br[0] = 0;
+    msfl_br[1] = 0;
+    msm_flash_aw36413_led_off(&fctrl);
+    return count;
+  }
+
+  if (br1 > 300 && br2 > 300) {
+    msfl_br[0] = 300;
+    msfl_br[1] = 300;
+  }
+
+  aw36413_torch_with_brightness();
+
+  return count;
+}
+
+static int aw36413_msfl_show(struct seq_file *m, void *v) {
+  seq_printf(m, "%d,%d\n", msfl_br[0], msfl_br[1]);
+  return 0;
+}
+
+static int aw36413_msfl_open(struct inode *inode, struct file *file) {
+  return single_open(file, aw36413_msfl_show, NULL);
+}
+
+static struct file_operations aw36413_msfl_fops = {
+    .owner = THIS_MODULE,
+    .open = aw36413_msfl_open,
+    .read = seq_read,
+    .llseek = seq_lseek,
+    .release = single_release,
+    .write = aw36413_msfl_write,
 };
 
 static int __init msm_flash_aw36413_init(void) {
+  aw_info("enter\n");
   i2c_add_driver(&aw36413_i2c_driver);
+
+  aw_err("LED_DATA_CFG: 0x%02lX, CFG: 0x%02lX\n", VIDIOC_MSM_FLASH_LED_DATA_CFG,
+         VIDIOC_MSM_FLASH_CFG);
+
+  aw36413_msfl = proc_create("msfl", 0, NULL, &aw36413_msfl_fops);
+
   return 0;
 }
 
 static void __exit msm_flash_aw36413_exit(void) {
   i2c_del_driver(&aw36413_i2c_driver);
+  proc_remove(aw36413_msfl);
 }
 
 module_init(msm_flash_aw36413_init);

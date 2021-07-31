@@ -102,3 +102,5 @@ enum aw36413_registers {
   REG_AW36413_LAST_FLASH = 0xd, // Last Flash Register
   REG_AW36413_IND_CUR = 0x39,   // Indicator Current Register
 };
+
+int msm_i2c_torch_create_classdev(struct device *dev);
