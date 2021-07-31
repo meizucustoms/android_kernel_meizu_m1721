@@ -23,6 +23,11 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/proc_fs.h>
+#include <linux/stddef.h>
+#include <linux/types.h>
+#include <media/meizu_hw.h>
+
+extern struct class *mzhw_class;
 
 static struct msm_led_flash_ctrl_t fctrl;
 
@@ -39,8 +44,130 @@ MODULE_DEVICE_TABLE(of, aw36413_trigger_dt_match);
 static struct aw36413_cfg *aw36413 = NULL;
 
 // MSFLv3
-static unsigned int torch_brightness[2] = { 200, 200 };
-static unsigned int flash_brightness[2] = { 900, 900 };
+static unsigned int torch_brightness[2] = {200, 200};
+static unsigned int flash_brightness[2] = {900, 900};
+static bool msfl_enabled = false;
+
+static ssize_t aw36413_torch_brightness_1_store(struct device *dev,
+                                                struct device_attribute *attr,
+                                                const char *buf, size_t count) {
+  int br = 0, ret = 0;
+
+  ret = sscanf(buf, "%d", &br);
+  if (ret != 2) {
+    aw_err("Failed to parse brightness\n");
+    return count;
+  }
+
+  torch_brightness[0] = br;
+
+  return count;
+}
+
+static ssize_t aw36413_torch_brightness_1_show(struct device *dev,
+                                               struct device_attribute *attr,
+                                               char *buf) {
+  return sprintf(buf, "%d\n", torch_brightness[0]);
+}
+
+static ssize_t aw36413_torch_brightness_2_store(struct device *dev,
+                                                struct device_attribute *attr,
+                                                const char *buf, size_t count) {
+  int br = 0, ret = 0;
+
+  ret = sscanf(buf, "%d", &br);
+  if (ret != 2) {
+    aw_err("Failed to parse brightness\n");
+    return count;
+  }
+
+  torch_brightness[1] = br;
+
+  return count;
+}
+
+static ssize_t aw36413_torch_brightness_2_show(struct device *dev,
+                                               struct device_attribute *attr,
+                                               char *buf) {
+  return sprintf(buf, "%d\n", torch_brightness[1]);
+}
+
+static ssize_t aw36413_flash_brightness_1_store(struct device *dev,
+                                                struct device_attribute *attr,
+                                                const char *buf, size_t count) {
+  int br = 0, ret = 0;
+
+  ret = sscanf(buf, "%d", &br);
+  if (ret != 2) {
+    aw_err("Failed to parse brightness\n");
+    return count;
+  }
+
+  flash_brightness[0] = br;
+
+  return count;
+}
+
+static ssize_t aw36413_flash_brightness_1_show(struct device *dev,
+                                               struct device_attribute *attr,
+                                               char *buf) {
+  return sprintf(buf, "%d\n", flash_brightness[0]);
+}
+
+static ssize_t aw36413_flash_brightness_2_store(struct device *dev,
+                                                struct device_attribute *attr,
+                                                const char *buf, size_t count) {
+  int br = 0, ret = 0;
+
+  ret = sscanf(buf, "%d", &br);
+  if (ret != 2) {
+    aw_err("Failed to parse brightness\n");
+    return count;
+  }
+
+  flash_brightness[1] = br;
+
+  return count;
+}
+
+static ssize_t aw36413_flash_brightness_2_show(struct device *dev,
+                                               struct device_attribute *attr,
+                                               char *buf) {
+  return sprintf(buf, "%d\n", flash_brightness[1]);
+}
+
+static ssize_t aw36413_msfl_enabled_store(struct device *dev,
+                                          struct device_attribute *attr,
+                                          const char *buf, size_t count) {
+  int en = 0, ret = 0;
+
+  ret = sscanf(buf, "%d", &en);
+  if (ret != 2) {
+    aw_err("Failed to parse state\n");
+    return count;
+  }
+
+  msfl_enabled = en;
+
+  return count;
+}
+
+static ssize_t aw36413_msfl_enabled_show(struct device *dev,
+                                         struct device_attribute *attr,
+                                         char *buf) {
+  return sprintf(buf, "%d\n", msfl_enabled);
+}
+
+static DEVICE_ATTR(torch_brightness_1, 0755, aw36413_torch_brightness_1_show,
+                   aw36413_torch_brightness_1_store);
+static DEVICE_ATTR(torch_brightness_2, 0755, aw36413_torch_brightness_2_show,
+                   aw36413_torch_brightness_2_store);
+static DEVICE_ATTR(flash_brightness_1, 0755, aw36413_flash_brightness_1_show,
+                   aw36413_flash_brightness_1_store);
+static DEVICE_ATTR(flash_brightness_2, 0755, aw36413_flash_brightness_2_show,
+                   aw36413_flash_brightness_2_store);
+static DEVICE_ATTR(custom_brightness_enabled, 0755, aw36413_msfl_enabled_show,
+                   aw36413_msfl_enabled_store);
 
 static int aw36413_reg_write(int device, unsigned int reg, unsigned int val) {
   unsigned int ret;
@@ -200,6 +327,9 @@ static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
                                        const struct i2c_device_id *id) {
   int ret;
 
+  // MSFLv3
+  struct device *mzhw_device;
+
   aw36413 = kzalloc(sizeof(struct aw36413_cfg *), GFP_KERNEL);
   aw36413->id = aw36413_i2c_id;
   aw36413->hwen1 = 95;
@@ -247,9 +377,32 @@ static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
     return ret;
   }
 
+  // MSFLv3
+  mzhw_device = kzalloc(sizeof(*mzhw_device), GFP_KERNEL);
+  if (!mzhw_device) {
+    mz_err("flashlight: failed to allocate memory\n");
+    goto success;
+  }
+
+  mzhw_device->class = mzhw_class;
+  dev_set_name(mzhw_device, "aw36413");
+
+  ret = device_register(mzhw_device);
+  if (ret) {
+    mz_err("flashlight: failed to register device\n");
+    goto success;
+  }
+
+  device_create_file(mzhw_device, &dev_attr_torch_brightness_1);
+  device_create_file(mzhw_device, &dev_attr_torch_brightness_2);
+  device_create_file(mzhw_device, &dev_attr_flash_brightness_1);
+  device_create_file(mzhw_device, &dev_attr_flash_brightness_2);
+  device_create_file(mzhw_device, &dev_attr_custom_brightness_enabled);
+
+success:
   aw_info("done\n");
   aw36413->probed = 1;
-  return ret;
+  return 0;
 }
 
 static int msm_flash_aw36413_i2c_remove(struct i2c_client *client) {
@@ -356,15 +509,27 @@ static int msm_flash_aw36413_led_high(struct msm_led_flash_ctrl_t *fctrl) {
     aw_info("cci_master = %d\n", fctrl->cci_i2c_master);
   }
 
-  if (fctrl->flash_op_current[0] > 900)
-    brightness[0] = 37;
-  else
-    brightness[0] = ((100 * fctrl->flash_op_current[0] + 1170) / 2344) - 1;
+  if (msfl_enabled) {
+    if (flash_brightness[0] > 1000)
+      brightness[0] = 42;
+    else
+      brightness[0] = ((100 * flash_brightness[0] + 1170) / 2344) - 1;
 
-  if (fctrl->flash_op_current[1] > 900)
-    brightness[1] = 37;
-  else
-    brightness[1] = ((100 * fctrl->flash_op_current[1] + 1170) / 2344) - 1;
+    if (flash_brightness[1] > 1000)
+      brightness[1] = 42;
+    else
+      brightness[1] = ((100 * flash_brightness[1] + 1170) / 2344) - 1;
+  } else {
+    if (fctrl->flash_op_current[0] > 500)
+      brightness[0] = 20;
+    else
+      brightness[0] = ((100 * fctrl->flash_op_current[0] + 1170) / 2344) - 1;
+
+    if (fctrl->flash_op_current[1] > 500)
+      brightness[1] = 20;
+    else
+      brightness[1] = ((100 * fctrl->flash_op_current[1] + 1170) / 2344) - 1;
+  }
 
   if (!brightness[0])
     enable = 13;
@@ -416,17 +581,31 @@ static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl) {
     countVar[1] = 291;
   }
 
-  if (fctrl->flash_op_current[0] > 200)
-    brightness[0] = ((20000 + countVar[1]) / countVar[0]) - 1;
-  else
-    brightness[0] =
-        ((100 * fctrl->flash_op_current[0] + countVar[1]) / countVar[0]) - 1;
+  if (msfl_enabled) {
+    if (torch_brightness[0] > 300)
+      brightness[0] = ((30000 + countVar[1]) / countVar[0]) - 1;
+    else
+      brightness[0] =
+          ((100 * torch_brightness[0] + countVar[1]) / countVar[0]) - 1;
 
-  if (fctrl->flash_op_current[1] > 200)
-    brightness[1] = ((20000 + countVar[1]) / countVar[0]) - 1;
-  else
-    brightness[1] =
-        ((100 * fctrl->flash_op_current[1] + countVar[1]) / countVar[0]) - 1;
+    if (torch_brightness[1] > 300)
+      brightness[1] = ((30000 + countVar[1]) / countVar[0]) - 1;
+    else
+      brightness[1] =
+          ((100 * torch_brightness[1] + countVar[1]) / countVar[0]) - 1;
+  } else {
+    if (fctrl->flash_op_current[0] > 200)
+      brightness[0] = ((20000 + countVar[1]) / countVar[0]) - 1;
+    else
+      brightness[0] =
+          ((100 * fctrl->flash_op_current[0] + countVar[1]) / countVar[0]) - 1;
+
+    if (fctrl->flash_op_current[1] > 200)
+      brightness[1] = ((20000 + countVar[1]) / countVar[0]) - 1;
+    else
+      brightness[1] =
+          ((100 * fctrl->flash_op_current[1] + countVar[1]) / countVar[0]) - 1;
+  }
 
   if (!brightness[0])
     enable = 9;
