@@ -50,6 +50,11 @@
 #include <linux/jump_label.h>
 #include <asm/uaccess.h>
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+#include <media/meizu_hw.h>
+extern struct class *mzhw_class;
+#endif
+
 #include "i2c-core.h"
 
 #define CREATE_TRACE_POINTS
@@ -1958,15 +1963,24 @@ static int __init i2c_init(void)
 		goto bus_err;
 	}
 #endif
+#ifdef CONFIG_MACH_MEIZU_M1721
+	// Init mzhw class so early as it possible
+	meizu_hw_class_init();
+#endif
+
 	retval = i2c_add_driver(&dummy_driver);
 	if (retval)
 		goto class_err;
+
 	return 0;
 
 class_err:
 #ifdef CONFIG_I2C_COMPAT
 	class_compat_unregister(i2c_adapter_compat_class);
 bus_err:
+#endif
+#ifdef CONFIG_MACH_MEIZU_M1721
+	class_unregister(mzhw_class);
 #endif
 	bus_unregister(&i2c_bus_type);
 	return retval;
