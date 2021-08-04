@@ -54,7 +54,7 @@ static ssize_t aw36413_torch_brightness_1_store(struct device *dev,
   int br = 0, ret = 0;
 
   ret = sscanf(buf, "%d", &br);
-  if (ret != 2) {
+  if (ret != 1) {
     aw_err("Failed to parse brightness\n");
     return count;
   }
@@ -76,7 +76,7 @@ static ssize_t aw36413_torch_brightness_2_store(struct device *dev,
   int br = 0, ret = 0;
 
   ret = sscanf(buf, "%d", &br);
-  if (ret != 2) {
+  if (ret != 1) {
     aw_err("Failed to parse brightness\n");
     return count;
   }
@@ -98,7 +98,7 @@ static ssize_t aw36413_flash_brightness_1_store(struct device *dev,
   int br = 0, ret = 0;
 
   ret = sscanf(buf, "%d", &br);
-  if (ret != 2) {
+  if (ret != 1) {
     aw_err("Failed to parse brightness\n");
     return count;
   }
@@ -120,7 +120,7 @@ static ssize_t aw36413_flash_brightness_2_store(struct device *dev,
   int br = 0, ret = 0;
 
   ret = sscanf(buf, "%d", &br);
-  if (ret != 2) {
+  if (ret != 1) {
     aw_err("Failed to parse brightness\n");
     return count;
   }
@@ -142,7 +142,7 @@ static ssize_t aw36413_msfl_enabled_store(struct device *dev,
   int en = 0, ret = 0;
 
   ret = sscanf(buf, "%d", &en);
-  if (ret != 2) {
+  if (ret != 1) {
     aw_err("Failed to parse state\n");
     return count;
   }
@@ -509,27 +509,32 @@ static int msm_flash_aw36413_led_high(struct msm_led_flash_ctrl_t *fctrl) {
     aw_info("cci_master = %d\n", fctrl->cci_i2c_master);
   }
 
+  aw_info("br1 = %d, br2 = %d\n", fctrl->flash_op_current[0],
+          fctrl->flash_op_current[1]);
+
   if (msfl_enabled) {
-    if (flash_brightness[0] > 1000)
-      brightness[0] = 42;
+    if (flash_brightness[0] > 1500)
+      brightness[0] = 63;
     else
       brightness[0] = ((100 * flash_brightness[0] + 1170) / 2344) - 1;
 
-    if (flash_brightness[1] > 1000)
-      brightness[1] = 42;
+    if (flash_brightness[1] > 1500)
+      brightness[0] = 63;
     else
       brightness[1] = ((100 * flash_brightness[1] + 1170) / 2344) - 1;
   } else {
-    if (fctrl->flash_op_current[0] > 500)
-      brightness[0] = 20;
+    if (fctrl->flash_op_current[0] > 1500)
+      brightness[0] = 63;
     else
       brightness[0] = ((100 * fctrl->flash_op_current[0] + 1170) / 2344) - 1;
 
-    if (fctrl->flash_op_current[1] > 500)
-      brightness[1] = 20;
+    if (fctrl->flash_op_current[1] > 1500)
+      brightness[0] = 63;
     else
       brightness[1] = ((100 * fctrl->flash_op_current[1] + 1170) / 2344) - 1;
   }
+
+  aw_info("registers br1 = %d, br2 = %d\n", brightness[0], brightness[1]);
 
   if (!brightness[0])
     enable = 13;
@@ -573,6 +578,9 @@ static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl) {
     aw_info("cci_master = %d\n", fctrl->cci_i2c_master);
   }
 
+  aw_info("br1 = %d, br2 = %d\n", fctrl->flash_op_current[0],
+          fctrl->flash_op_current[1]);
+
   if (aw36413->vendor == 1) {
     countVar[0] = 560;
     countVar[1] = 280;
@@ -594,18 +602,20 @@ static int msm_flash_aw36413_led_low(struct msm_led_flash_ctrl_t *fctrl) {
       brightness[1] =
           ((100 * torch_brightness[1] + countVar[1]) / countVar[0]) - 1;
   } else {
-    if (fctrl->flash_op_current[0] > 200)
-      brightness[0] = ((20000 + countVar[1]) / countVar[0]) - 1;
+    if (fctrl->flash_op_current[0] > 300)
+      brightness[0] = ((30000 + countVar[1]) / countVar[0]) - 1;
     else
       brightness[0] =
           ((100 * fctrl->flash_op_current[0] + countVar[1]) / countVar[0]) - 1;
 
-    if (fctrl->flash_op_current[1] > 200)
-      brightness[1] = ((20000 + countVar[1]) / countVar[0]) - 1;
+    if (fctrl->flash_op_current[1] > 300)
+      brightness[1] = ((30000 + countVar[1]) / countVar[0]) - 1;
     else
       brightness[1] =
           ((100 * fctrl->flash_op_current[1] + countVar[1]) / countVar[0]) - 1;
   }
+
+  aw_info("registers br1 = %d, br2 = %d\n", brightness[0], brightness[1]);
 
   if (!brightness[0])
     enable = 9;

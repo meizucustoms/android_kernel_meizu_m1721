@@ -22,7 +22,7 @@
  * https://datasheet.lcsc.com/szlcsc/Shanghai-Awinic-Tech-AW36413CSR_C252447.pdf
  */
 
-#define AW36413_TIMING_COUNT 22
+#define AW36413_TIMING_COUNT 22 // Ramp time: 1ms | Flash time: 1000ms
 #define AW36413_HWEN_DELAY 5
 
 struct aw36413_effects_data {

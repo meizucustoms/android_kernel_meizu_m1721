@@ -131,6 +131,7 @@ int32_t msm_flash_i2c_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
   case CFG_FLASH_INIT:
     if (fctrl->func_tbl->flash_led_init)
       rc = fctrl->func_tbl->flash_led_init(fctrl);
+
     for (i = 0; i < MAX_LED_TRIGGERS; i++) {
       cfg->flash_current[i] = fctrl->flash_max_current[i];
       cfg->flash_duration[i] = fctrl->flash_max_duration[i];
@@ -148,31 +149,23 @@ int32_t msm_flash_i2c_trigger_config(struct msm_led_flash_ctrl_t *fctrl,
     break;
 
   case CFG_FLASH_LOW:
-    for (i = 0; i < fctrl->flash_num_sources; i++) {
-      if (fctrl->flash_max_current[i] > 0) {
-        fctrl->flash_op_current[i] =
-            (cfg->flash_current[i] < fctrl->flash_max_current[i])
-                ? cfg->flash_current[i]
-                : fctrl->flash_max_current[i];
-        CDBG("i %d: op_current %d max_current %d\n", i,
-             fctrl->flash_op_current[i], fctrl->flash_max_current[i]);
-      }
+    for (i = 0; i < 2; i++) {
+      fctrl->flash_op_current[i] = cfg->flash_current[i];
+      pr_info("aw36413: %s: torch op_current[%d] %d\n", __func__,
+              cfg->flash_current[i], i);
     }
+
     if (fctrl->func_tbl->flash_led_low)
       rc = fctrl->func_tbl->flash_led_low(fctrl);
     break;
 
   case CFG_FLASH_HIGH:
-    for (i = 0; i < fctrl->flash_num_sources; i++) {
-      if (fctrl->flash_max_current[i] > 0) {
-        fctrl->flash_op_current[i] =
-            (cfg->flash_current[i] < fctrl->flash_max_current[i])
-                ? cfg->flash_current[i]
-                : fctrl->flash_max_current[i];
-        CDBG(" i %d: op_current %d max_current %d\n", i,
-             fctrl->flash_op_current[i], fctrl->flash_max_current[i]);
-      }
+    for (i = 0; i < 2; i++) {
+      fctrl->flash_op_current[i] = cfg->flash_current[i];
+      pr_info("aw36413: %s: flash op_current[%d] %d\n", __func__,
+              cfg->flash_current[i], i);
     }
+
     if (fctrl->func_tbl->flash_led_high)
       rc = fctrl->func_tbl->flash_led_high(fctrl);
     break;
