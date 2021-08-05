@@ -16,11 +16,7 @@
 	qrd_batterydata: qcom,battery-data {
 		qcom,batt-id-range-pct = <5>;
 
-		#include "batterydata-qrd-sunwoda-4v4-4100mah.dtsi"
-		#include "batterydata-qrd-sunwoda-ATL-4v4-4100mah.dtsi"
-		#include "batterydata-qrd-coslight-4v4-4100mah.dtsi"
-		#include "batterydata-qrd-desay-lisheng-4v4-4100mah.dtsi"
-		#include "batterydata-qrd-desay-4v4-4100mah.dtsi"
+		#include "msm8953-batterydata-m1721.dtsi"
 	};
 
 };
@@ -31,7 +27,7 @@
 
 		fstab {
 			vendor {
-				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/cust";
+				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/custom";
 				fsmgr_flags = "wait";
 			};
 
