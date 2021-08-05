@@ -766,31 +766,31 @@
 			};
 		};
 
-		sdc2_cd_on: cd_on {
-			mux {
-				pins = "gpio133";
-				function = "gpio";
-			};
-
-			config {
-				pins = "gpio133";
-				drive-strength = <2>;
-				bias-pull-up;
-			};
-		};
-
 		sdc2_cd_off: cd_off {
 			mux {
-				pins = "gpio133";
+				pins = "gpio133", "gpio54", "gpio58";
 				function = "gpio";
 			};
 
-			config {
-				pins = "gpio133";
-				drive-strength = <2>;
-				bias-disable;
+            config {
+                bias-disable;
+                drive-strength = <2>;
+                pins = "gpio133", "gpio54", "gpio58";
+            };
+        };
+
+        sdc2_cd_on: cd_on {
+			mux {
+				pins = "gpio133", "gpio54", "gpio58";
+				function = "gpio";
 			};
-		};
+
+            config {
+                bias-pull-up;
+                drive-strength = <2>;
+                pins = "gpio133", "gpio54", "gpio58";
+            };
+        };
 
 		i2c_1 {
 			i2c_1_active: i2c_1_active {
