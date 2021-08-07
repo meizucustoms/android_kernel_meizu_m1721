@@ -51,6 +51,11 @@ ifeq ($(KERNEL_BUILD), 0)
 		export
 		INCS    +=  -include $(AUDIO_ROOT)/config/sdm450autoconf.h
 	endif
+	ifeq ($(CONFIG_ARCH_MSM8953), y)
+		include $(AUDIO_ROOT)/config/sdm450auto.conf
+		export
+		INCS    +=  -include $(AUDIO_ROOT)/config/sdm450autoconf.h
+	endif
 endif
 
 # As per target team, build is done as follows:
@@ -155,6 +160,10 @@ ifdef CONFIG_SND_SOC_MSM_HDMI_CODEC_RX
 	HDMICODEC_OBJS += msm_hdmi_codec_rx.o
 endif
 
+ifdef CONFIG_SND_SOC_CS35L35
+	CS35L35_OBJS += cs35l35.o
+endif
+
 LINUX_INC +=	-Iinclude/linux
 
 INCS +=		$(COMMON_INC) \
@@ -227,6 +236,9 @@ wcd_spi_dlkm-y := $(SPI_OBJS)
 
 obj-$(CONFIG_SND_SOC_WCD_MBHC) += mbhc_dlkm.o
 mbhc_dlkm-y := $(MBHC_OBJS)
+
+obj-$(CONFIG_SND_SOC_CS35L35) += cs35l35_dlkm.o
+cs35l35_dlkm-y := $(CS35L35_OBJS)
 
 ifeq ($(CONFIG_MSM_EXT_DISPLAY),y)
 obj-$(CONFIG_SND_SOC_MSM_HDMI_CODEC_RX) += hdmi_dlkm.o
