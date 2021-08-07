@@ -38,6 +38,7 @@
 #define NUM_CHANNELS_STEREO 2
 #define NUM_CHANNELS_THREE 3
 #define NUM_CHANNELS_QUAD 4
+#define CVP_VERSION_1 1
 #define CVP_VERSION_2 2
 #define GAIN_Q14_FORMAT(a) (a << 14)
 
@@ -4352,6 +4353,12 @@ static int voice_get_avcs_version_per_service(uint32_t service_id)
 		       AVCS_SERVICE_ID_ALL);
 		return -EINVAL;
 	}
+
+
+#ifdef CONFIG_MACH_XIAOMI_C6
+	common.is_avcs_version_queried = true;
+	return CVP_VERSION_1;
+#endif
 
 	ret = q6core_get_avcs_api_version_per_service(service_id);
 
