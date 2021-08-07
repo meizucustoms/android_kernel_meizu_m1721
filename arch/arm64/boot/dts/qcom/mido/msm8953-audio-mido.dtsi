@@ -11,23 +11,167 @@
  * GNU General Public License for more details.
  */
 
+&soc {
+	cdc_quat_mi2s_gpios: msm_cdc_pinctrl_quat {
+		compatible = "qcom,msm-cdc-pinctrl";
+		pinctrl-names = "aud_active", "aud_sleep";
+		pinctrl-0 = <&cs35l35_mclk_on &sec_tlmm_lines_act>;
+		pinctrl-1 = <&cs35l35_mclk_off &sec_tlmm_lines_sus>;
+	};
+};
+
+&dai_mi2s3 {
+	qcom,msm-dai-q6-mi2s-dev-id = <3>;
+};
+
 &int_codec {
-	qcom,msm-spk-ext-pa = <&tlmm 96 0>;
+	status = "ok";
+	qcom,msm-spk-ext-pa = "quaternary";
+	qcom,msm-ext-pa = "quaternary";
+	qcom,msm-mbhc-hphl-swh = <1>;
+	qcom,msm-mbhc-gnd-swh = <1>;
+
+	qcom,quat-mi2s-gpios = <&cdc_quat_mi2s_gpios>;
+
+	qcom,msm-gpios = 
+		"pri_i2s", 
+		"us_eu_gpio", 
+		"quin_i2s", 
+		"quat_i2s";
+
+	pinctrl-names = 							// Total: 16
+		"all_off",								// 0
+		"pri_i2s_act", 							// 1
+		"us_eu_gpio_act", 						// 2
+		"pri_i2s_us_eu_gpio_act", 				// 3
+		"quin_act", 							// 4
+		"quin_pri_i2s_act", 					// 5
+		"quin_us_eu_gpio_act", 					// 6
+		"quin_us_eu_gpio_pri_i2s_act", 			// 7
+		"quat_i2s_act", 						// 8
+		"quat_pri_i2s_act", 					// 9
+		"quat_us_eu_gpio_act", 					// 10
+		"quat_pri_i2s_us_eu_gpio_act", 			// 11
+		"quat_quin_act", 						// 12
+		"quat_quin_pri_i2s_act", 				// 13
+		"quat_quin_us_eu_gpio_act", 			// 14
+		"quat_quin_us_eu_gpio_pri_i2s_act";		// 15
+
+	/* Idk for what, Qualcomm duplicated pinctrl-names with their prefix ._. */
+	
+	qcom,pinctrl-names = 						// Total: 16
+		"all_off",								// 0
+		"pri_i2s_act", 							// 1
+		"us_eu_gpio_act", 						// 2
+		"pri_i2s_us_eu_gpio_act", 				// 3
+		"quin_act", 							// 4
+		"quin_pri_i2s_act", 					// 5
+		"quin_us_eu_gpio_act", 					// 6
+		"quin_us_eu_gpio_pri_i2s_act", 			// 7
+		"quat_i2s_act", 						// 8
+		"quat_pri_i2s_act", 					// 9
+		"quat_us_eu_gpio_act", 					// 10
+		"quat_pri_i2s_us_eu_gpio_act", 			// 11
+		"quat_quin_act", 						// 12
+		"quat_quin_pri_i2s_act", 				// 13
+		"quat_quin_us_eu_gpio_act", 			// 14
+		"quat_quin_us_eu_gpio_pri_i2s_act";		// 15
+
+	pinctrl-0 = <&cdc_pdm_lines_sus &sec_tlmm_lines_sus
+				 &cdc_pdm_lines_2_sus &cross_conn_det_sus 
+				 &pri_tlmm_lines_sus &pri_tlmm_ws_sus 
+				 &cs35l35_mclk_off>;
+
+	pinctrl-1 = <&cdc_pdm_lines_act &sec_tlmm_lines_sus 
+				 &cdc_pdm_lines_2_act &cross_conn_det_sus 
+				 &pri_tlmm_lines_sus &pri_tlmm_ws_sus 
+				 &cs35l35_mclk_off>;
+
+	pinctrl-2 = <&cdc_pdm_lines_sus &sec_tlmm_lines_sus 
+				 &cdc_pdm_lines_2_sus &cross_conn_det_act 
+				 &pri_tlmm_lines_sus &pri_tlmm_ws_sus 
+				 &cs35l35_mclk_off>;
+
+	pinctrl-3 = <&cdc_pdm_lines_act &sec_tlmm_lines_sus
+				 &cdc_pdm_lines_2_act &cross_conn_det_act
+				 &pri_tlmm_lines_sus &pri_tlmm_ws_sus
+				 &cs35l35_mclk_off>;
+
+	pinctrl-4 = <&cdc_pdm_lines_sus &sec_tlmm_lines_sus
+				 &cdc_pdm_lines_2_sus &cross_conn_det_sus 
+				 &pri_tlmm_lines_act &pri_tlmm_ws_act 
+				 &cs35l35_mclk_off>;
+
+	pinctrl-5 = <&cdc_pdm_lines_act &sec_tlmm_lines_sus
+				 &cdc_pdm_lines_2_act &cross_conn_det_sus 
+				 &pri_tlmm_lines_act &pri_tlmm_ws_act 
+				 &cs35l35_mclk_off>;
+
+	pinctrl-6 = <&cdc_pdm_lines_sus &sec_tlmm_lines_sus
+				 &cdc_pdm_lines_2_sus &cross_conn_det_act 
+				 &pri_tlmm_lines_act &pri_tlmm_ws_act 
+				 &cs35l35_mclk_off>;
+
+	pinctrl-7 = <&cdc_pdm_lines_act &sec_tlmm_lines_sus
+				 &cdc_pdm_lines_2_act &cross_conn_det_act 
+				 &pri_tlmm_lines_act &pri_tlmm_ws_act 
+				 &cs35l35_mclk_off>;
+
+	pinctrl-8 = <&cdc_pdm_lines_sus &sec_tlmm_lines_act
+				 &cdc_pdm_lines_2_sus &cross_conn_det_sus 
+				 &pri_tlmm_lines_sus &pri_tlmm_ws_sus 
+				 &cs35l35_mclk_on>;
+
+	pinctrl-9 = <&cdc_pdm_lines_act &sec_tlmm_lines_act
+				 &cdc_pdm_lines_2_act &cross_conn_det_sus 
+				 &pri_tlmm_lines_sus &pri_tlmm_ws_sus 
+				 &cs35l35_mclk_on>;
+
+	pinctrl-10 = <&cdc_pdm_lines_sus &sec_tlmm_lines_act
+				  &cdc_pdm_lines_2_sus &cross_conn_det_act 
+				  &pri_tlmm_lines_sus &pri_tlmm_ws_sus 
+				  &cs35l35_mclk_on>;
+
+	pinctrl-11 = <&cdc_pdm_lines_act &sec_tlmm_lines_act
+				  &cdc_pdm_lines_2_act &cross_conn_det_act 
+				  &pri_tlmm_lines_sus &pri_tlmm_ws_sus 
+				  &cs35l35_mclk_on>;
+
+	pinctrl-12 = <&cdc_pdm_lines_sus &sec_tlmm_lines_act
+				  &cdc_pdm_lines_2_sus &cross_conn_det_sus 
+				  &pri_tlmm_lines_act &pri_tlmm_ws_act 
+				  &cs35l35_mclk_on>;
+
+	pinctrl-13 = <&cdc_pdm_lines_act &sec_tlmm_lines_act
+	              &cdc_pdm_lines_2_act &cross_conn_det_sus 
+				  &pri_tlmm_lines_act &pri_tlmm_ws_act 
+				  &cs35l35_mclk_on>;
+
+	pinctrl-14 = <&cdc_pdm_lines_sus &sec_tlmm_lines_act
+				  &cdc_pdm_lines_2_sus &cross_conn_det_act 
+				  &pri_tlmm_lines_act &pri_tlmm_ws_act 
+				  &cs35l35_mclk_on>;
+
+	pinctrl-15 = <&cdc_pdm_lines_act &sec_tlmm_lines_act
+	              &cdc_pdm_lines_2_act &cross_conn_det_act 
+				  &pri_tlmm_lines_act &pri_tlmm_ws_act 
+				  &cs35l35_mclk_on>;
+
 	qcom,audio-routing =
 		"RX_BIAS", "MCLK",
 		"SPK_RX_BIAS", "MCLK",
 		"INT_LDO_H", "MCLK",
 		"MIC BIAS External", "Handset Mic",
-		"MIC BIAS Internal2", "Headset Mic",
+		"MIC BIAS External2", "Headset Mic",
 		"MIC BIAS External", "Secondary Mic",
 		"AMIC1", "MIC BIAS External",
-		"AMIC2", "MIC BIAS Internal2",
-		"AMIC3", "MIC BIAS External";
-	/delete-property/ asoc-wsa-codec-names;
-	/delete-property/ asoc-wsa-codec-prefixes;
-	/delete-property/ msm-vdd-wsa-switch-supply;
-	/delete-property/ qcom,msm-vdd-wsa-switch-voltage;
-	/delete-property/ qcom,msm-vdd-wsa-switch-current;
+		"AMIC2", "MIC BIAS External2",
+		"AMIC3", "MIC BIAS External",
+		"WSA_SPK OUT", "VDD_WSA_SWITCH",
+		"SpkrMono WSA_IN", "WSA_SPK OUT";
+
+	/delete-property/asoc-wsa-codec-names;
+	/delete-property/asoc-wsa-codec-prefixes;
 };
 
 &wsa881x_i2c_f {
@@ -51,9 +195,37 @@
 };
 
 &msm_digital_codec {
-	status = "okay";
+		status = "okay";
 };
 
 &pmic_analog_codec {
-	status = "okay";
+		status = "okay";
+};
+
+&ext_codec {
+		status = "disabled";
+};
+
+&slim_msm {
+		status = "disabled";
+};
+
+&dai_slim {
+		status = "disabled";
+};
+
+&clock_audio {
+		status = "disabled";
+};
+
+&wcd9335 {
+		status = "disabled";
+};
+
+&wcd_rst_gpio {
+		status = "disabled";
+};
+
+&wcd9xxx_intc {
+		status = "disabled";
 };

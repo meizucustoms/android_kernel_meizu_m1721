@@ -115,7 +115,7 @@ LINUXINCLUDE    += \
                 -include $(srctree)/techpack/audio/config/msm8909autoconf.h
 endif
 
-obj-y += asoc/
 obj-y += dsp/
+obj-y += asoc/
 obj-y += ipc/
 obj-y += soc/

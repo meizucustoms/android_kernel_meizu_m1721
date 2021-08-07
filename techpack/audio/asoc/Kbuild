@@ -185,6 +185,9 @@ ifdef CONFIG_QTI_PP
 	PLATFORM_OBJS += msm-qti-pp-config.o
 	CFLAGS_msm-qti-pp-config.o += $(call cc-option, -Wframe-larger-than=2048)
 endif
+ifdef CONFIG_MSM_CIRRUS_PLAYBACK
+	CIRRUS_OBJS += msm-cirrus-playback.o
+endif
 
 LINUX_INC +=	-Iinclude/linux
 
@@ -260,3 +263,6 @@ machine_dlkm-y := $(MACHINE_OBJS)
 
 obj-$(CONFIG_SND_SOC_CPE) += cpe_lsm_dlkm.o
 cpe_lsm_dlkm-y := $(CPE_LSM_OBJS)
+
+obj-$(CONFIG_MSM_CIRRUS_PLAYBACK) += msm-cirrus-playback_dlkm.o
+msm-cirrus-playback_dlkm-y := $(CIRRUS_OBJS)
