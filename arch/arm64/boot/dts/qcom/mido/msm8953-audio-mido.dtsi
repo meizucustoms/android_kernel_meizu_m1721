@@ -18,6 +18,10 @@
 		pinctrl-0 = <&cs35l35_mclk_on &sec_tlmm_lines_act>;
 		pinctrl-1 = <&cs35l35_mclk_off &sec_tlmm_lines_sus>;
 	};
+
+	lpa: qcom,msm-pcm-lpa {
+		compatible = "qcom,msm-pcm-lpa";
+	};
 };
 
 &dai_mi2s3 {
@@ -26,7 +30,6 @@
 
 &int_codec {
 	status = "ok";
-	qcom,msm-spk-ext-pa = "quaternary";
 	qcom,msm-ext-pa = "quaternary";
 	qcom,msm-mbhc-hphl-swh = <1>;
 	qcom,msm-mbhc-gnd-swh = <1>;
@@ -169,6 +172,17 @@
 		"AMIC3", "MIC BIAS External",
 		"WSA_SPK OUT", "VDD_WSA_SWITCH",
 		"SpkrMono WSA_IN", "WSA_SPK OUT";
+
+	asoc-platform = <&pcm0>, <&pcm1>, <&pcm2>, <&voip>, <&voice>,
+			<&loopback>, <&compress>, <&hostless>,
+			<&afe>, <&lsm>, <&routing>, <&lpa>, <&pcm_noirq>;
+	asoc-platform-names = "msm-pcm-dsp.0", "msm-pcm-dsp.1",
+			"msm-pcm-dsp.2", "msm-voip-dsp",
+			"msm-pcm-voice", "msm-pcm-loopback",
+			"msm-compress-dsp", "msm-pcm-hostless",
+			"msm-pcm-afe", "msm-lsm-client",
+			"msm-pcm-routing", "msm-pcm-lpa",
+			"msm-pcm-dsp-noirq";
 
 	/delete-property/asoc-wsa-codec-names;
 	/delete-property/asoc-wsa-codec-prefixes;
