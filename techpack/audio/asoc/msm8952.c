@@ -2504,38 +2504,6 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.ignore_pmdown_time = 1,
 		.id = MSM_FRONTEND_DAI_MULTIMEDIA30,
 	},
-#ifdef CONFIG_MSM_CIRRUS_PLAYBACK
-	{/* hw:x,42 */
-		.name = "MSM8X16 Compress13",
-		.stream_name = "Compress13",
-		.cpu_dai_name	= "MultiMedia28",
-		.platform_name  = "msm-compress-dsp",
-		.dynamic = 1,
-		.dpcm_capture = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-			 SND_SOC_DPCM_TRIGGER_POST},
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
-		.id = MSM_FRONTEND_DAI_MULTIMEDIA28,
-	},
-	{/* hw:x,43 */
-		.name = "MSM8X16 Compress14",
-		.stream_name = "Compress14",
-		.cpu_dai_name	= "MultiMedia29",
-		.platform_name  = "msm-compress-dsp",
-		.dynamic = 1,
-		.dpcm_capture = 1,
-		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
-			 SND_SOC_DPCM_TRIGGER_POST},
-		.codec_dai_name = "snd-soc-dummy-dai",
-		.codec_name = "snd-soc-dummy",
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
-		.id = MSM_FRONTEND_DAI_MULTIMEDIA29,
-	},
-#endif
 	/* Backend I2S DAI Links */
 	{
 		.name = LPASS_BE_PRI_MI2S_RX,
@@ -2584,20 +2552,14 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.ops = &msm8952_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
+#ifndef CONFIG_MSM_CIRRUS_PLAYBACK
 	{
 		.name = LPASS_BE_QUAT_MI2S_RX,
 		.stream_name = "Quaternary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
 		.platform_name = "msm-pcm-routing",
-#ifdef CONFIG_MSM_CIRRUS_PLAYBACK
-		.codec_dai_name = "cs35l35-pcm",
-		.codec_name =  "cs35l35.8-0040",
-		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
-			SND_SOC_DAIFMT_CBS_CFS,
-#else
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
-#endif
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
@@ -2610,23 +2572,48 @@ static struct snd_soc_dai_link msm8952_dai[] = {
 		.name = LPASS_BE_QUAT_MI2S_TX,
 		.stream_name = "Quaternary MI2S Capture",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
-#ifndef CONFIG_MSM_CIRRUS_PLAYBACK
 		.platform_name = "msm-pcm-routing",
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
 		.no_pcm = 1,
 		.dpcm_capture = 1,
-#else
-		.platform_name = "msm-pcm-hostless",
-		.codec_dai_name = "cs35l35-pcm",
-		.codec_name = "cs35l35.8-0040",
-		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
-#endif
 		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ops = &msm8952_quat_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
+#else
+	{
+		.name = LPASS_BE_QUAT_MI2S_RX,
+		.stream_name = "Quaternary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-routing",
+		.codec_name =  "cs35l35.8-0040",
+		.codec_dai_name = "cs35l35-pcm",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+		.dpcm_playback = 1,
+		.no_pcm = 1,
+		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
+		.be_hw_params_fixup = msm_mi2s_rx_be_hw_params_fixup,
+		.ops = &msm8952_quat_mi2s_be_ops,
+		.ignore_pmdown_time = 1, /* dai link has playback support */
+		.ignore_suspend = 1,
+	},
+	{
+		.name = LPASS_BE_QUAT_MI2S_TX,
+		.stream_name = "Quaternary MI2S Capture",
+		.cpu_dai_name = "msm-dai-q6-mi2s.3",
+		.platform_name = "msm-pcm-hostless",
+		.codec_dai_name = "cs35l35-pcm",
+		.codec_name = "cs35l35.8-0040",
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ops = &msm8952_quat_mi2s_be_ops,
+		.ignore_suspend = 1,
+		.id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
+	},
+#endif
 	/* Primary AUX PCM Backend DAI Links */
 	{
 		.name = LPASS_BE_AUXPCM_RX,
