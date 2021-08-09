@@ -1163,12 +1163,10 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	struct snd_soc_dai *cpu_dai = rtd->cpu_dai;
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int ret = 0, val = 0;
-#ifdef CONFIG_MACH_XIAOMI_C6
 	struct snd_soc_codec *dig_cdc = rtd->codec_dais[DIG_CDC]->codec;
     struct snd_soc_codec *ana_cdc = rtd->codec_dais[ANA_CDC]->codec;
-#endif
 
-	pr_debug("%s(): substream = %s  stream = %d\n", __func__,
+	pr_err("%s(): substream = %s  stream = %d\n", __func__,
 		 substream->name, substream->stream);
 
 	if (!q6core_is_adsp_ready()) {
@@ -1208,7 +1206,6 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 		}
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_C6
 	ret = msm8952_enable_dig_cdc_clk(dig_cdc, 1, true);
 	if (ret < 0) {
 		pr_err("failed to enable mclk\n");
@@ -1224,7 +1221,6 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 	}
 
 	msm_anlg_cdc_mclk_enable(ana_cdc, 1, true);
-#endif
 
 	ret = snd_soc_dai_set_fmt(cpu_dai, SND_SOC_DAIFMT_CBS_CFS);
 	if (ret < 0)
@@ -3145,6 +3141,7 @@ codec_dai:
 		if ((dai_link[i].id == MSM_BACKEND_DAI_PRI_MI2S_RX) ||
 		(dai_link[i].id == MSM_BACKEND_DAI_TERTIARY_MI2S_TX) ||
 		(dai_link[i].id == MSM_BACKEND_DAI_QUINARY_MI2S_TX) ||
+		(dai_link[i].id == MSM_BACKEND_DAI_QUATERNARY_MI2S_TX) ||
 		(dai_link[i].id == MSM_BACKEND_DAI_SENARY_MI2S_TX)) {
 			index = of_property_match_string(
 						cdev->of_node,
