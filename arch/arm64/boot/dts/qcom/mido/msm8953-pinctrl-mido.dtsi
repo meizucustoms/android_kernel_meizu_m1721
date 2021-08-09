@@ -266,6 +266,97 @@
 				};
 			};
 		};
+
+		/delete-node/ wsa-vi;
+		/delete-node/ wsa_reset;
+
+		/* WSA VI sense */
+		wsa-vi {
+			wsa_vi_on: wsa_vi_on {
+				mux {
+					pins = "gpio86", "gpio89";
+					function = "wsa_io";
+				};
+
+				config {
+					pins = "gpio86", "gpio89";
+					drive-strength = <8>; /* 8 MA */
+					bias-disable; /* NO pull */
+				};
+			};
+
+			wsa_vi_off: wsa_vi_off {
+				mux {
+					pins = "gpio86", "gpio89";
+					function = "wsa_io";
+				};
+
+				config {
+					pins = "gpio86", "gpio89";
+					drive-strength = <2>; /* 2 MA */
+					bias-pull-down;
+				};
+			};
+		};
+
+		/* WSA Reset */
+		wsa_reset {
+			wsa_reset_on: wsa_reset_on {
+				mux {
+					pins = "gpio87";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio87";
+					drive-strength = <2>; /* 2 MA */
+					output-high;
+				};
+			};
+
+			wsa_reset_off: wsa_reset_off {
+				mux {
+					pins = "gpio87";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio87";
+					drive-strength = <2>; /* 2 MA */
+					output-low;
+				};
+			};
+		};
+
+		/delete-node/ tlmm_gpio_key;
+		/* For mBack: GPIO keys */
+		tlmm_gpio_key {
+			gpio_key_active: gpio_key_active {
+				mux {
+					pins = "gpio85", "gpio86", "gpio87", "gpio141";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio85", "gpio86", "gpio87", "gpio141";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+
+			gpio_key_suspend: gpio_key_suspend {
+				mux {
+					pins = "gpio85", "gpio86", "gpio87", "gpio141";
+					function = "gpio";
+				};
+
+				config {
+					pins = "gpio85", "gpio86", "gpio87", "gpio141";
+					drive-strength = <2>;
+					bias-pull-up;
+				};
+			};
+		};
 	};
 };
 
