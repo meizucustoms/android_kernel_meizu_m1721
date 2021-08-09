@@ -130,7 +130,6 @@
 				<&pmic_analog_codec>;
 		asoc-codec-names = "msm-stub-codec.1", "msm-dig-codec",
 					"analog-codec";
-
 		asoc-wsa-codec-names = "wsa881x-i2c-codec.2-000f";
 		asoc-wsa-codec-prefixes = "SpkrMono";
 		msm-vdd-wsa-switch-supply = <&pm8953_l5>;
