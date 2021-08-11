@@ -192,18 +192,39 @@
 		};
 	};
 
-	i2c@78b6000 { /* BLSP1 QUP2 */
-		sm5424-charger@49 {
-			compatible = "qcom,sm5424-charger";
-			qcom,float-voltage-mv = <4400>;
-			qcom,iterm-ma = <300>;
-			qcom,nINT-gpio = <9>;
-			qcom,parallel-charger;
-			qcom,recharge-mv = <100>;
-			qcom,switch-freq = <2>;
-			reg = <0x49>;
-		};
-	};
+	spi@78B5000 {
+		status = "ok";
+
+        goodix_fp@0 {
+            compatible = "goodix,fingerprint";
+			status = "ok";
+            reg = <0x0>;
+
+            interrupt-parent = <&tlmm>;
+            interrupts = <48 1>;
+            goodix,gpio_irq = <&tlmm 48 0>;
+            goodix,gpio_reset = <&tlmm 140 0>;
+            goodix,gpio_pwr = <&tlmm 134 0>;
+            spi-max-frequency = <8000000>;
+        };
+    };
+
+	i2c@78b6000 {
+        status = "ok";
+
+        sm5424-charger@49 {
+            compatible = "qcom,sm5424-charger";
+            reg = <0x49>;
+            status = "ok";
+            
+            qcom,float-voltage-mv = <4400>;
+            qcom,iterm-ma = <300>;
+            qcom,nINT-gpio = <9>;
+            qcom,parallel-charger;
+            qcom,recharge-mv = <100>;
+            qcom,switch-freq = <2>;
+        };
+    };
 
 	i2c@78b7000 { /* BLSP1 QUP3 */
 		focaltech@38 {
@@ -369,80 +390,30 @@
 	};
 
 	qcom_seecom: qseecom@84a00000 { /* renamed from caf qseecom@85b00000 */
-                compatible = "qcom,qseecom";
-                reg = <0x84a00000 0x1900000>; /* changed by xiaomi */
-                reg-names = "secapp-region";
-                qcom,hlos-num-ce-hw-instances = <1>;
-                qcom,hlos-ce-hw-instance = <0>;
-                qcom,qsee-ce-hw-instance = <0>;
-                qcom,disk-encrypt-pipe-pair = <2>;
-                qcom,support-fde;
-                qcom,msm-bus,name = "qseecom-noc";
-                qcom,msm-bus,num-cases = <4>;
-                qcom,msm-bus,num-paths = <1>;
-                qcom,support-bus-scaling;
-                qcom,msm-bus,vectors-KBps =
-                        <55 512 0 0>,
-                        <55 512 0 0>,
-                        <55 512 120000 1200000>,
-                        <55 512 393600 3936000>;
-                clocks = <&clock_gcc clk_crypto_clk_src>,
-                         <&clock_gcc clk_gcc_crypto_clk>,
-                         <&clock_gcc clk_gcc_crypto_ahb_clk>,
-                         <&clock_gcc clk_gcc_crypto_axi_clk>;
-                clock-names = "core_clk_src", "core_clk",
-                                "iface_clk", "bus_clk";
-                qcom,ce-opp-freq = <100000000>;
-        };
-
-	goodix_fp {
-		compatible = "goodix,fingerprint";
-		spi-max-frequency = <1000000>;
-		input-device-name = "gf3208";
-		interrupt-parent = <&tlmm>;
-		interrupts = <9 0x0>;
-
-		goodix,gpio_reset    = <&tlmm 140 0>;
-		goodix,gpio_irq      = <&tlmm 48 0>;
-
-		clock-names = "iface_clk", "core_clk";
-		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-		<&clock_gcc clk_gcc_blsp1_qup1_spi_apps_clk>;
-
-		pinctrl-names = "goodixfp_spi_active",
-			"goodixfp_reset_reset",
-			"goodixfp_reset_active",
-			"goodixfp_irq_active";
-
-		pinctrl-0 = <&goodix_spi_active>;
-		pinctrl-1 = <&goodix_reset_reset>;
-		pinctrl-2 = <&goodix_reset_active>;
-		pinctrl-3 = <&goodix_irq_active>;
-	};
-
-	fpc1020 {
-		compatible = "fpc,fpc1020";
-		spi-max-frequency = <1000000>;
-		input-device-name = "fpc1020";
-		interrupt-parent = <&tlmm>;
-		interrupts = <9 0x0>;
-
-		fpc,gpio_rst    = <&tlmm 140 0>;
-		fpc,gpio_irq      = <&tlmm 48 0>;
-
-		clock-names = "iface_clk", "core_clk";
-		clocks = <&clock_gcc clk_gcc_blsp1_ahb_clk>,
-		<&clock_gcc clk_gcc_blsp1_qup1_spi_apps_clk>;
-
-		pinctrl-names = "fpc1020_spi_active",
-			"fpc1020_reset_reset",
-			"fpc1020_reset_active",
-			"fpc1020_irq_active";
-
-		pinctrl-0 = <&fpc_spi_active>;
-		pinctrl-1 = <&fpc_reset_reset>;
-		pinctrl-2 = <&fpc_reset_active>;
-		pinctrl-3 = <&fpc_irq_active>;
+		compatible = "qcom,qseecom";
+		reg = <0x84a00000 0x1900000>; /* changed by xiaomi */
+		reg-names = "secapp-region";
+		qcom,hlos-num-ce-hw-instances = <1>;
+		qcom,hlos-ce-hw-instance = <0>;
+		qcom,qsee-ce-hw-instance = <0>;
+		qcom,disk-encrypt-pipe-pair = <2>;
+		qcom,support-fde;
+		qcom,msm-bus,name = "qseecom-noc";
+		qcom,msm-bus,num-cases = <4>;
+		qcom,msm-bus,num-paths = <1>;
+		qcom,support-bus-scaling;
+		qcom,msm-bus,vectors-KBps =
+				<55 512 0 0>,
+				<55 512 0 0>,
+				<55 512 120000 1200000>,
+				<55 512 393600 3936000>;
+		clocks = <&clock_gcc clk_crypto_clk_src>,
+					<&clock_gcc clk_gcc_crypto_clk>,
+					<&clock_gcc clk_gcc_crypto_ahb_clk>,
+					<&clock_gcc clk_gcc_crypto_axi_clk>;
+		clock-names = "core_clk_src", "core_clk",
+						"iface_clk", "bus_clk";
+		qcom,ce-opp-freq = <100000000>;
 	};
 };
 

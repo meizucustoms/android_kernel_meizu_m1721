@@ -3,7 +3,7 @@ config INPUT_FINGERPRINT
 	help
 	  Say Y here to enable fingerprint driver support.
 
-if MACH_XIAOMI_C6
-source "drivers/input/fingerprint/goodix_mido/Kconfig"
-source "drivers/input/fingerprint/fpc_mido/Kconfig"
-endif
+config FINGERPRINT_GOODIX
+	tristate "Goodix fingerprint support"
+	help
+	  Say Y here to enable Goodix fingerprint driver support.
