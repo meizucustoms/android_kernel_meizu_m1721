@@ -78,54 +78,16 @@
 		};
 
 		/delete-node/ qcom,pm8953_typec@bf00;
-
-		qcom,leds@a100 {
-			status = "okay";
-			compatible = "qcom,leds-qpnp";
-			reg = <0xa100 0x100>;
-			label = "mpp";
-
-			qcom,led_mpp_2 {
-				label = "mpp";
-				linux,name = "button-backlight";
-				linux,default-trigger = "none";
-				qcom,default-state = "off";
-				qcom,max-current = <5>;
-				qcom,current-setting = <5>;
-				qcom,id = <6>;
-				qcom,mode = "manual";
-				qcom,source-sel = <1>;
-				qcom,mode-ctrl = <0x61>;
-			};
-		};
 	};
 
 	qcom,pmi8950@2 {
-		pmi8950_gpios: gpios {
-			pinctrl-names = "default";
-			pinctrl-0 = <&pwm_ir_default>;
-
-			pwm_ir_default: pmi8950_gpio1 {
-				status = "okay";
-				pins = "gpio1";
-				output-low;
-				bias-pull-down;
-				function = "func1";
-				qcom,drive-strength = <PMIC_GPIO_STRENGTH_MED>;
-			};
-		};
-
 		qpnp_smbcharger: qcom,qpnp-smbcharger {
-			qcom,iterm-ma = <200>;
 			qcom,float-voltage-mv = <4400>;
-			qcom,resume-delta-mv = <50>;
-			qcom,thermal-mitigation = <1500 1200 900 600 300 0>;
+			qcom,resume-delta-mv = <100>;
+			qcom,thermal-mitigation = <3000 2500 2000 1500 1000 500 0>;
+			qcom,precharging-timeout-mins = <48>;
 			qcom,charge-unknown-battery;
-			qcom,fastchg-current-comp = <1200>;
-			qcom,float-voltage-comp = <15>;
-			/delete-property/ qcom,parallel-usb-min-current-ma;
-			/delete-property/ qcom,parallel-usb-9v-min-current-ma;
-			/delete-property/ qcom,parallel-allowed-lowering-ma;
+
 			/delete-property/ qcom,autoadjust-vfloat;
 			/delete-property/ qcom,external-typec;
 			/delete-property/ qcom,typec-psy-name;
@@ -133,19 +95,21 @@
 
 		qcom_fg: qcom,fg {
 			qcom,resume-soc-raw = <254>;
-			qcom,fg-iterm-ma = <300>;
-			qcom,fg-chg-iterm-ma = <200>;
-			qcom,fg-cutoff-voltage-mv = <3400>;
+			qcom,fg-iterm-ma = <290>;
+			qcom,fg-chg-iterm-ma = <220>;
+			qcom,fg-cutoff-voltage-mv = <3320>;
+			qcom,fg-slope-limit-high-temp-chg = <2>;
+			qcom,fg-slope-limit-high-temp-dischg = <1>;
+			qcom,fg-slope-limit-low-temp-chg = <2>;
+			qcom,fg-slope-limit-low-temp-dischg = <1>;
+			qcom,vbat-estimate-diff-mv = <300>;
 			qcom,hold-soc-while-full;
-			qcom,fg-cc-cv-threshold-mv = <4390>;
-			qcom,fg-cc-cv-threshold-mv-global = <4370>;
-			qcom,fg-vbat-estimate-diff-mv = <200>;
 			qcom,fg-restore-batt-info;
-			qcom,thermal-coefficients = [c8 86 c1 50 d3 37];
+			qcom,thermal-coefficients = [da 86 f0 50 08 3c];
 			qcom,cold-bat-decidegc = <0>;
 			qcom,cool-bat-decidegc = <150>;
 			qcom,warm-bat-decidegc = <450>;
-			/delete-property/ qcom,resume-soc;
+			qcom,resume-soc = <99>;
 		};
 	};
 
@@ -162,35 +126,35 @@
 
 &pmi_haptic {
 	status = "okay";
-	qcom,vmax-mv = <2900>;
+	qcom,vmax-mv = <3000>;
 	qcom,play-rate-us = <6667>;
 	wf_0 {
-		qcom,wf-vmax-mv = <3100>;
+		qcom,wf-vmax-mv = <3200>;
 		qcom,wf-pattern = [7e 3e 3e 3e];
 		qcom,wf-play-rate-us = <6667>;
 	};
 	wf_1 {
-		qcom,wf-vmax-mv = <3100>;
+		qcom,wf-vmax-mv = <3200>;
 		qcom,wf-pattern = [7e 7e 7e 02 02 02 02 02 02];
 		qcom,wf-play-rate-us = <7143>;
 	};
 	wf_2 {
-		qcom,wf-vmax-mv = <3100>;
+		qcom,wf-vmax-mv = <3200>;
 		qcom,wf-pattern = [7e 7e 7e];
 		qcom,wf-play-rate-us = <4000>;
 	};
 	wf_3 {
-		qcom,wf-vmax-mv = <3100>;
+		qcom,wf-vmax-mv = <3200>;
 		qcom,wf-pattern = [7e 7e 7e 7e];
 		qcom,wf-play-rate-us = <6667>;
 	};
 	wf_4 {
-		qcom,wf-vmax-mv = <3100>;
+		qcom,wf-vmax-mv = <3200>;
 		qcom,wf-pattern = [7e 7e 7e];
 		qcom,wf-play-rate-us = <5000>;
 	};
 	wf_5 {
-		qcom,wf-vmax-mv = <3100>;
+		qcom,wf-vmax-mv = <3200>;
 		qcom,wf-pattern = [7e 7e 7e 7e];
 		qcom,wf-play-rate-us = <6667>;
 	};
@@ -225,6 +189,19 @@
 			linux,code = <102>;
 			gpio-key,wakeup;
 			debounce-interval = <15>;
+		};
+	};
+
+	i2c@78b6000 { /* BLSP1 QUP2 */
+		sm5424-charger@49 {
+			compatible = "qcom,sm5424-charger";
+			qcom,float-voltage-mv = <4400>;
+			qcom,iterm-ma = <300>;
+			qcom,nINT-gpio = <9>;
+			qcom,parallel-charger;
+			qcom,recharge-mv = <100>;
+			qcom,switch-freq = <2>;
+			reg = <0x49>;
 		};
 	};
 
@@ -273,7 +250,7 @@
 			compatible = "goodix,gt9xx";
 			reg = <0x14>;
 			interrupt-parent = <&tlmm>;
-			interrupts = <65 0x0>;
+			interrupts = <65 0x2008>;
 			pinctrl-names = "pmx_ts_active","pmx_ts_suspend",
 					"pmx_ts_release";
 			pinctrl-0 = <&ts_int_active &ts_reset_active>;
@@ -417,13 +394,6 @@
                                 "iface_clk", "bus_clk";
                 qcom,ce-opp-freq = <100000000>;
         };
-
-	pwm_ir {
-		compatible = "pwm-ir";
-		pwms = <&pmi8950_pwm 0 0>;
-		reg-id = "vdd";
-		vdd-supply = <&pm8953_l8>;
-	};
 
 	goodix_fp {
 		compatible = "goodix,fingerprint";

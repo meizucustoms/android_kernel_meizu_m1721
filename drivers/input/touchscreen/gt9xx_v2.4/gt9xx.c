@@ -52,7 +52,6 @@ static char tp_lockdown_info[128];
 static char tp_fw_version[10];
 
 static char tp_info_summary[80] = "";
-extern int set_usb_charge_mode_par;
 
 int gt9xx_id;
 int gt9xx_flag;
@@ -2809,8 +2808,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	if (ret < 0) {
 		GTP_ERROR("Read color failed.");
 	}
-	set_usb_charge_mode_par = 3;
-	printk("set_usb_charge_mode_par = %d\n",set_usb_charge_mode_par);
+
 	gt91xx_config_proc = proc_create(GT91XX_CONFIG_PROC_FILE, 0666, NULL, &config_proc_ops);
 	if (gt91xx_config_proc == NULL) {
 		GTP_ERROR("create_proc_entry %s failed\n", GT91XX_CONFIG_PROC_FILE);

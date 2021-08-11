@@ -2031,13 +2031,10 @@ static void fg_handle_battery_insertion(struct fg_chip *chip)
 				&chip->update_sram_data, msecs_to_jiffies(0));
 }
 
-
-#ifndef CONFIG_MACH_XIAOMI_C6
 static int soc_to_setpoint(int soc)
 {
 	return DIV_ROUND_CLOSEST(soc * 255, 100);
 }
-#endif
 
 static void batt_to_setpoint_adc(int vbatt_mv, u8 *data)
 {
@@ -4697,11 +4694,7 @@ static int fg_power_get_property(struct power_supply *psy,
 			val->intval = 1;
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL_DESIGN:
-#ifdef CONFIG_MACH_XIAOMI_C6
-		val->intval = 4100000;
-#else
 		val->intval = chip->nom_cap_uah;
-#endif
 		break;
 	case POWER_SUPPLY_PROP_CHARGE_FULL:
 		val->intval = chip->learning_data.learned_cc_uah;
@@ -6443,10 +6436,6 @@ wait:
 	rc = of_property_read_u32(profile_node, "qcom,max-voltage-uv",
 					&chip->batt_max_voltage_uv);
 
-#ifdef CONFIG_MACH_XIAOMI_C6
-	chip->batt_max_voltage_uv = 4380000;
-#endif
-
 	if (rc)
 		pr_warn("couldn't find battery max voltage\n");
 
@@ -7123,13 +7112,8 @@ static int fg_of_init(struct fg_chip *chip)
 	OF_READ_PROPERTY(chip->evaluation_current,
 			"aging-eval-current-ma", rc,
 			DEFAULT_EVALUATION_CURRENT_MA);
-#ifdef CONFIG_MACH_XIAOMI_C6
-	OF_READ_PROPERTY(chip->cc_cv_threshold_mv,
-			"fg-cc-cv-threshold-mv-global", rc, 0);
-#else
 	OF_READ_PROPERTY(chip->cc_cv_threshold_mv,
 			"fg-cc-cv-threshold-mv", rc, 0);
-#endif
 	if (of_property_read_bool(chip->pdev->dev.of_node,
 				"qcom,capacity-learning-on"))
 		chip->batt_aging_mode = FG_AGING_CC;
@@ -8092,11 +8076,7 @@ static int fg_common_hw_init(struct fg_chip *chip)
 	}
 
 	rc = fg_mem_masked_write(chip, settings[FG_MEM_DELTA_SOC].address, 0xFF,
-#ifdef CONFIG_MACH_XIAOMI_C6
-			1,
-#else
 			soc_to_setpoint(settings[FG_MEM_DELTA_SOC].value),
-#endif
 			settings[FG_MEM_DELTA_SOC].offset);
 	if (rc) {
 		pr_err("failed to write delta soc rc=%d\n", rc);
