@@ -267,9 +267,9 @@
 			focal,virtual_key_3 = <158 800 2040>; /* back */
 		};
 
-		goodix_ts@14 {
+		goodix_ts@5d {
 			compatible = "goodix,gt9xx";
-			reg = <0x14>;
+			reg = <0x5d>;
 			interrupt-parent = <&tlmm>;
 			interrupts = <65 0x2008>;
 			pinctrl-names = "pmx_ts_active","pmx_ts_suspend",
