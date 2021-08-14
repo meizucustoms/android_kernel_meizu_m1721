@@ -695,6 +695,7 @@ gen_headers_out_arm = [
     "sound/snd_sst_tokens.h",
     "sound/tlv.h",
     "sound/usb_stream.h",
+    "sound/msm-cirrus-playback.h",
     "video/edid.h",
     "video/msm_hdmi_hdcp_mgr.h",
     "video/msm_hdmi_modes.h",
