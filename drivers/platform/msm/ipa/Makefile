@@ -4,6 +4,8 @@ else
 ccflags-y += -DIPA_EMULATION_COMPILE=0
 endif
 
+ccflags-y += -DIPA_DEBUG
+
 obj-$(CONFIG_IPA) += ipa_v2/ ipa_clients/ ipa_common
 obj-$(CONFIG_IPA3) += ipa_v3/ ipa_clients/ ipa_common
 obj-$(CONFIG_IPA_UT) += test/
