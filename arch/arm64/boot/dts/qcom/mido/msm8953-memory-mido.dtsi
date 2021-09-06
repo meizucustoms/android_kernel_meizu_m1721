@@ -36,5 +36,11 @@
 			reg = <0 0 0 0x1200000>;
 			label = "venus_qseecom_mem";
 		};
+
+		modem_mem: modem_region@0 {
+			compatible = "removed-dma-pool";
+			no-map-fixup;
+			reg = <0x0 0x86c00000 0x0 0x6a00000>;
+		};
 	};
 };
