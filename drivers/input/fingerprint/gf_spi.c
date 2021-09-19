@@ -368,12 +368,12 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     case GF_IOC_DISABLE_IRQ:
 		gf_info("GF_IOC_DISABLE_IRQ\n");
 		gf_dev->irq_enabled = 0;
-        disable_irq(gf_dev->irq);
+        disable_irq_wake(gf_dev->irq);
 		break;
 	case GF_IOC_ENABLE_IRQ:
 		gf_info("GF_IOC_ENABLE_IRQ\n");
 		gf_dev->irq_enabled = 1;
-        enable_irq(gf_dev->irq);
+        enable_irq_wake(gf_dev->irq);
 		break;
 	case GF_IOC_RESET:
 		gf_info("GF_IOC_RESET\n");
@@ -382,7 +382,7 @@ static long gf_ioctl(struct file *filp, unsigned int cmd, unsigned long arg)
     case GF_IOC_RELEASE_GPIO:
 		gf_info("GF_IOC_RELEASE_GPIO\n");
 		gf_dev->irq_enabled = 0;
-        disable_irq(gf_dev->irq);
+        disable_irq_wake(gf_dev->irq);
 		gf_cleanup(gf_dev);
 		break;
 	case GF_IOC_INPUT_KEY_EVENT:
@@ -494,7 +494,7 @@ static int gf_open(struct inode *inode, struct file *filp)
         gf_info("Succeed to open device. IRQ = %d\n",
                 gf_dev->irq);
         if (gf_dev->users == 1) {
-            enable_irq(gf_dev->irq);
+            enable_irq_wake(gf_dev->irq);
             gf_dev->irq_enabled = 1;
         }
         gf_power_on(gf_dev);
@@ -523,7 +523,7 @@ static int gf_release(struct inode *inode, struct file *filp)
 	if (!gf_dev->users) {
 		gf_info("disable IRQ. IRQ = %d\n", gf_dev->irq);
 		gf_dev->irq_enabled = 0;
-        disable_irq(gf_dev->irq);
+        disable_irq_wake(gf_dev->irq);
 		/*power off the sensor*/
 		gf_dev->device_available = 0;
         gf_hw_reset_low(gf_dev);
@@ -679,7 +679,7 @@ static int gf_probe(struct spi_device *spi)
 	}
 	irq_set_irq_wake(gf_dev->irq, 1);
 	gf.irq_enabled = 0;
-    disable_irq(gf_dev->irq);
+    disable_irq_wake(gf_dev->irq);
 
 	gf_info("gf_spi ver. %d.%d.%d-%s, %s\n", VER_MAJOR, VER_MINOR, VER_EXTRA, VER_TYPE, VER_DESC);
 	return status;
