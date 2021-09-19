@@ -11,18 +11,11 @@
  * GNU General Public License for more details.
  */
 
-&other_ext_mem {
-    reg = <0x0 0x84A00000 0x0 0x1E00000>;
-};
-
-/ {
-	reserved-memory {
-		pstore_reserve_mem: pstore_reserve_mem_region@0 {
-			linux,reserve-contiguous-region;
-			linux,reserve-region;
-			linux,remove-completely;
-			reg = <0x0 0x9ff00000 0x0 0x00100000>;
-			label = "pstore_reserve_mem";
-		};
-	};
-};
+#include "msm-audio-m1721.dtsi"
+#include "msm8953-ports-m1721.dtsi"
+#include "msm8953-general-m1721.dtsi"
+#include "msm8953-pinctrl-m1721.dtsi"
+#include "msm8953-display-m1721.dtsi"
+#include "msm8953-camera-sensor-qrd-m1721.dtsi"
+#include "msm8953-memory-m1721.dtsi"
+#include "msm8953-batterydata-m1721.dtsi"
