@@ -297,6 +297,13 @@ struct cs35l35_private {
     struct completion pdn_done;
 };
 
+struct cs35l35_work_data {
+	struct workqueue_struct *wq;
+	struct work_struct ws;
+	struct cs35l35_private *cs35l35;
+	int irq;
+};
+
 static const char * const cs35l35_supplies[] = {
 	"VA",
 	"VP",
