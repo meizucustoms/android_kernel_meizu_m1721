@@ -1,0 +1,5 @@
+# Meizu configuration options
+config MEIZU_HARDWARE_INFO
+	bool "Camera info for Meizu M6 note"
+	help
+	  Enable kernel meizu_hw driver to get HW info

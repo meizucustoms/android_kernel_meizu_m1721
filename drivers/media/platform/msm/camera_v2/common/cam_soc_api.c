@@ -204,7 +204,7 @@ int msm_camera_get_clk_info(struct platform_device *pdev,
 {
 	int rc = 0;
 
-	if (!pdev || !clk_info || !clk_ptr || !num_clk)
+	if (!pdev || !&pdev->dev || !clk_info || !clk_ptr || !num_clk)
 		return -EINVAL;
 
 	rc = msm_camera_get_clk_info_internal(&pdev->dev,
@@ -496,7 +496,7 @@ int msm_camera_put_clk_info(struct platform_device *pdev,
 {
 	int rc = 0;
 
-	if (!pdev || !clk_info || !clk_ptr)
+	if (!pdev || !&pdev->dev || !clk_info || !clk_ptr)
 		return -EINVAL;
 
 	rc = msm_camera_put_clk_info_internal(&pdev->dev,
@@ -1006,11 +1006,8 @@ uint32_t msm_camera_unregister_bus_client(enum cam_bus_client id)
 
 	mutex_destroy(&g_cv[id].lock);
 	msm_bus_scale_unregister_client(g_cv[id].bus_client);
-	g_cv[id].bus_client = 0;
-	g_cv[id].num_usecases = 0;
-	g_cv[id].num_paths = 0;
-	g_cv[id].vector_index = 0;
-	g_cv[id].dyn_vote = 0;
+	msm_bus_cl_clear_pdata(g_cv[id].pdata);
+	memset(&g_cv[id], 0, sizeof(struct msm_cam_bus_pscale_data));
 
 	return 0;
 }
