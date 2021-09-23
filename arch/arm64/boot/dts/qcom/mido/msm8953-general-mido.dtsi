@@ -334,7 +334,9 @@
             compatible = "awinic,aw36413";
             label = "awinic,aw36413";
             qcom,flash-type = <1>;
-            gpios = <&tlmm 95 0x0 &tlmm 93 0x0 &tlmm 96 0x0>;
+            gpios = <&tlmm 95 0>,
+					<&tlmm 93 0>, 
+					<&tlmm 96 0>;
             qcom,gpio-flash-en = <0>;
             qcom,gpio-flash-en-2 = <1>;
             qcom,gpio-flash-strobe = <2>;

@@ -60,6 +60,7 @@
                 <&tlmm 17 0x0>;
         qcom,gpio-reset = <1>;
         qcom,gpio-vana = <2>;
+        /delete-property/ qcom,gpio-standby;
         qcom,gpio-req-tbl-num = <0 1 2>;
         qcom,gpio-req-tbl-flags = <1 0 0>;
         qcom,gpio-req-tbl-label = 
@@ -290,6 +291,7 @@
                 <&tlmm 36  0>;
         qcom,gpio-reset = <1>;
         qcom,gpio-vana = <2>;
+        /delete-property/ qcom,gpio-standby;
         qcom,gpio-req-tbl-num = <0 1 2>;
         qcom,gpio-req-tbl-flags = <1 0 0>;
         qcom,gpio-req-tbl-label = 
@@ -350,6 +352,7 @@
                 <&tlmm 17 0>;
         qcom,gpio-reset = <1>;
         qcom,gpio-vana = <2>;
+        /delete-property/ qcom,gpio-standby;
         qcom,gpio-req-tbl-num = <0 1 2>;
         qcom,gpio-req-tbl-flags = <1 0 0>;
         qcom,gpio-req-tbl-label = 
@@ -390,6 +393,7 @@
         gpios = <&tlmm 27  0>, 
                 <&tlmm 129 0>, 
                 <&tlmm 36  0>;
+        /delete-property/ qcom,gpio-standby;
         qcom,gpio-reset = <1>;
         qcom,gpio-vana = <2>;
         qcom,gpio-req-tbl-num = <0 1 2>;
@@ -434,6 +438,7 @@
         pinctrl-1 = <&cam_sensor_mclk2_sleep &cam_sensor_front1_sleep>;
         gpios = <&tlmm 28 0>, 
                 <&tlmm 131 0>;
+        /delete-property/ qcom,gpio-standby;
         qcom,gpio-reset = <1>;
         qcom,gpio-req-tbl-num = <0 1>;
         qcom,gpio-req-tbl-flags = <1 0>;
