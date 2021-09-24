@@ -560,19 +560,6 @@ config TOUCHSCREEN_FT5435
 	  To compile this driver as a module, choose M here: the
 	  module will be called ft5435_ts.
 
-config TOUCHSCREEN_IST3038C
-	tristate "imagies touchscreens"
-	depends on I2C
-	help
-	  Say Y here if you have a ist3038c touchscreen.
-	  Ft5x06 controllers are multi touch controllers which can
-	  report 5 touches at a time.
-
-	  If unsure, say N.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ist3038c_ts.
-
 config TOUCHSCREEN_MIGOR
 	tristate "Renesas MIGO-R touchscreen"
 	depends on SH_MIGOR && I2C
