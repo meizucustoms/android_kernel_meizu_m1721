@@ -1266,8 +1266,15 @@ static struct snd_soc_dai_link msm8952_common_be_dai[] = {
 		.stream_name = "Quaternary MI2S Playback",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
 		.platform_name = "msm-pcm-routing",
+#ifndef CONFIG_CIRRUS_PLAYBACK
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
+#else
+		.codec_dai_name = "cs35l35-pcm",
+		.codec_name = "cs35l35.8-0040",
+		.dai_fmt = SND_SOC_DAIFMT_I2S | SND_SOC_DAIFMT_NB_NF |
+			SND_SOC_DAIFMT_CBS_CFS,
+#endif
 		.no_pcm = 1,
 		.dpcm_playback = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_RX,
@@ -1311,8 +1318,13 @@ static struct snd_soc_dai_link msm8952_common_be_dai[] = {
 		.stream_name = "Quaternary MI2S Capture",
 		.cpu_dai_name = "msm-dai-q6-mi2s.3",
 		.platform_name = "msm-pcm-routing",
+#ifndef CONFIG_CIRRUS_PLAYBACK
 		.codec_dai_name = "snd-soc-dummy-dai",
 		.codec_name = "snd-soc-dummy",
+#else
+		.codec_dai_name = "cs35l35-pcm",
+		.codec_name = "cs35l35.8-0040",
+#endif
 		.no_pcm = 1,
 		.dpcm_capture = 1,
 		.be_id = MSM_BACKEND_DAI_QUATERNARY_MI2S_TX,
