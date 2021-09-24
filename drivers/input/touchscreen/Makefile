@@ -90,8 +90,8 @@ obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_I2C_RMI4)		+= synaptics_i2c_rmi4.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_RMI4_DEV)	+= synaptics_rmi_dev.o
 obj-$(CONFIG_TOUCHSCREEN_SYNAPTICS_DSX_FW_UPDATE) 	+= synaptics_fw_update.o
 obj-$(CONFIG_TOUCHSCREEN_FT5435)	+= ft5435/
-ifeq ($(CONFIG_MACH_XIAOMI_C6),y)
-obj-$(CONFIG_TOUCHSCREEN_GT9XX)		+= gt9xx_mido/
+ifeq ($(CONFIG_MACH_MEIZU_M1721),y)
+obj-$(CONFIG_TOUCHSCREEN_GT9XX)		+= gt9xx_m1721/
 else
 obj-$(CONFIG_TOUCHSCREEN_GT9XX)		+= gt9xx/
 endif

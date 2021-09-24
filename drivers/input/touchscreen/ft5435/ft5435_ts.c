@@ -237,7 +237,6 @@ enum proximity_sensor_vendor {
 	TOTAL,
 };
 
-extern int set_usb_charge_mode_par;
 extern int TX_NUM;
 extern int RX_NUM;
 extern int SCab_1;
@@ -911,19 +910,6 @@ void ft5435_change_scanning_frq_switch(struct work_struct *work)
 		printk(KERN_ERR"[ft5435]%s: Write %d to 0x8b\n", __FUNCTION__, data->charger_in);
 		ft5x0x_write_reg(ft_g_client, 0x8b, data->charger_in);
 	}
-}
-
-void tpd_usb_plugin(bool mode)
-{
-	struct ft5435_ts_data *data = g_ft5435_ts_data;
-	int ret = -1;
-	if (data->suspended)
-		return ;
-	if (ft_g_client == NULL)
-		return ;
-	ret = ft5x0x_write_reg(ft_g_client, 0x8b, mode);
-	if (ret < 0)
-		pr_err("usb detect write err: %s %d.\n", __FUNCTION__, mode);
 }
 
 #else
@@ -3974,9 +3960,6 @@ INIT_WORK(&data->work_vr, ft5435_change_vr_switch);
 	while (retry--) {
 		err = ft5435_i2c_read(client, &reg_addr, 1, &reg_value, 1);
 		if (!(err < 0)) {
-#ifdef CONFIG_MACH_XIAOMI_C6
-			set_usb_charge_mode_par = 2;
-#endif
 			dev_info(&client->dev, "Device ID = 0x%x\n", reg_value);
 			break;
 		}

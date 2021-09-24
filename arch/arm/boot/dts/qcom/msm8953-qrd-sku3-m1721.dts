@@ -66,4 +66,4 @@
 	};
 };
 
-#include "mido/msm8953-mido.dtsi"
+#include "m1721/msm8953-m1721.dtsi"

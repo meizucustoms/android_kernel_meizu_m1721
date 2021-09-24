@@ -52,7 +52,6 @@ static char tp_lockdown_info[128];
 static char tp_fw_version[10];
 
 static char tp_info_summary[80] = "";
-extern int set_usb_charge_mode_par;
 
 int gt9xx_id;
 int gt9xx_flag;
@@ -2534,31 +2533,6 @@ ERR_GET_VCC:
 }
 #endif
 
-void gtp_usb_plugin(bool mode)
-{
-	s8 ret = -1;
-	s8 retry = 0;
-	u8 i2c_control_buf[3] = {(u8)(GTP_REG_SLEEP >> 8), (u8)GTP_REG_SLEEP, 7};
-
-	struct goodix_ts_data *ts = i2c_get_clientdata(i2c_connect_client);
-
-	if (mode) {
-		i2c_control_buf[2] = 6;
-		GTP_INFO("Enter %s, usb in", __func__);
-	} else {
-		i2c_control_buf[2] = 7;
-		GTP_INFO("Enter %s, usb off", __func__);
-	}
-	while (retry++ < 5) {
-		ret = gtp_i2c_write(ts->client, i2c_control_buf, 3);
-		if (ret > 0) {
-			GTP_INFO("GTP enter Charge mode!");
-		}
-		msleep(10);
-	}
-	GTP_ERROR("GTP send Charge cmd failed.");
-}
-
 static ssize_t gt9xx_mido_disable_keys_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
@@ -2793,8 +2767,7 @@ static int goodix_ts_probe(struct i2c_client *client, const struct i2c_device_id
 	if (ret < 0) {
 		GTP_ERROR("Read color failed.");
 	}
-	set_usb_charge_mode_par = 3;
-	printk("set_usb_charge_mode_par = %d\n",set_usb_charge_mode_par);
+
 	gt91xx_config_proc = proc_create(GT91XX_CONFIG_PROC_FILE, 0666, NULL, &config_proc_ops);
 	if (gt91xx_config_proc == NULL) {
 		GTP_ERROR("create_proc_entry %s failed\n", GT91XX_CONFIG_PROC_FILE);
