@@ -13,7 +13,23 @@
 
 &soc {
 	tlmm: pinctrl@1000000 {
-		goodix_spi_active: goodix_spi_active{
+                sdc2_cd_off: cd_off {
+                        config {
+                                bias-disable;
+                                drive-strength = <2>;
+                                pins = "gpio133", "gpio54", "gpio58";
+                        };
+                };
+
+                sdc2_cd_on: cd_on {
+                        config {
+                                bias-pull-up;
+                                drive-strength = <2>;
+                                pins = "gpio133", "gpio54", "gpio58";
+                        };
+                };
+
+		goodix_spi_active: goodix_spi_active {
                         mux {
                                 pins = "gpio135", "gpio136", "gpio137", "gpio138";
                                 function = "blsp_spi7";
@@ -24,7 +40,7 @@
                                 bias-disable = <0>;
                         };
                 };
-                goodix_reset_reset: goodix_reset_reset{
+                goodix_reset_reset: goodix_reset_reset {
                         mux {
                                 pins = "gpio140";
                                 function = "gpio";
@@ -36,7 +52,7 @@
                                 output-low;
                         };
                 };
-                goodix_reset_active: goodix_reset_active{
+                goodix_reset_active: goodix_reset_active {
                         mux {
                                 pins = "gpio140";
                                 function = "gpio";

@@ -15,7 +15,7 @@
 		android {
 			fstab {
 				vendor {
-					dev = "/dev/block/platform/soc/7824900.sdhci/by-name/cust";
+					dev = "/dev/block/platform/soc/7824900.sdhci/by-name/custom";
 					fsmgr_flags = "wait";
 				};
 				system {
@@ -98,18 +98,6 @@
 		status = "okay";
 	};
 };
-
-&qrd_batterydata {
-	qcom,batt-id-range-pct = <5>;
-	#include "batterydata-qrd-sunwoda-4v4-4100mah.dtsi"
-	#include "batterydata-qrd-sunwoda-ATL-4v4-4100mah.dtsi"
-	#include "batterydata-qrd-coslight-4v4-4100mah.dtsi"
-	#include "batterydata-qrd-desay-lisheng-4v4-4100mah.dtsi"
-	#include "batterydata-qrd-desay-4v4-4100mah.dtsi"
-	/delete-node/ qcom,qrd_msm8937_sku1_2920mah;
-
-};
-
 
 &pmi8950_charger {
 	qcom,float-voltage-mv = <4400>;
