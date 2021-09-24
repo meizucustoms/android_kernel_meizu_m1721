@@ -302,7 +302,7 @@ struct msm_eeprom_cfg_data {
 	enum eeprom_cfg_type_t cfgtype;
 	uint8_t is_supported;
 	union {
-		char eeprom_name[MAX_SENSOR_NAME];
+		char eeprom_name[MAX_EEPROM_NAME];
 		struct eeprom_get_t get_data;
 		struct eeprom_read_t read_data;
 		struct eeprom_write_t write_data;
@@ -577,8 +577,13 @@ struct sensor_init_cfg_data {
 #define VIDIOC_MSM_ACTUATOR_CFG \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 6, struct msm_actuator_cfg_data)
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+#define VIDIOC_MSM_FLASH_LED_DATA_CFG \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 7, struct msm_flash_cfg_data_t)
+#else
 #define VIDIOC_MSM_FLASH_LED_DATA_CFG \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 7, struct msm_camera_led_cfg_t)
+#endif
 
 #define VIDIOC_MSM_EEPROM_CFG \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 8, struct msm_eeprom_cfg_data)

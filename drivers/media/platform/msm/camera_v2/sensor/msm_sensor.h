@@ -1,4 +1,4 @@
-/* Copyright (c) 2011-2016, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2011-2015, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -88,10 +88,6 @@ struct msm_sensor_ctrl_t {
 	enum msm_camera_stream_type_t camera_stream_type;
 	uint32_t set_mclk_23880000;
 	uint8_t is_csid_tg_mode;
-	uint32_t is_secure;
-#ifndef CONFIG_MACH_XIAOMI_C6
-	uint8_t bypass_video_node_creation;
-#endif
 };
 
 int msm_sensor_config(struct msm_sensor_ctrl_t *s_ctrl, void __user *argp);
