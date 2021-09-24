@@ -301,7 +301,7 @@
                         qcom,recharge-mv = <100>;
                         qcom,switch-freq = <2>;
                 };
-        }
+        };
 
 	i2c@78b7000 {
                 focaltech@38 {

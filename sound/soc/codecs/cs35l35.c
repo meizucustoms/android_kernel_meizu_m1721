@@ -1347,6 +1347,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 			      const struct i2c_device_id *id)
 {
 	struct cs35l35_private *cs35l35;
+	struct cs35l35_work_data *work_data;
 	struct cs35l35_platform_data *pdata =
 		dev_get_platdata(&i2c_client->dev);
     struct gpio_desc *desc;
@@ -1354,7 +1355,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
     struct device *dev = &i2c_client->dev;
     struct pinctrl_state *cs35l35_reset;
     struct pinctrl *p;
-	int i;
+	int i, val = 0, irq = 0;
 	int ret = 0;
 	unsigned int devid = 0;
 	unsigned int reg;

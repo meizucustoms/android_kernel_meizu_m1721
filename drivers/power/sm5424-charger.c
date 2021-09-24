@@ -671,7 +671,7 @@ static int sm5424_charger_probe(struct i2c_client *client,
   i2c_set_clientdata(client, sm5424);
 
   sm5424->parallel_psy.name = "usb-parallel";
-  sm5424->parallel_psy.type = POWER_SUPPLY_TYPE_USB_PARALLEL;
+  sm5424->parallel_psy.type = POWER_SUPPLY_TYPE_PARALLEL;
   sm5424->parallel_psy.get_property = sm5424_charger_get_property;
   sm5424->parallel_psy.set_property = sm5424_charger_set_property;
   sm5424->parallel_psy.properties = sm5424_psy_properties;
