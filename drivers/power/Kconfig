@@ -406,6 +406,16 @@ config SMB1351_USB_CHARGER
 	 notification support. The driver controls SMB1351 via I2C and
 	 supports device-tree interface.
 
+config SM5424_USB_CHARGER
+	tristate "sm5424 usb charger"
+	depends on I2C
+	help
+	 Say Y to enable support for the SM5424 charger chip.
+	 The driver supports charging control (enable/disable) and
+	 charge-current limiting. Chip supports fast charging up to 
+	 3.5A in parallel with other charger chip. The driver controls 
+	 SM5424 via I2C and supports device-tree interface.
+
 config SMB350_CHARGER
 	tristate "smb350 charger"
 	depends on I2C
