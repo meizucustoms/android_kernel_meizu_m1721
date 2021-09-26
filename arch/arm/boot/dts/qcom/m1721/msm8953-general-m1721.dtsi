@@ -270,7 +270,7 @@
 
         /delete-node/ qseecom@85b00000;
 
-        spi@78b5000 {
+        spi@78B5000 {
                 status = "ok";
                 
                 goodix_fp@0 {
@@ -402,8 +402,6 @@
         };
 
         i2c@7af8000 { /* BLSP2 QUP4 */
-                status = "ok";
-
                 cs35l35@40 {
                         status = "ok";
                         compatible = "cirrus,cs35l35";
