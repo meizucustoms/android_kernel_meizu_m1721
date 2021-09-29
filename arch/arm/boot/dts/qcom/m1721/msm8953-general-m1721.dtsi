@@ -100,11 +100,12 @@
 
 &pmi8950_charger {
 	qcom,float-voltage-mv = <4400>;
-	qcom,resume-delta-mv = <100>;
+	qcom,resume-delta-mv = <50>;
 	qcom,charge-unknown-battery;
 	qcom,override-usb-current;
+	qcom,fastchg-current-comp = <1200>;
+	qcom,float-voltage-comp = <16>;
 	qcom,thermal-mitigation = <3000 2500 2000 2000 1000 500 0>;
-        qcom,precharging-timeout-mins = <48>;
 	/delete-property/ qcom,parallel-usb-min-current-ma;
 	/delete-property/ qcom,parallel-usb-9v-min-current-ma;
 	/delete-property/ qcom,parallel-allowed-lowering-ma;
@@ -116,22 +117,15 @@
 };
 
 &pmi8950_fg {
-	qcom,resume-soc-raw = <254>;
-        qcom,fg-iterm-ma = <290>;
-        qcom,fg-chg-iterm-ma = <220>;
-        qcom,fg-cutoff-voltage-mv = <3320>;
-        qcom,fg-slope-limit-high-temp-chg = <2>;
-        qcom,fg-slope-limit-high-temp-dischg = <1>;
-        qcom,fg-slope-limit-low-temp-chg = <2>;
-        qcom,fg-slope-limit-low-temp-dischg = <1>;
-        qcom,vbat-estimate-diff-mv = <300>;
-        qcom,hold-soc-while-full;
-        qcom,fg-restore-batt-info;
-        qcom,thermal-coefficients = [da 86 f0 50 08 3c];
-        qcom,cold-bat-decidegc = <0>;
-        qcom,cool-bat-decidegc = <150>;
-        qcom,warm-bat-decidegc = <450>;
-        qcom,resume-soc = <99>;
+	qcom,resume-soc = <99>;
+	qcom,fg-cutoff-voltage-mv = <3400>;
+	qcom,fg-cc-cv-threshold-mv = <4380>;
+	qcom,fg-vbat-estimate-diff-mv = <200>;
+	qcom,thermal-coefficients = [c8 86 c1 50 d3 37];
+	qcom,cold-bat-decidegc = <0>;
+	qcom,cool-bat-decidegc = <150>;
+	qcom,warm-bat-decidegc = <450>;
+	qcom,fg-restore-batt-info;
 };
 
 &pmi8950_pwm {
@@ -270,7 +264,7 @@
 
         /delete-node/ qseecom@85b00000;
 
-        spi@78B5000 {
+        spi@78b5000 { /* BLSP2 QUP1 */
                 status = "ok";
                 
                 goodix_fp@0 {
@@ -364,6 +358,8 @@
         };
 
 	i2c@7af6000 { /* BLSP2 QUP2 */
+                status = "okay";
+
                 mz_led_flash: qcom,led-flash@6b {
                         cell-index = <0x0>;
                         reg = <0x6b>;
@@ -402,11 +398,13 @@
         };
 
         i2c@7af8000 { /* BLSP2 QUP4 */
+                status = "ok";
+
                 cs35l35@40 {
                         status = "ok";
                         compatible = "cirrus,cs35l35";
                         reg = <0x40>;
-                        reset-gpios = <&tlmm 91 0x1>;
+                        reset-gpio = <&tlmm 91 0x1>;
                         irq-gpio = <&tlmm 90 0x1>;
                         interrupt-parent = <&tlmm>;
                         interrupts = <90 0x8>;
