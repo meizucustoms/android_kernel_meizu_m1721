@@ -293,7 +293,7 @@ struct cs35l35_private {
     bool i2s_mode;
     bool slave_mode;
     int reset_gpio;
-	struct gpio_desc *irq_gpio;
+	int irq_gpio;
     struct completion pdn_done;
 };
 

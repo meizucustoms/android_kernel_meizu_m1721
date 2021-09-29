@@ -1027,20 +1027,25 @@ static struct regmap_config cs35l35_regmap = {
 	.use_single_rw = true,
 };
 
+//#define NO_MEIZU_IRQ
+
+#ifndef NO_MEIZU_IRQ
 static void cs35l35_eint_work_callback(struct work_struct *work) 
 {
 	struct cs35l35_private *cs35l35 = 
 		container_of(work, struct cs35l35_work_data, ws)->cs35l35;
 	unsigned int sticky1, sticky2, sticky3, sticky4;
 	unsigned int mask1, mask2, mask3, mask4, current1;
-	struct snd_soc_codec *codec = cs35l35->codec;
+	struct snd_soc_codec *codec;
 
 	pr_err_ratelimited("%s: enter\n", __func__);
 
-	if (!cs35l35) {
+	if (cs35l35 == NULL) {
 		pr_err_ratelimited("%s: cs35l35 is null!\n", __func__);
 		return;
 	}
+
+	codec = cs35l35->codec;
 
 	/* ack the irq by reading all status registers */
 	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_4, &sticky4);
@@ -1168,14 +1173,158 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 
 static irqreturn_t cs35l35_eint_func(int irq, void *data)
 {
-  struct cs35l35_work_data *work_data =
-            (struct cs35l35_work_data *)data;
+	/*
+	struct cs35l35_work_data *work_data =
+				(struct cs35l35_work_data *)data;
 
-  work_data->irq = irq;
-  queue_work_on(8, work_data->wq, &work_data->ws);
+	work_data->irq = irq;
+	queue_work(work_data->wq, &work_data->ws);
+*/
+	return IRQ_HANDLED;
+}
+#else
+static irqreturn_t cs35l35_eint_func(int irq, void *data)
+{
+	struct cs35l35_private *cs35l35 = 
+		(struct cs35l35_private *)data;
+	unsigned int sticky1, sticky2, sticky3, sticky4;
+	unsigned int mask1, mask2, mask3, mask4, current1;
+	struct snd_soc_codec *codec;
+
+	pr_err_ratelimited("%s: enter\n", __func__);
+
+	if (cs35l35 == NULL) {
+		pr_err_ratelimited("%s: cs35l35 is null!\n", __func__);
+		return IRQ_HANDLED;
+	}
+
+	codec = cs35l35->codec;
+
+	/* ack the irq by reading all status registers */
+	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_4, &sticky4);
+	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_3, &sticky3);
+	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_2, &sticky2);
+	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_1, &sticky1);
+
+	regmap_read(cs35l35->regmap, CS35L35_INT_MASK_4, &mask4);
+	regmap_read(cs35l35->regmap, CS35L35_INT_MASK_3, &mask3);
+	regmap_read(cs35l35->regmap, CS35L35_INT_MASK_2, &mask2);
+	regmap_read(cs35l35->regmap, CS35L35_INT_MASK_1, &mask1);
+
+	/* Check to see if unmasked bits are active */
+	if (!(sticky1 & ~mask1) && !(sticky2 & ~mask2) && !(sticky3 & ~mask3)
+			&& !(sticky4 & ~mask4))
+		return IRQ_HANDLED;
+
+	if (sticky2 & CS35L35_PDN_DONE)
+		complete(&cs35l35->pdn_done);
+
+	/* read the current values */
+	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_1, &current1);
+
+	/* handle the interrupts */
+	if (sticky1 & CS35L35_CAL_ERR) {
+		dev_crit(codec->dev, "Calibration Error\n");
+
+		/* error is no longer asserted; safe to reset */
+		if (!(current1 & CS35L35_CAL_ERR)) {
+			pr_debug("%s : Cal error release\n", __func__);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_CAL_ERR_RLS, 0);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_CAL_ERR_RLS,
+					CS35L35_CAL_ERR_RLS);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_CAL_ERR_RLS, 0);
+		}
+	}
+
+	if (sticky1 & CS35L35_AMP_SHORT) {
+		dev_crit(codec->dev, "AMP Short Error\n");
+		/* error is no longer asserted; safe to reset */
+		if (!(current1 & CS35L35_AMP_SHORT)) {
+			dev_dbg(codec->dev, "Amp short error release\n");
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_SHORT_RLS, 0);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_SHORT_RLS,
+					CS35L35_SHORT_RLS);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_SHORT_RLS, 0);
+		}
+	}
+
+	if (sticky1 & CS35L35_OTW) {
+		dev_warn(codec->dev, "Over temperature warning\n");
+
+		/* error is no longer asserted; safe to reset */
+		if (!(current1 & CS35L35_OTW)) {
+			dev_dbg(codec->dev, "Over temperature warn release\n");
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTW_RLS, 0);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTW_RLS,
+					CS35L35_OTW_RLS);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTW_RLS, 0);
+		}
+	}
+
+	if (sticky1 & CS35L35_OTE) {
+		dev_crit(codec->dev, "Over temperature error\n");
+		/* error is no longer asserted; safe to reset */
+		if (!(current1 & CS35L35_OTE)) {
+			dev_dbg(codec->dev, "Over temperature error release\n");
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTE_RLS, 0);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTE_RLS,
+					CS35L35_OTE_RLS);
+			regmap_update_bits(cs35l35->regmap,
+					CS35L35_PROT_RELEASE_CTL,
+					CS35L35_OTE_RLS, 0);
+		}
+	}
+
+	if (sticky3 & CS35L35_BST_HIGH) {
+		dev_crit(codec->dev, "VBST error: powering off!\n");
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
+			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+			CS35L35_PDN_ALL, CS35L35_PDN_ALL);
+	}
+
+	if (sticky3 & CS35L35_LBST_SHORT) {
+		dev_crit(codec->dev, "LBST error: powering off!\n");
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
+			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
+		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
+			CS35L35_PDN_ALL, CS35L35_PDN_ALL);
+	}
+
+	if (sticky2 & CS35L35_VPBR_ERR)
+		dev_dbg(codec->dev, "Error: Reactive Brownout\n");
+
+	if (sticky4 & CS35L35_VMON_OVFL)
+		dev_dbg(codec->dev, "Error: VMON overflow\n");
+
+	if (sticky4 & CS35L35_IMON_OVFL)
+		dev_dbg(codec->dev, "Error: IMON overflow\n");
 
   return IRQ_HANDLED;
 }
+#endif
 
 static int cs35l35_handle_of_data(struct i2c_client *i2c_client,
 				struct cs35l35_platform_data *pdata)
@@ -1347,35 +1496,38 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 			      const struct i2c_device_id *id)
 {
 	struct cs35l35_private *cs35l35;
+#ifndef NO_MEIZU_IRQ
 	struct cs35l35_work_data *work_data;
+#endif
 	struct cs35l35_platform_data *pdata =
 		dev_get_platdata(&i2c_client->dev);
-    struct gpio_desc *desc;
     struct device_node *np = i2c_client->dev.of_node;
     struct device *dev = &i2c_client->dev;
-    struct pinctrl_state *cs35l35_reset;
-    struct pinctrl *p;
-	int i, val = 0, irq = 0;
+	struct pinctrl *p;
+	struct pinctrl_state *s;
+	int i, irq;
 	int ret = 0;
 	unsigned int devid = 0;
 	unsigned int reg;
-    
-    printk("%s@%d ++\n", __func__, __LINE__);
 
 	cs35l35 = devm_kzalloc(&i2c_client->dev,
 			       sizeof(struct cs35l35_private),
 			       GFP_KERNEL);
-	if (!cs35l35) {
+	if (cs35l35 == NULL) {
 		dev_err(&i2c_client->dev, "could not allocate codec\n");
 		return -ENOMEM;
 	}
 
-	work_data = devm_kzalloc(dev, sizeof(struct cs35l35_work_data), GFP_KERNEL);
-	if (!work_data)
+#ifndef NO_MEIZU_IRQ
+	work_data = devm_kzalloc(&i2c_client->dev, sizeof(struct cs35l35_work_data), GFP_KERNEL);
+	if (work_data == NULL) {
+		dev_err(&i2c_client->dev, "could not allocate work data\n");
 		return -ENOMEM;
+	}
 
  	work_data->cs35l35 = cs35l35;
-	
+#endif
+
     i2c_client->dev.driver_data = cs35l35;
 
 	i2c_set_clientdata(i2c_client, cs35l35);
@@ -1388,7 +1540,8 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 
 	for (i = 0; i < ARRAY_SIZE(cs35l35_supplies); i++)
 		cs35l35->supplies[i].supply = cs35l35_supplies[i];
-		cs35l35->num_supplies = ARRAY_SIZE(cs35l35_supplies);
+
+	cs35l35->num_supplies = ARRAY_SIZE(cs35l35_supplies);
 
 	ret = devm_regulator_bulk_get(&i2c_client->dev,
 			cs35l35->num_supplies,
@@ -1423,56 +1576,37 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 			ret);
 		return ret;
 	}
-        
-	// initialize pinctrl reset pin
-	p = devm_pinctrl_get(dev);
-	if (p)
-		cs35l35_reset = pinctrl_lookup_state(p, "cs35l35_irq_default");
 
-	pinctrl_select_state(p, cs35l35_reset);
+	p = devm_pinctrl_get(dev);
+	if (p != NULL) {
+		 s = pinctrl_lookup_state(p, "cs35l35_irq_default");
+		 pinctrl_select_state(p, s);
+	}
 	
-	// Set reset gpio
-	cs35l35->reset_gpio = 
-		of_get_named_gpio_flags(i2c_client->dev.of_node, "reset-gpios", 0, 0);
-	
-	// Reset pin check and request
-	printk("%s@%d\n", __func__, __LINE__);
+	cs35l35->reset_gpio =
+		of_get_named_gpio_flags(i2c_client->dev.of_node, "reset-gpio", 0, 0);
 	if (cs35l35->reset_gpio < 0) {
-		dev_err(dev, "%s: error! spk_pa__reset_gpio is :%d\n", __func__, val);
+		dev_err(dev, "invalid reset GPIO %d\n", __func__, cs35l35->reset_gpio);
 		goto err;
 	}
 
-	ret = gpio_request_one(val, 0, "spk_reset");
-	printk("%s@%d\n", __func__, __LINE__);
-	
+	ret = gpio_request(cs35l35->reset_gpio, "cs35l35_reset");
 	if (ret != 0) {
-		dev_err(dev,"%s: request spk_pa_gpio fail! error :%d\n", __func__, ret);
+		dev_err(dev, "failed to request reset GPIO: %d\n", __func__, ret);
 		goto err;
 	}
 	
 	// open device node for codec
-	desc = gpio_to_desc(cs35l35->reset_gpio);
-	gpiod_direction_output_raw(desc, 1);
-	
-	cs35l35->irq_gpio = devm_gpiod_get_optional(&i2c_client->dev,
-		"irq", GPIOD_IN);
-	if (IS_ERR(cs35l35->irq_gpio))
-		return PTR_ERR(cs35l35->irq_gpio);
+	gpio_direction_output(cs35l35->reset_gpio, 1);
 
-	work_data->wq = alloc_workqueue("cs35l35_eint", 
-                    WQ_UNBOUND | WQ_MEM_RECLAIM | 
-                    __WQ_ORDERED, 1);
+#ifndef NO_MEIZU_IRQ
+	work_data->wq = alloc_ordered_workqueue(
+						"%s", WQ_MEM_RECLAIM, "cs35l35_eint");
 
 	INIT_WORK(&work_data->ws, cs35l35_eint_work_callback);
+#endif
 
-	irq = irq_of_parse_and_map(dev->of_node, 0);
-
-	ret = request_threaded_irq(irq, cs35l35_eint_func, 
-          NULL, 0, "cirrus-cs35l35-eint", work_data);
-	if (ret != 0) {
-		dev_err(dev, "Failed to request IRQ: %d\n", ret);
-		goto err;
-	}
+	irq = irq_of_parse_and_map(np, 0);
 
 	ret = regmap_register_patch(cs35l35->regmap, cs35l35_errata_patch,
 		ARRAY_SIZE(cs35l35_errata_patch));
@@ -1480,7 +1614,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		dev_err(&i2c_client->dev, "Failed to apply errata patch\n");
 		return ret;
 	}
-	
+
 	init_completion(&cs35l35->pdn_done);
     
 	/* initialize codec */
@@ -1540,7 +1674,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	regmap_update_bits(cs35l35->regmap, CS35L35_PROTECT_CTL,
 		CS35L35_AMP_MUTE_MASK, 1 << CS35L35_AMP_MUTE_SHIFT);
 
-	ret =  snd_soc_register_codec(&i2c_client->dev,
+	ret = snd_soc_register_codec(&i2c_client->dev,
 			&soc_codec_dev_cs35l35, cs35l35_dai,
 			ARRAY_SIZE(cs35l35_dai));
 	if (ret < 0) {
@@ -1548,7 +1682,24 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 			"%s: Register codec failed\n", __func__);
 		goto err;
 	}
-	
+
+#ifndef NO_MEIZU_IRQ
+	ret = devm_request_irq(&i2c_client->dev, irq, cs35l35_eint_func, 
+						   IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+					  	   "cirrus-cs35l35-eint", work_data);
+	if (ret != 0) {
+		dev_err(dev, "Failed to request IRQ: %d\n", ret);
+		goto err;
+	}
+#else
+	ret = devm_request_irq(&i2c_client->dev, irq, cs35l35_eint_func, 0,
+					  	   "cirrus-cs35l35-eint", cs35l35);
+	if (ret != 0) {
+		dev_err(dev, "Failed to request IRQ: %d\n", ret);
+		goto err;
+	}
+#endif
+
 	printk("cs35l35_register: ret = %d", ret);
 
 err:
