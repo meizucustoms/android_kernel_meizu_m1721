@@ -45,19 +45,23 @@ MODULE_PARM_DESC(record_size,
 		"size of each dump done on oops/panic");
 
 #ifdef CONFIG_MACH_MEIZU_M1721
-static ulong ramoops_console_size = 512*1024UL;
+static ulong ramoops_console_size = 1441792UL;
 #else
 static ulong ramoops_console_size = MIN_MEM_SIZE;
 #endif
 module_param_named(console_size, ramoops_console_size, ulong, 0400);
 MODULE_PARM_DESC(console_size, "size of kernel console log");
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+static ulong ramoops_ftrace_size = 64*1024UL;
+#else
 static ulong ramoops_ftrace_size = MIN_MEM_SIZE;
+#endif
 module_param_named(ftrace_size, ramoops_ftrace_size, ulong, 0400);
 MODULE_PARM_DESC(ftrace_size, "size of ftrace log");
 
 #ifdef CONFIG_MACH_MEIZU_M1721
-static ulong ramoops_pmsg_size = 32*1024UL;
+static ulong ramoops_pmsg_size = 128*1024UL;
 #else
 static ulong ramoops_pmsg_size = MIN_MEM_SIZE;
 #endif
@@ -74,7 +78,7 @@ MODULE_PARM_DESC(mem_address,
 		"start of reserved RAM used to store oops/panic logs");
 
 #ifdef CONFIG_MACH_MEIZU_M1721
-static ulong mem_size = 0x100000;
+static ulong mem_size = 0x200000;
 #else
 static ulong mem_size;
 #endif
