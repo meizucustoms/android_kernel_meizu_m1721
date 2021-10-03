@@ -117,7 +117,7 @@ struct msm_fd_buf_handle {
  * @list: Buffer is part of FD device processing queue
  */
 struct msm_fd_buffer {
-	struct vb2_v4l2_buffer vb_v4l2_buf;
+	struct vb2_buffer vb;
 	atomic_t active;
 	struct completion completion;
 	struct msm_fd_format format;
@@ -254,7 +254,6 @@ struct msm_fd_device {
 	struct completion hw_halt_completion;
 	int recovery_mode;
 	uint32_t clk_rate_idx;
-	bool init;
 };
 
 #endif /* __MSM_FD_DEV_H__ */

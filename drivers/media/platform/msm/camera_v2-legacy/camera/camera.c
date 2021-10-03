@@ -27,7 +27,6 @@
 #include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <media/v4l2-fh.h>
-#include <media/videobuf2-v4l2.h>
 
 #include "camera.h"
 #include "msm.h"
@@ -105,10 +104,6 @@ static int camera_v4l2_querycap(struct file *filep, void *fh,
 		return rc;
 
 	rc = camera_check_event_status(&event);
-
-	cap->device_caps = V4L2_CAP_STREAMING |
-			V4L2_CAP_VIDEO_OUTPUT | V4L2_CAP_VIDEO_CAPTURE;
-	cap->capabilities = cap->device_caps | V4L2_CAP_DEVICE_CAPS;
 
 	return rc;
 }
@@ -555,7 +550,7 @@ static int camera_v4l2_fh_open(struct file *filep)
 {
 	struct msm_video_device *pvdev = video_drvdata(filep);
 	struct camera_v4l2_private *sp;
-	unsigned long stream_id;
+	unsigned int stream_id;
 
 	sp = kzalloc(sizeof(*sp), GFP_KERNEL);
 	if (!sp) {
@@ -620,6 +615,7 @@ static int camera_v4l2_vb2_q_init(struct file *filep)
 	/* default queue type */
 	q->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	q->io_modes = VB2_USERPTR;
+	q->io_flags = 0;
 	q->buf_struct_size = sizeof(struct msm_vb2_buffer);
 	q->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_MONOTONIC;
 	return vb2_queue_init(q);
@@ -642,7 +638,7 @@ static int camera_v4l2_open(struct file *filep)
 	int rc = 0;
 	struct v4l2_event event;
 	struct msm_video_device *pvdev = video_drvdata(filep);
-	unsigned long opn_idx, idx;
+	unsigned int opn_idx, idx;
 	BUG_ON(!pvdev);
 
 	mutex_lock(&pvdev->video_drvdata_mutex);
@@ -725,7 +721,6 @@ post_fail:
 command_ack_q_fail:
 	msm_destroy_session(pvdev->vdev->num);
 session_fail:
-	msm_pm_qos_update_request(CAMERA_ENABLE_PC_LATENCY);
 	pm_relax(&pvdev->vdev->dev);
 stream_fail:
 	camera_v4l2_vb2_q_release(filep);
@@ -794,6 +789,7 @@ static int camera_v4l2_close(struct file *filep)
 		camera_v4l2_vb2_q_release(filep);
 		msm_destroy_session(pvdev->vdev->num);
 
+		pm_relax(&pvdev->vdev->dev);
 	} else {
 		msm_delete_command_ack_q(pvdev->vdev->num,
 			sp->stream_id);
@@ -803,7 +799,6 @@ static int camera_v4l2_close(struct file *filep)
 		mutex_unlock(&session->close_lock);
 	}
 
-	pm_relax(&pvdev->vdev->dev);
 	camera_v4l2_fh_release(filep);
 	mutex_unlock(&pvdev->video_drvdata_mutex);
 
@@ -874,7 +869,7 @@ static struct v4l2_file_operations camera_v4l2_fops = {
 	.open	= camera_v4l2_open,
 	.poll	= camera_v4l2_poll,
 	.release = camera_v4l2_close,
-	.unlocked_ioctl   = video_ioctl2,
+	.ioctl   = video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = camera_v4l2_compat_ioctl,
 #endif
@@ -912,7 +907,6 @@ int camera_init_v4l2(struct device *dev, unsigned int *session)
 		rc = -ENOMEM;
 		goto mdev_fail;
 	}
-	media_device_init(v4l2_dev->mdev);
 	strlcpy(v4l2_dev->mdev->model, MSM_CAMERA_NAME,
 			sizeof(v4l2_dev->mdev->model));
 
@@ -922,9 +916,10 @@ int camera_init_v4l2(struct device *dev, unsigned int *session)
 	if (WARN_ON(rc < 0))
 		goto media_fail;
 
-	rc = media_entity_pads_init(&pvdev->vdev->entity, 0, NULL);
+	rc = media_entity_init(&pvdev->vdev->entity, 0, NULL, 0);
 	if (WARN_ON(rc < 0))
 		goto entity_fail;
+	pvdev->vdev->entity.type = MEDIA_ENT_T_DEVNODE_V4L;
 	pvdev->vdev->entity.group_id = QCAMERA_VNODE_GROUP_ID;
 #endif
 
