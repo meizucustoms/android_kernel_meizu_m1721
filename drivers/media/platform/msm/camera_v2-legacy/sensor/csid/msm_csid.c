@@ -62,11 +62,7 @@
 #define FALSE  0
 
 #define MAX_LANE_COUNT 4
-#ifdef CONFIG_MACH_XIAOMI_C6
-#define CSID_TIMEOUT msecs_to_jiffies(500)
-#else
 #define CSID_TIMEOUT msecs_to_jiffies(100)
-#endif
 
 #undef CDBG
 #define CDBG(fmt, args...) pr_debug(fmt, ##args)
@@ -234,34 +230,16 @@ static void msm_csid_set_sof_freeze_debug_reg(
 static int msm_csid_reset(struct csid_device *csid_dev)
 {
 	int32_t rc = 0;
-	uint32_t irq = 0, irq_bitshift;
-
-	irq_bitshift = csid_dev->ctrl_reg->csid_reg.csid_rst_done_irq_bitshift;
 	msm_camera_io_w(csid_dev->ctrl_reg->csid_reg.csid_rst_stb_all,
 		csid_dev->base +
 		csid_dev->ctrl_reg->csid_reg.csid_rst_cmd_addr);
 	rc = wait_for_completion_timeout(&csid_dev->reset_complete,
 		CSID_TIMEOUT);
-	if (rc < 0) {
+	if (rc <= 0) {
 		pr_err("wait_for_completion in msm_csid_reset fail rc = %d\n",
 			rc);
-	} else if (rc == 0) {
-		irq = msm_camera_io_r(csid_dev->base +
-			csid_dev->ctrl_reg->csid_reg.csid_irq_status_addr);
-		pr_err_ratelimited("%s CSID%d_IRQ_STATUS_ADDR = 0x%x\n",
-			__func__, csid_dev->pdev->id, irq);
-		if (irq & (0x1 << irq_bitshift)) {
-			rc = 1;
-			CDBG("%s succeeded", __func__);
-		} else {
-			rc = 0;
-			pr_err("%s reset csid_irq_status failed = 0x%x\n",
-				__func__, irq);
-		}
 		if (rc == 0)
 			rc = -ETIMEDOUT;
-	} else {
-		CDBG("%s succeeded", __func__);
 	}
 	return rc;
 }
@@ -327,7 +305,7 @@ static int msm_csid_config(struct csid_device *csid_dev,
 	if (!msm_csid_find_max_clk_rate(csid_dev))
 		pr_err("msm_csid_find_max_clk_rate failed\n");
 
-	clk_rate = ((int)csid_params->csi_clk > 0) ?
+	clk_rate = (csid_params->csi_clk > 0) ?
 				(csid_params->csi_clk) : csid_dev->csid_max_clk;
 
 	clk_rate = msm_camera_clk_set_rate(&csid_dev->pdev->dev,
@@ -1106,7 +1084,8 @@ static int csid_probe(struct platform_device *pdev)
 	new_csid_dev->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	snprintf(new_csid_dev->msm_sd.sd.name,
 			ARRAY_SIZE(new_csid_dev->msm_sd.sd.name), "msm_csid");
-	media_entity_pads_init(&new_csid_dev->msm_sd.sd.entity, 0, NULL);
+	media_entity_init(&new_csid_dev->msm_sd.sd.entity, 0, NULL, 0);
+	new_csid_dev->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 	new_csid_dev->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_CSID;
 	new_csid_dev->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x5;
 	msm_sd_register(&new_csid_dev->msm_sd);

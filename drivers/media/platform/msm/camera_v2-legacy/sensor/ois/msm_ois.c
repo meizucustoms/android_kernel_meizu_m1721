@@ -740,7 +740,8 @@ static int32_t msm_ois_i2c_probe(struct i2c_client *client,
 	v4l2_set_subdevdata(&ois_ctrl_t->msm_sd.sd, ois_ctrl_t);
 	ois_ctrl_t->msm_sd.sd.internal_ops = &msm_ois_internal_ops;
 	ois_ctrl_t->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
-	media_entity_pads_init(&ois_ctrl_t->msm_sd.sd.entity, 0, NULL);
+	media_entity_init(&ois_ctrl_t->msm_sd.sd.entity, 0, NULL, 0);
+	ois_ctrl_t->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 	ois_ctrl_t->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_OIS;
 	ois_ctrl_t->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x2;
 	msm_sd_register(&ois_ctrl_t->msm_sd);
@@ -892,16 +893,15 @@ static int32_t msm_ois_platform_probe(struct platform_device *pdev)
 
 	rc = msm_sensor_driver_get_gpio_data(&(msm_ois_t->gconf),
 		(&pdev->dev)->of_node);
-	if (-ENODEV == rc) {
-		pr_notice("No valid OIS GPIOs data\n");
-	} else if (rc < 0) {
-		pr_err("Error OIS GPIO\n");
+	if (rc < 0) {
+		pr_err("%s: No/Error OIS GPIO\n", __func__);
 	} else {
 		msm_ois_t->cam_pinctrl_status = 1;
 		rc = msm_camera_pinctrl_init(
 			&(msm_ois_t->pinctrl_info), &(pdev->dev));
 		if (rc < 0) {
-			pr_err("ERR: Error in reading OIS pinctrl\n");
+			pr_err("ERR:%s: Error in reading OIS pinctrl\n",
+				__func__);
 			msm_ois_t->cam_pinctrl_status = 0;
 		}
 	}
@@ -932,7 +932,8 @@ static int32_t msm_ois_platform_probe(struct platform_device *pdev)
 	msm_ois_t->msm_sd.sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	snprintf(msm_ois_t->msm_sd.sd.name,
 		ARRAY_SIZE(msm_ois_t->msm_sd.sd.name), "msm_ois");
-	media_entity_pads_init(&msm_ois_t->msm_sd.sd.entity, 0, NULL);
+	media_entity_init(&msm_ois_t->msm_sd.sd.entity, 0, NULL, 0);
+	msm_ois_t->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 	msm_ois_t->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_OIS;
 	msm_ois_t->msm_sd.close_seq = MSM_SD_CLOSE_2ND_CATEGORY | 0x2;
 	msm_sd_register(&msm_ois_t->msm_sd);

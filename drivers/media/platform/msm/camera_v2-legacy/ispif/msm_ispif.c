@@ -1,4 +1,4 @@
-/* Copyright (c) 2013-2017, 2019 The Linux Foundation. All rights reserved.
+/* Copyright (c) 2013-2016, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -47,7 +47,7 @@
 
 #define ISPIF_TIMEOUT_SLEEP_US                1000
 #define ISPIF_TIMEOUT_ALL_US               1000000
-#define ISPIF_SOF_DEBUG_COUNT                   0
+#define ISPIF_SOF_DEBUG_COUNT                    0
 
 #undef CDBG
 #ifdef CONFIG_MSMB_CAMERA_DEBUG
@@ -211,34 +211,32 @@ static long msm_ispif_cmd_ext(struct v4l2_subdev *sd,
 	long rc = 0;
 	struct ispif_device *ispif =
 		(struct ispif_device *)v4l2_get_subdevdata(sd);
-	struct ispif_cfg_data_ext pcdata = {0};
+	struct ispif_cfg_data_ext pcdata;
 	struct msm_ispif_param_data_ext *params = NULL;
-
-	if (is_compat_task()) {
 #ifdef CONFIG_COMPAT
-		struct ispif_cfg_data_ext_32 *pcdata32 =
-			(struct ispif_cfg_data_ext_32 *)arg;
+	struct ispif_cfg_data_ext_32 *pcdata32 =
+		(struct ispif_cfg_data_ext_32 *)arg;
 
-		if (pcdata32 == NULL) {
-			pr_err("Invalid params passed from user\n");
-			return -EINVAL;
-		}
-		pcdata.cfg_type  = pcdata32->cfg_type;
-		pcdata.size = pcdata32->size;
-		pcdata.data = compat_ptr(pcdata32->data);
-#endif
-	} else {
-		struct ispif_cfg_data_ext *pcdata64 =
+	if (pcdata32 == NULL) {
+		pr_err("Invalid params passed from user\n");
+		return -EINVAL;
+	}
+	pcdata.cfg_type  = pcdata32->cfg_type;
+	pcdata.size = pcdata32->size;
+	pcdata.data = compat_ptr(pcdata32->data);
+
+#else
+	struct ispif_cfg_data_ext *pcdata64 =
 		(struct ispif_cfg_data_ext *)arg;
 
-		if (pcdata64 == NULL) {
-			pr_err("Invalid params passed from user\n");
-			return -EINVAL;
-		}
-		pcdata.cfg_type  = pcdata64->cfg_type;
-		pcdata.size = pcdata64->size;
-		pcdata.data = pcdata64->data;
+	if (pcdata64 == NULL) {
+		pr_err("Invalid params passed from user\n");
+		return -EINVAL;
 	}
+	pcdata.cfg_type  = pcdata64->cfg_type;
+	pcdata.size = pcdata64->size;
+	pcdata.data = pcdata64->data;
+#endif
 	if (pcdata.size != sizeof(struct msm_ispif_param_data_ext)) {
 		pr_err("%s: payload size mismatch\n", __func__);
 		return -EINVAL;
@@ -1513,11 +1511,6 @@ static int msm_ispif_init(struct ispif_device *ispif,
 		return rc;
 	}
 
-	rc = msm_camera_enable_irq(ispif->irq, 1);
-	if (rc < 0) {
-		pr_err("%s: Error enabling IRQs\n", __func__);
-		return rc;
-	}
 	/* can we set to zero? */
 	ispif->applied_intf_cmd[VFE0].intf_cmd  = 0xFFFFFFFF;
 	ispif->applied_intf_cmd[VFE0].intf_cmd1 = 0xFFFFFFFF;
@@ -1605,6 +1598,7 @@ static long msm_ispif_cmd(struct v4l2_subdev *sd, void *arg)
 		rc = msm_ispif_restart_frame_boundary(ispif, &pcdata->params);
 		msm_ispif_io_dump_reg(ispif);
 		break;
+
 	case ISPIF_STOP_FRAME_BOUNDARY:
 		rc = msm_ispif_stop_frame_boundary(ispif, &pcdata->params);
 		msm_ispif_io_dump_reg(ispif);
@@ -1689,6 +1683,9 @@ static int ispif_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 		rc = msm_ispif_clk_ahb_enable(ispif, 1);
 		if (rc)
 			goto ahb_clk_enable_fail;
+		rc = msm_camera_enable_irq(ispif->irq, 1);
+		if (rc)
+			goto irq_enable_fail;
 	}
 	/* mem remap is done in init when the clock is on */
 	ispif->open_cnt++;
@@ -1696,6 +1693,8 @@ static int ispif_open_node(struct v4l2_subdev *sd, struct v4l2_subdev_fh *fh)
 	return rc;
 ahb_clk_enable_fail:
 	msm_ispif_set_regulators(ispif->ispif_vdd, ispif->ispif_vdd_count, 0);
+irq_enable_fail:
+	msm_ispif_clk_ahb_enable(ispif, 0);
 unlock:
 	mutex_unlock(&ispif->mutex);
 	return rc;
@@ -1809,7 +1808,8 @@ static int ispif_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, &ispif->msm_sd.sd);
 
-	media_entity_pads_init(&ispif->msm_sd.sd.entity, 0, NULL);
+	media_entity_init(&ispif->msm_sd.sd.entity, 0, NULL, 0);
+	ispif->msm_sd.sd.entity.type = MEDIA_ENT_T_V4L2_SUBDEV;
 	ispif->msm_sd.sd.entity.group_id = MSM_CAMERA_SUBDEV_ISPIF;
 	ispif->msm_sd.sd.entity.name = pdev->name;
 	ispif->msm_sd.close_seq = MSM_SD_CLOSE_1ST_CATEGORY | 0x1;

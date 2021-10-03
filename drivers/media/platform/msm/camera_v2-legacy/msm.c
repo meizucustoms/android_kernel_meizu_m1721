@@ -1,4 +1,4 @@
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -37,7 +37,6 @@ static struct list_head    ordered_sd_list;
 static struct mutex        ordered_sd_mtx;
 static struct mutex        v4l2_event_mtx;
 
-static atomic_t qos_add_request_done = ATOMIC_INIT(0);
 static struct pm_qos_request msm_v4l2_pm_qos_request;
 
 static struct msm_queue_head *msm_session_q;
@@ -217,25 +216,22 @@ static inline int __msm_queue_find_command_ack_q(void *d1, void *d2)
 	return (ack->stream_id == *(unsigned int *)d2) ? 1 : 0;
 }
 
-static inline void msm_pm_qos_add_request(void)
+static void msm_pm_qos_add_request(void)
 {
-	pr_info("%s: add request\n", __func__);
-	if (atomic_cmpxchg(&qos_add_request_done, 0, 1))
-		return;
+	pr_info("%s: add request", __func__);
 	pm_qos_add_request(&msm_v4l2_pm_qos_request, PM_QOS_CPU_DMA_LATENCY,
 	PM_QOS_DEFAULT_VALUE);
 }
 
 static void msm_pm_qos_remove_request(void)
 {
-	pr_info("%s: remove request\n", __func__);
+	pr_info("%s: remove request", __func__);
 	pm_qos_remove_request(&msm_v4l2_pm_qos_request);
 }
 
 void msm_pm_qos_update_request(int val)
 {
-	pr_info("%s: update request %d\n", __func__, val);
-	msm_pm_qos_add_request();
+	pr_info("%s: update request %d", __func__, val);
 	pm_qos_update_request(&msm_v4l2_pm_qos_request, val);
 }
 
@@ -373,8 +369,8 @@ static inline int __msm_sd_register_subdev(struct v4l2_subdev *sd)
 	}
 
 #if defined(CONFIG_MEDIA_CONTROLLER)
-	sd->entity.info.dev.major = VIDEO_MAJOR;
-	sd->entity.info.dev.minor = vdev->minor;
+	sd->entity.info.v4l.major = VIDEO_MAJOR;
+	sd->entity.info.v4l.minor = vdev->minor;
 	sd->entity.name = video_device_node_name(vdev);
 #endif
 	sd->devnode = vdev;
@@ -612,7 +608,7 @@ static inline int __msm_remove_session_cmd_ack_q(void *d1, void *d2)
 {
 	struct msm_command_ack *cmd_ack = d1;
 
-	if (&cmd_ack->command_q == NULL)
+	if (!(&cmd_ack->command_q))
 		return 0;
 
 	msm_queue_drain(&cmd_ack->command_q, struct msm_command, list);
@@ -622,7 +618,7 @@ static inline int __msm_remove_session_cmd_ack_q(void *d1, void *d2)
 
 static void msm_remove_session_cmd_ack_q(struct msm_session *session)
 {
-	if ((!session) || (&session->command_ack_q == NULL))
+	if ((!session) || !(&session->command_ack_q))
 		return;
 
 	mutex_lock(&session->lock);
@@ -1094,7 +1090,7 @@ static struct v4l2_file_operations msm_fops = {
 	.open   = msm_open,
 	.poll   = msm_poll,
 	.release = msm_close,
-	.unlocked_ioctl   = video_ioctl2,
+	.ioctl   = video_ioctl2,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl32 = video_ioctl2,
 #endif
@@ -1335,10 +1331,11 @@ static int msm_probe(struct platform_device *pdev)
 	if (WARN_ON(rc < 0))
 		goto media_fail;
 
-	if (WARN_ON((rc == media_entity_pads_init(&pvdev->vdev->entity,
-					0, NULL)) < 0))
+	if (WARN_ON((rc == media_entity_init(&pvdev->vdev->entity,
+			0, NULL, 0)) < 0))
 		goto entity_fail;
 
+	pvdev->vdev->entity.type = MEDIA_ENT_T_DEVNODE_V4L;
 	pvdev->vdev->entity.group_id = QCAMERA_VNODE_GROUP_ID;
 #endif
 
@@ -1350,7 +1347,6 @@ static int msm_probe(struct platform_device *pdev)
 	if (WARN_ON(rc < 0))
 		goto register_fail;
 
-	media_device_init(msm_v4l2_dev->mdev);
 	strlcpy(pvdev->vdev->name, "msm-config", sizeof(pvdev->vdev->name));
 	pvdev->vdev->release  = video_device_release;
 	pvdev->vdev->fops     = &msm_fops;

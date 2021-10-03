@@ -1,5 +1,4 @@
-/* Copyright (c) 2011-2014, 2017, 2019 The Linux Foundataion.
- * All rights reserved.
+/* Copyright (c) 2011-2014, 2017-2019,The Linux Foundataion. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -436,10 +435,9 @@ int msm_camera_config_vreg(struct device *dev, struct camera_vreg_t *cam_vreg,
 					goto vreg_set_voltage_fail;
 				}
 				if (curr_vreg->op_mode >= 0) {
-					rc = regulator_set_load(
+					rc = regulator_set_optimum_mode(
 						reg_ptr[j],
 						curr_vreg->op_mode);
-					//TODO: ??? rc = 0;
 					if (rc < 0) {
 						pr_err(
 						"%s:%s set optimum mode fail\n",
@@ -462,8 +460,8 @@ int msm_camera_config_vreg(struct device *dev, struct camera_vreg_t *cam_vreg,
 			if (reg_ptr[j]) {
 				if (regulator_count_voltages(reg_ptr[j]) > 0) {
 					if (curr_vreg->op_mode >= 0) {
-						regulator_set_load(
-								reg_ptr[j], 0);
+						regulator_set_optimum_mode(
+							reg_ptr[j], 0);
 					}
 					regulator_set_voltage(
 						reg_ptr[j], 0, curr_vreg->
@@ -478,7 +476,7 @@ int msm_camera_config_vreg(struct device *dev, struct camera_vreg_t *cam_vreg,
 
 vreg_unconfig:
 if (regulator_count_voltages(reg_ptr[j]) > 0)
-	regulator_set_load(reg_ptr[j], 0);
+	regulator_set_optimum_mode(reg_ptr[j], 0);
 
 vreg_set_opt_mode_fail:
 if (regulator_count_voltages(reg_ptr[j]) > 0)
@@ -681,7 +679,7 @@ int msm_camera_config_single_vreg(struct device *dev,
 				goto vreg_set_voltage_fail;
 			}
 			if (cam_vreg->op_mode >= 0) {
-				rc = regulator_set_load(*reg_ptr,
+				rc = regulator_set_optimum_mode(*reg_ptr,
 					cam_vreg->op_mode);
 				if (rc < 0) {
 					pr_err(
@@ -704,7 +702,7 @@ int msm_camera_config_single_vreg(struct device *dev,
 			regulator_disable(*reg_ptr);
 			if (regulator_count_voltages(*reg_ptr) > 0) {
 				if (cam_vreg->op_mode >= 0)
-					regulator_set_load(*reg_ptr, 0);
+					regulator_set_optimum_mode(*reg_ptr, 0);
 				regulator_set_voltage(
 					*reg_ptr, 0, cam_vreg->max_voltage);
 			}
@@ -718,7 +716,7 @@ int msm_camera_config_single_vreg(struct device *dev,
 
 vreg_unconfig:
 if (regulator_count_voltages(*reg_ptr) > 0)
-	regulator_set_load(*reg_ptr, 0);
+	regulator_set_optimum_mode(*reg_ptr, 0);
 
 vreg_set_opt_mode_fail:
 if (regulator_count_voltages(*reg_ptr) > 0)
