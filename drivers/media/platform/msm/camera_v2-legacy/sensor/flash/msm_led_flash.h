@@ -19,7 +19,7 @@
 #include <media/msm_cam_sensor-legacy.h>
 #include <media/v4l2-ioctl.h>
 #include <media/v4l2-subdev.h>
-#include <soc/qcom/camera2.h>
+#include <soc/qcom/camera2-legacy.h>
 #include "msm_camera_i2c.h"
 
 struct msm_led_flash_ctrl_t;
