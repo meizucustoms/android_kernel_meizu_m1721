@@ -696,8 +696,10 @@ static int msm_eeprom_config(struct msm_eeprom_ctrl_t *e_ctrl,
 		if (e_ctrl->userspace_probe == 0) {
 			pr_err("%s:%d Eeprom already probed at kernel boot",
 				__func__, __LINE__);
+#ifndef CONFIG_MACH_XIAOMI_C6
 			rc = -EINVAL;
 			break;
+#endif
 		}
 		if (e_ctrl->cal_data.num_data == 0) {
 			rc = eeprom_init_config(e_ctrl, argp);

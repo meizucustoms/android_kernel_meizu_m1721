@@ -306,12 +306,60 @@ int msm_sensor_match_id(struct msm_sensor_ctrl_t *s_ctrl)
 		return rc;
 	}
 
+#ifdef CONFIG_MACH_XIAOMI_C6
+	switch (s_ctrl->sensordata->slave_info->sensor_id) {
+	case 0x20c7:
+		s_ctrl->sensor_i2c_client->cci_client->sid = 80;
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+			s_ctrl->sensor_i2c_client, 1, &camera_revision, 1);
+		if (rc) {
+			s_ctrl->sensor_i2c_client->cci_client->sid = 81;
+			rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+				s_ctrl->sensor_i2c_client, 1, &camera_revision, 1);
+			if (rc) {
+				mz_err("Failed to read camera id (s5k2l7)");
+				return rc;
+			}
+		}
+		break;
+	case 0x3108:
+		s_ctrl->sensor_i2c_client->cci_client->sid = 80;
+		rc = s_ctrl->sensor_i2c_client->i2c_func_tbl->i2c_read(
+			s_ctrl->sensor_i2c_client, 1, &camera_revision, 1);
+		if (rc) {
+			mz_err("Failed to read camera id (s5k3p8sp03)\n");
+			return rc;
+		}
+		break;
+	}
+#endif
+
 	pr_debug("%s: read id: 0x%x expected id 0x%x:\n",
 			__func__, chipid, slave_info->sensor_id);
 	if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
+#ifndef CONFIG_MACH_XIAOMI_C6
 		pr_err("%s chip id %x does not match %x\n",
 				__func__, chipid, slave_info->sensor_id);
 		return -ENODEV;
+#else
+		pr_err("%s chip id %x does not match %x (%s) | try again\n",
+				__func__, chipid, slave_info->sensor_id, sensor_name);
+		rc = sensor_i2c_client->i2c_func_tbl->i2c_read(
+		 	 sensor_i2c_client, slave_info->sensor_id_reg_addr,
+		 	 &chipid, MSM_CAMERA_I2C_WORD_DATA);
+		if (rc < 0) {
+			pr_err("%s: %s: read id failed\n", __func__, sensor_name);
+			return rc;
+		}
+
+		pr_err("%s: read id: 0x%x expected id 0x%x: (att: 2)\n",
+				__func__, chipid, slave_info->sensor_id);
+		if (msm_sensor_id_by_mask(s_ctrl, chipid) != slave_info->sensor_id) {
+			pr_err("%s chip id %x does not match %x (%s) | att 2, return.\n",
+				__func__, chipid, slave_info->sensor_id, sensor_name);
+			return rc;
+		}
+#endif
 	}
 	return rc;
 }
