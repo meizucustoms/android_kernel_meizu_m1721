@@ -2621,7 +2621,7 @@ static int gt9xx_mido_proc_init(struct kernfs_node *sysfs_node_parent)
 {
        int len, ret = 0;
        char *buf;
-       char *key_disabler_sysfs_node, *double_tap_sysfs_node;
+       char *double_tap_sysfs_node;
        struct proc_dir_entry *proc_entry_tp = NULL;
        struct proc_dir_entry *proc_symlink_tmp = NULL;
 
@@ -2642,17 +2642,6 @@ static int gt9xx_mido_proc_init(struct kernfs_node *sysfs_node_parent)
                goto exit;
        }
 
-       key_disabler_sysfs_node = kzalloc(PATH_MAX, GFP_KERNEL);
-       if (key_disabler_sysfs_node)
-               sprintf(key_disabler_sysfs_node, "/sys%s/%s", buf, "disable_keys");
-       proc_symlink_tmp = proc_symlink("capacitive_keys_disable",
-                       proc_entry_tp, key_disabler_sysfs_node);
-       if (proc_symlink_tmp == NULL) {
-               pr_err("%s: Couldn't create capacitive_keys_enable symlink\n", __func__);
-               ret = -ENOMEM;
-               goto exit;
-       }
-
        double_tap_sysfs_node = kzalloc(PATH_MAX, GFP_KERNEL);
        if (double_tap_sysfs_node)
                sprintf(double_tap_sysfs_node, "/sys%s/%s", buf, "enable_dt2w");
@@ -2666,7 +2655,6 @@ static int gt9xx_mido_proc_init(struct kernfs_node *sysfs_node_parent)
 
 exit:
        kfree(buf);
-       kfree(key_disabler_sysfs_node);
        kfree(double_tap_sysfs_node);
        return ret;
 }
