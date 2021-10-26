@@ -205,6 +205,50 @@ static ssize_t fts_gesture_buf_store(struct device *dev,
 	return -EPERM;
 }
 
+#ifdef CONFIG_MACH_XIAOMI_C6
+static int fts_gesture_create_proc_symlinks(struct kernfs_node *sysfs_node_parent)
+{
+       int len, ret = 0;
+       char *buf;
+       char *double_tap_sysfs_node;
+       struct proc_dir_entry *proc_entry_tp = NULL;
+       struct proc_dir_entry *proc_symlink_tmp = NULL;
+
+       buf = kzalloc(PATH_MAX, GFP_KERNEL);
+       if (buf) {
+               len = kernfs_path(sysfs_node_parent, buf, PATH_MAX);
+               if (unlikely(len >= PATH_MAX)) {
+                          pr_err("%s: Buffer too long: %d\n", __func__, len);
+                          ret = -ERANGE;
+                          goto exit;
+               }
+       }
+
+       proc_entry_tp = proc_mkdir("touchpanel", NULL);
+       if (proc_entry_tp == NULL) {
+               pr_err("%s: Couldn't create touchpanel dir in procfs\n", __func__);
+               ret = -ENOMEM;
+               goto exit;
+       }
+
+       double_tap_sysfs_node = kzalloc(PATH_MAX, GFP_KERNEL);
+       if (double_tap_sysfs_node)
+               sprintf(double_tap_sysfs_node, "/sys%s/%s", buf, "enable_dt2w");
+       proc_symlink_tmp = proc_symlink("enable_dt2w",
+               proc_entry_tp, double_tap_sysfs_node);
+       if (proc_symlink_tmp == NULL) {
+               pr_err("%s: Couldn't create double_tap_enable symlink\n", __func__);
+               ret = -ENOMEM;
+               goto exit;
+       }
+
+exit:
+       kfree(buf);
+       kfree(double_tap_sysfs_node);
+       return ret;
+}
+#endif
+
 /*****************************************************************************
  *   Name: fts_create_gesture_sysfs
  *  Brief:
@@ -222,6 +266,14 @@ int fts_create_gesture_sysfs(struct i2c_client *client)
 		sysfs_remove_group(&client->dev.kobj, &fts_gesture_group);
 		return ret;
 	}
+
+#ifdef CONFIG_MACH_XIAOMI_C6
+	ret = fts_gesture_create_proc_symlinks(client->dev.kobj.sd);
+	if (ret != 0) {
+		FTS_ERROR("[GESTURE]fts_gesture_group(procfs) create failed!");
+	}
+#endif
+
 	return 0;
 }
 
