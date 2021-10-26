@@ -457,7 +457,7 @@ int fts_gesture_suspend(struct i2c_client *i2c_client)
 	}
 
 	// System should be able to handle interrupts from fts if gesture's enabled
-	enable_irq_wake(client->irq);
+	enable_irq_wake(i2c_client->irq);
 
 	fts_gesture_data.enabled = true;
 	FTS_DEBUG("[GESTURE]Enter into gesture(suspend) successfully!");
