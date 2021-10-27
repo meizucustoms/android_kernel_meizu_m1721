@@ -1552,7 +1552,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	struct cs35l35_private *cs35l35;
 	struct device *dev = &i2c_client->dev;
 	struct cs35l35_platform_data *pdata = dev_get_platdata(dev);
-  struct cs35l35_work_data *work_data;
+  	struct cs35l35_work_data *work_data;
 	int i, irq;
 	int ret;
 	unsigned int devid = 0;
@@ -1564,11 +1564,11 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	if (!cs35l35)
 		return -ENOMEM;
 
-  work_data = devm_kzalloc(dev, sizeof(struct cs35l35_work_data), GFP_KERNEL);
+ 	work_data = devm_kzalloc(dev, sizeof(struct cs35l35_work_data), GFP_KERNEL);
 	if (!work_data)
 		return -ENOMEM;
 
-  work_data->cs35l35 = cs35l35;
+  	work_data->cs35l35 = cs35l35;
 
 	cs35l35->dev = dev;
 
@@ -1615,38 +1615,36 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-  cs35l35->reset_gpio =
-      of_get_named_gpio_flags(i2c_client->dev.of_node, "reset-gpio", 0, 0);
-  if (cs35l35->reset_gpio < 0) {
-    dev_err(dev, "invalid reset GPIO: %d\n", __func__, cs35l35->reset_gpio);
-    goto err;
-  }
+	cs35l35->reset_gpio =
+		of_get_named_gpio_flags(i2c_client->dev.of_node, "reset-gpio", 0, 0);
+	if (cs35l35->reset_gpio < 0) {
+		dev_err(dev, "invalid reset GPIO: %d\n", __func__, cs35l35->reset_gpio);
+		goto err;
+	}
 
-  ret = gpio_request_one(cs35l35->reset_gpio, 0, "cs35l35_reset");
-  if (ret != 0) {
-    dev_err(dev, "failed to request reset GPIO: %d\n", __func__, ret);
-    goto err;
-  }
+	ret = gpio_request_one(cs35l35->reset_gpio, 0, "cs35l35_reset");
+	if (ret != 0) {
+		dev_err(dev, "failed to request reset GPIO: %d\n", __func__, ret);
+		goto err;
+	}
 
-  gpio_direction_output(cs35l35->reset_gpio, 1);
+	gpio_direction_output(cs35l35->reset_gpio, 1);
 
 	init_completion(&cs35l35->pdn_done);
 
-  cs35l35->irq_gpio =
-      of_get_named_gpio_flags(i2c_client->dev.of_node, "irq-gpio", 0, 0);
-  if (cs35l35->irq_gpio < 0) {
-    dev_err(dev, "invalid IRQ GPIO: %d\n", __func__, cs35l35->irq_gpio);
-    goto err;
-  }
+	cs35l35->irq_gpio =
+		of_get_named_gpio_flags(i2c_client->dev.of_node, "irq-gpio", 0, 0);
+	if (cs35l35->irq_gpio < 0) {
+		dev_err(dev, "invalid IRQ GPIO: %d\n", __func__, cs35l35->irq_gpio);
+		goto err;
+	}
 
-  /* MEIZU SHIT */
-  work_data->wq = alloc_workqueue("cs35l35_eint", 
-                    WQ_UNBOUND | WQ_MEM_RECLAIM | 
-                    __WQ_ORDERED, 1);
+	/* MEIZU SHIT */
+	work_data->wq = alloc_ordered_workqueue("cs35l35_eint", WQ_MEM_RECLAIM);
 
-  INIT_WORK(&work_data->ws, cs35l35_eint_work_callback);
+	INIT_WORK(&work_data->ws, cs35l35_eint_work_callback);
 
-  irq = irq_of_parse_and_map(dev->of_node, 0);
+	irq = irq_of_parse_and_map(dev->of_node, 0);
 
 	ret = request_threaded_irq(irq, cs35l35_eint_func, 
           NULL, 0, "cirrus-cs35l35-eint", work_data);
