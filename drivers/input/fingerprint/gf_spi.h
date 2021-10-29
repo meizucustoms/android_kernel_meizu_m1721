@@ -103,7 +103,7 @@ struct gf_ioc_chip_info {
 #define VER_TYPE    "meizusucks-debug"
 #define VER_DESC    "part of the MeizuSucks project."
 
-#define WAKEUP_HOLD_TIME 500 /* in ms */
+#define WAKEUP_HOLD_TIME 2000 /* in ms */
 
 #define GF_SPIDEV_NAME     "goodix,fingerprint"
 /*device name after register in charater*/
@@ -113,7 +113,6 @@ struct gf_ioc_chip_info {
 #define	CLASS_NAME		    "goodix_fp"
 
 #define N_SPI_MINORS		32	/* ... up to 256 */
-#define SPIDEV_MAJOR        255
 
 #define gf_info(fmt, args...) pr_info("gf: %s: " fmt, __func__, ##args);
 #define gf_warn(fmt, args...) pr_warn("gf: %s: " fmt, __func__, ##args);

@@ -55,6 +55,7 @@ static struct wakeup_source fp_wakeup_source;
 static struct gf_dev gf;
 static int pid = 0;
 static struct sock *nl_sk = NULL;
+static int gf_major = -1;
 
 struct gf_key_map maps[] = {
 	{ EV_KEY, GF_KEY_INPUT_HOME },
@@ -210,9 +211,9 @@ static int gf_hw_reset(struct gf_dev *gf_dev, unsigned int delay_ms)
 	}
 	gpio_direction_output(gf_dev->reset_gpio, 1);
 	gpio_set_value(gf_dev->reset_gpio, 0);
-	mdelay(3);
+	usleep_range(3000, 4000);
 	gpio_set_value(gf_dev->reset_gpio, 1);
-	mdelay(delay_ms);
+	usleep_range(delay_ms * 1000, delay_ms * 1100);
     gf_info("reset done.");
 	return 0;
 }
@@ -620,7 +621,7 @@ static int gf_probe(struct spi_device *spi)
 	mutex_lock(&device_list_lock);
 	minor = find_first_zero_bit(minors, N_SPI_MINORS);
 	if (minor < N_SPI_MINORS) {
-		gf_dev->devt = MKDEV(SPIDEV_MAJOR, minor);
+		gf_dev->devt = MKDEV(gf_major, minor);
 		dev = device_create(gf_class, &gf_dev->spi->dev, gf_dev->devt,
 				gf_dev, "goodix_fp");
 		status = IS_ERR(dev) ? PTR_ERR(dev) : 0;
@@ -709,7 +710,6 @@ static int gf_remove(struct spi_device *spi)
 {
 	struct gf_dev *gf_dev = &gf;
 
-	wakeup_source_trash(&fp_wakeup_source);
 	/* make sure ops on existing fds can abort cleanly */
 	if (gf_dev->irq)
 		free_irq(gf_dev->irq, gf_dev);
@@ -725,11 +725,14 @@ static int gf_remove(struct spi_device *spi)
 	device_destroy(gf_class, gf_dev->devt);
 	clear_bit(MINOR(gf_dev->devt), minors);
 
-	if (gf_dev->users == 0)
+	if (gf_dev->users == 0) {
 		gf_cleanup(gf_dev);
+		mutex_unlock(&device_list_lock);
+	}
+
+	wakeup_source_trash(&fp_wakeup_source);
 
 	fb_unregister_client(&gf_dev->gf_notifier);
-	mutex_unlock(&device_list_lock);
 
 	return 0;
 }
@@ -760,21 +763,22 @@ static int __init gf_init(void)
 	 */
 
 	BUILD_BUG_ON(N_SPI_MINORS > 256);
-	status = register_chrdev(SPIDEV_MAJOR, "goodix_fp_spi", &gf_fops);
-	if (status < 0) {
+	/* Dynamically allocate a major */
+	gf_major = register_chrdev(0, CHRD_DRIVER_NAME, &gf_fops);
+	if (gf_major < 0) {
 		gf_err("Failed to register char device!\n");
-		return status;
+		return gf_major;
 	}
 	gf_class = class_create(THIS_MODULE, "goodix_fp");
 	if (IS_ERR(gf_class)) {
-		unregister_chrdev(SPIDEV_MAJOR, gf_driver.driver.name);
+		unregister_chrdev(gf_major, gf_driver.driver.name);
 		gf_err("Failed to create class.\n");
 		return PTR_ERR(gf_class);
 	}
 	status = spi_register_driver(&gf_driver);
 	if (status < 0) {
 		class_destroy(gf_class);
-		unregister_chrdev(SPIDEV_MAJOR, gf_driver.driver.name);
+		unregister_chrdev(gf_major, gf_driver.driver.name);
 		gf_err("Failed to register SPI driver.\n");
 	}
 
@@ -807,7 +811,8 @@ static void __exit gf_exit(void)
 	gf_info("netlink: self module exited\n");
 	spi_unregister_driver(&gf_driver);
 	class_destroy(gf_class);
-	unregister_chrdev(SPIDEV_MAJOR, gf_driver.driver.name);
+	if (gf_major >= 0)
+		unregister_chrdev(gf_major, gf_driver.driver.name);
 }
 module_exit(gf_exit);
 
