@@ -323,6 +323,42 @@ static void aw36413_get_vendor_id(void) {
   aw_info("done\n");
 }
 
+static int aw36413_request_gpio(void) {
+  int ret;
+
+  if (gpio_is_valid(aw36413->hwen1)) {
+    ret = gpio_request(aw36413->hwen1, "aw36413_hwen1");
+    if (ret < 0) {
+      aw_err("Failed to request HWEN1: %d\n", ret);
+      goto hwen1;
+    }
+  }
+
+  if (gpio_is_valid(aw36413->hwen2)) {
+    ret = gpio_request(aw36413->hwen2, "aw36413_hwen2");
+    if (ret < 0) {
+      aw_err("Failed to request HWEN2: %d\n", ret);
+      goto hwen2;
+    }
+  }
+
+  if (gpio_is_valid(aw36413->strobe)) {
+    ret = gpio_request(aw36413->strobe, "aw36413_strobe");
+    if (ret < 0) {
+      aw_err("Failed to request STROBE: %d\n", ret);
+      goto strobe;
+    }
+  }
+
+  return 0;
+strobe:
+  gpio_free(aw36413->hwen2);
+hwen2:
+  gpio_free(aw36413->hwen1);
+hwen1:
+  return ret;
+}
+
 static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
                                        const struct i2c_device_id *id) {
   int ret;
@@ -351,11 +387,14 @@ static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
     return -EINVAL;
   }
 
+  // if (!fctrl.flashdata) {
+  //   aw_err("Qualcomm driver was not initialized yet\n");
+  //   return -EINVAL; 
+  // }
+
   msm_flash_i2c_probe(client, id);
 
-  ret = msm_camera_request_gpio_table(
-      fctrl.flashdata->power_info.gpio_conf->cam_gpio_req_tbl,
-      fctrl.flashdata->power_info.gpio_conf->cam_gpio_req_tbl_size, 1);
+  ret = aw36413_request_gpio();
   if (ret) {
     aw_err("GPIO request error\n");
     return ret;
@@ -409,13 +448,6 @@ static int msm_flash_aw36413_i2c_remove(struct i2c_client *client) {
   int ret = 0;
 
   aw_info("enter\n");
-  ret = msm_camera_request_gpio_table(
-      fctrl.flashdata->power_info.gpio_conf->cam_gpio_req_tbl,
-      fctrl.flashdata->power_info.gpio_conf->cam_gpio_req_tbl_size, 0);
-  if (ret) {
-    aw_err("request GPIO failed\n");
-    return ret;
-  }
 
   if (fctrl.pinctrl_info.use_pinctrl != false) {
     aw_info("set pinctrl state to suspend\n");
@@ -426,6 +458,7 @@ static int msm_flash_aw36413_i2c_remove(struct i2c_client *client) {
       return ret;
     }
   }
+
   gpio_free(aw36413->hwen1);
   gpio_free(aw36413->hwen2);
   gpio_free(aw36413->strobe);
