@@ -528,8 +528,9 @@ int msm_flash_i2c_probe(struct i2c_client *client,
   }
 
   fctrl = (struct msm_led_flash_ctrl_t *)(id->driver_data);
-  if (fctrl->flash_i2c_client)
-    fctrl->flash_i2c_client->client = client;
+  
+  fctrl->flash_i2c_client->client = client;
+  
   /* Set device type as I2C */
   fctrl->flash_device_type = MSM_CAMERA_I2C_DEVICE;
 
