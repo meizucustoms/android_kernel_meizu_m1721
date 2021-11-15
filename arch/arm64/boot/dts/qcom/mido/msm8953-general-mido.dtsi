@@ -233,6 +233,19 @@
 		};
 	};
 
+	hall {
+		compatible = "hall-switch";
+		interrupt-parent = <&tlmm>;
+		interrupts = <13 0x2003>;
+		linux,gpio-int = <&tlmm 13 1>;
+		linux,max-uv = <3300000>;
+		linux,min-uv = <1650000>;
+		linux,wakeup;
+		pinctrl-0 = <&hall_irq>;
+		pinctrl-names = "default";
+		vddio-supply = <&pm8953_l6>;
+	};
+
 	spi@78b5000 {
 		status = "ok";
 
