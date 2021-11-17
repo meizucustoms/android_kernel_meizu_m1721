@@ -235,15 +235,15 @@
 
 	hall {
 		compatible = "hall-switch";
+		pinctrl-names = "default";
+		pinctrl-0 = <&hall_sensor_int_default>;
 		interrupt-parent = <&tlmm>;
 		interrupts = <13 0x2003>;
-		linux,gpio-int = <&tlmm 13 1>;
-		linux,max-uv = <3300000>;
-		linux,min-uv = <1650000>;
-		linux,wakeup;
-		pinctrl-0 = <&hall_irq>;
-		pinctrl-names = "default";
 		vddio-supply = <&pm8953_l6>;
+		linux,gpio-int = <&tlmm 13 1>;
+		linux,wakeup;
+		linux,min-uv = <1650000>;
+		linux,max-uv = <3300000>;
 	};
 
 	spi@78b5000 {

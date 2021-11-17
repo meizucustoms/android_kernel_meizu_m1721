@@ -1,6 +1,6 @@
 /*
  *
- * Copyright (c) 2014-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014-2015,2017 The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -29,28 +29,6 @@
 #define	LID_DEV_NAME	"hall_sensor"
 #define HALL_INPUT	"/dev/input/hall_dev"
 
-static int hall_sensor_create_attr(void);
-static int hallsensorvalue =-1;
-/*
-static ssize_t hall_show_value(struct device *dev,struct device_attribute *attr,char *buf)
-{
-	return sprintf(buf,"%d\n",hallsensorvalue);
-}
-
-static struct device_attribute hall_attr = {
-	.attr = {.name = "hallsensorvalue", .mode = 0644},
-	.show = hall_show_value,
-};*/
-static ssize_t hall_show_value(struct device_driver *driver,char *buf)
-{
-	return sprintf(buf,"%d\n",hallsensorvalue);
-}
-
-static struct driver_attribute hall_attr = {
-	.attr = {.name = "hallsensorvalue", .mode = 0644},
-	.show = hall_show_value,
-};
-
 struct hall_data {
 	int gpio;	/* device use gpio number */
 	int irq;	/* device request irq number */
@@ -77,8 +55,7 @@ static irqreturn_t hall_interrupt_handler(int irq, void *dev)
 		dev_dbg(&data->hall_dev->dev, "near\n");
 	}
 	input_sync(data->hall_dev);
-      hallsensorvalue = value;
-	  
+
 	return IRQ_HANDLED;
 }
 
@@ -136,8 +113,6 @@ static int hall_config_regulator(struct platform_device *dev, bool on)
 			}
 		}
 		return rc;
-	} else {
-		goto deinit_vregs;
 	}
 
 deinit_vregs:
@@ -162,15 +137,14 @@ static int hall_set_regulator(struct platform_device *dev, bool on)
 			}
 		}
 		return rc;
-	} else {
-		if (!IS_ERR_OR_NULL(data->vddio)) {
-			rc = regulator_disable(data->vddio);
-			if (rc)
-				dev_err(&dev->dev, "Disable regulator vddio failed rc=%d\n",
-					rc);
-		}
-		return 0;
 	}
+	if (!IS_ERR_OR_NULL(data->vddio)) {
+		rc = regulator_disable(data->vddio);
+		if (rc)
+			dev_err(&dev->dev, "Disable regulator vddio failed rc=%d\n",
+				rc);
+	}
+	return 0;
 
 disable_regulator:
 	if (!IS_ERR_OR_NULL(data->vddio))
@@ -292,13 +266,6 @@ static int hall_driver_probe(struct platform_device *dev)
 		goto err_regulator_init;
 	}
 
-	err = hall_sensor_create_attr();
-	//err =device_create_file(&(dev->dev), &hall_attr);
-      if(err<0){
-		dev_err(&dev->dev,"create attr failed:%d\n",err);
-		goto exit;
-	}
-
 	return 0;
 
 err_regulator_init:
@@ -350,10 +317,6 @@ static struct platform_driver hall_driver = {
 	.id_table = hall_id,
 };
 
-static int hall_sensor_create_attr(void)
-{
-	return driver_create_file(&(hall_driver.driver),&hall_attr);
-}
 static int __init hall_init(void)
 {
 	return platform_driver_register(&hall_driver);

@@ -76,15 +76,18 @@
             };
         };
 
+		// Hall sensor
 		hall_int_pin {
-			label = "hall-irq";
-			qcom,num-grp-pins = <1>;
-			qcom,pin-func = <0>;
-			qcom,pins = "gpio13";
-
-			hall_irq: hall_sensor_int_default {
-				bias-pull-up;
-				drive-strength = <6>; /* 6 mA */
+			hall_sensor_int_default: hall_sensor_int_default {
+				mux {
+					pins = "gpio13";
+					function = "gpio";
+				};
+				config {
+					pins = "gpio13";
+					drive-dtrength = <6>;
+					bias-pull-up;
+				};
 			};
 		};
 

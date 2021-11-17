@@ -200,8 +200,8 @@ config INPUT_KEYCOMBO
 	---help---
 	  Say Y here if you want to take action when some keys are pressed;
 
-config SENSORS_MZ_HALL
-	bool "Meizu hall sensor"
+config CONFIG_SENSORS_HALL
+	bool "Hall sensor"
 	depends on INPUT
 	---help---
 	 Say y here if you want to use this hall sensor driver, it
