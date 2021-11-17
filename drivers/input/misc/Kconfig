@@ -889,3 +889,10 @@ config INPUT_HISI_POWERKEY
 	  module will be called hisi_powerkey.
 
 endif
+
+config SENSORS_HALL
+	bool "Hall sensor"
+	depends on INPUT
+	---help---
+	 Say y here if you want to use this hall sensor driver, it
+	 is like a switch. For example, lid.
