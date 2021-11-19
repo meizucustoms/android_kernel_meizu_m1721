@@ -30,27 +30,6 @@
     qcom,panel-supply-entries = <&dsi_panel_pwr_supply>;
 };
 
-&mdss_mdp {
-	/delete-node/ qcom,mdss_dsi_sim_video;
-	/delete-node/ qcom,mdss_dsi_dual_sim_video;
-	/delete-node/ qcom,mdss_dsi_sim_cmd;
-	/delete-node/ qcom,mdss_dsi_dual_sim_cmd;
-	/delete-node/ qcom,mdss_dsi_truly_1080p_video;
-	/delete-node/ qcom,mdss_dsi_truly_1080p_cmd;
-	/delete-node/ qcom,mdss_dsi_adv7533_1080p;
-	/delete-node/ qcom,mdss_dsi_adv7533_720p;
-	/delete-node/ qcom,mdss_dsi_r69006_1080p_video;
-	/delete-node/ qcom,mdss_dsi_r69006_1080p_cmd;
-	/delete-node/ qcom,mdss_dsi_truly_wuxga_video;
-	/delete-node/ qcom,mdss_dsi_lt8912_1080p_video;
-	/delete-node/ qcom,mdss_dsi_lt8912_480p_video;
-	/delete-node/ qcom,mdss_dsi_hx8399c_truly_video;
-	/delete-node/ qcom,mdss_dsi_boyi_hx83100a_800p_video;
-	/delete-node/ qcom,mdss_dsi_boent51021_1200p_video;
-	/delete-node/ qcom,mdss_dsi_hx8394d_kingdisplay_vid;
-	/delete-node/ qcom,mdss_dsi_inxnt51021_1200p_video;
-};
-
 &mdss_dsi0 {
 	qcom,dsi-pref-prim-pan = <&dsi_hx8399c_tcl_1080p>;
 	qcom,dsi-pref-sub-pan = <&dsi_ili7807d_txdkj_1080p>;
