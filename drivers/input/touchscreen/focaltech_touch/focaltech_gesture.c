@@ -205,7 +205,7 @@ static ssize_t fts_gesture_buf_store(struct device *dev,
 	return -EPERM;
 }
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 static int fts_gesture_create_proc_symlinks(struct kernfs_node *sysfs_node_parent)
 {
        int len, ret = 0;
@@ -267,7 +267,7 @@ int fts_create_gesture_sysfs(struct i2c_client *client)
 		return ret;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	ret = fts_gesture_create_proc_symlinks(client->dev.kobj.sd);
 	if (ret != 0) {
 		FTS_ERROR("[GESTURE]fts_gesture_group(procfs) create failed!");

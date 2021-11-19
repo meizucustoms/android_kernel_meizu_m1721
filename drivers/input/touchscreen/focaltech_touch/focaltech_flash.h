@@ -53,7 +53,7 @@ enum FILE_SIZE_TYPE {
 	FW_SIZE,
 	FW2_SIZE,
 	FW3_SIZE,
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	FW_BLACK_SIZE,
 	FW_WHITE_SIZE,
 	FW2_BLACK_SIZE,
@@ -114,7 +114,7 @@ extern struct fts_upgrade_fun fts_updatefun;
 extern u8 CTPM_FW[];
 extern u8 CTPM_FW2[];
 extern u8 CTPM_FW3[];
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 extern u8 CTPM_FW_BLACK[];
 extern u8 CTPM_FW2_BLACK[];
 extern u8 CTPM_FW3_BLACK[];

@@ -296,6 +296,5 @@ static struct platform_driver hall_driver = {
 
 module_platform_driver(hall_driver);
 
-module_init(hall_init);
 MODULE_DESCRIPTION("Hall sensor driver");
 MODULE_LICENSE("GPL v2");

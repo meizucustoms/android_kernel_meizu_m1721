@@ -62,7 +62,7 @@ u8 CTPM_FW3[] = {
 };
 #endif
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 u8 CTPM_FW_BLACK[] = { 
 #include FTS_UPGRADE_FW1_BLACK_APP
 };
@@ -285,7 +285,7 @@ u32 fts_getsize(u8 fw_type)
 {
 	int fw_len = 0;
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	if (fw_type == FW_BLACK_SIZE)
 		fw_len = sizeof(CTPM_FW_BLACK);
 	else if (fw_type == FW2_BLACK_SIZE)

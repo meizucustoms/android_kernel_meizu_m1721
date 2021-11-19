@@ -89,7 +89,7 @@ static bool spkr_boost_en = true;
 static char on_demand_supply_name[][MAX_ON_DEMAND_SUPPLY_NAME_LENGTH] = {
 	"cdc-vdd-mic-bias",
 	"",
-#ifndef CONFIG_MACH_XIAOMI_C6
+#ifndef CONFIG_MACH_MEIZU_M1721
 	"cdc-vdda18-l10",
 	"cdc-vdd-l1",
 #endif
@@ -2854,7 +2854,7 @@ static int msm_anlg_cdc_lo_dac_event(struct snd_soc_dapm_widget *w,
 			MSM89XX_PMIC_ANALOG_RX_LO_DAC_CTL, 0x08, 0x08);
 		snd_soc_update_bits(codec,
 			MSM89XX_PMIC_ANALOG_RX_LO_DAC_CTL, 0x40, 0x40);
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 		msleep(5);
 #endif
 		break;
@@ -3257,7 +3257,7 @@ static int msm_anlg_cdc_codec_enable_lo_pa(struct snd_soc_dapm_widget *w,
 				       DIG_CDC_EVENT_RX3_MUTE_OFF);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 		usleep_range(4000, 4100);
 #endif
 		msm_anlg_cdc_dig_notifier_call(codec,
@@ -3457,7 +3457,7 @@ static const struct snd_soc_dapm_widget msm_anlg_cdc_dapm_widgets[] = {
 		SND_SOC_DAPM_PRE_PMU |
 		SND_SOC_DAPM_POST_PMD),
 
-#ifndef CONFIG_MACH_XIAOMI_C6
+#ifndef CONFIG_MACH_MEIZU_M1721
 	SND_SOC_DAPM_SUPPLY("VDDA18_L10_REGULATOR", SND_SOC_NOPM,
 		ON_DEMAND_VDDA18_L10, 0,
 		msm_anlg_cdc_codec_enable_on_demand_supply,
@@ -4169,7 +4169,7 @@ static int msm_anlg_cdc_soc_probe(struct snd_soc_codec *codec)
 	atomic_set(&sdm660_cdc->on_demand_list[ON_DEMAND_MICBIAS].ref,
 		   0);
 
-#ifndef CONFIG_MACH_XIAOMI_C6
+#ifndef CONFIG_MACH_MEIZU_M1721
 	msm_anlg_cdc_update_micbias_regulator(
 				sdm660_cdc,
 				on_demand_supply_name[ON_DEMAND_VDD_L1],
@@ -4231,7 +4231,7 @@ static int msm_anlg_cdc_soc_remove(struct snd_soc_codec *codec)
 	sdm660_cdc_priv->on_demand_list[ON_DEMAND_MICBIAS].supply = NULL;
 	atomic_set(&sdm660_cdc_priv->on_demand_list[ON_DEMAND_MICBIAS].ref,
 		   0);
-#ifndef CONFIG_MACH_XIAOMI_C6
+#ifndef CONFIG_MACH_MEIZU_M1721
 	sdm660_cdc_priv->on_demand_list[ON_DEMAND_VDD_L1].supply = NULL;
 	atomic_set(&sdm660_cdc_priv->on_demand_list[ON_DEMAND_VDD_L1].ref,
 		   0);

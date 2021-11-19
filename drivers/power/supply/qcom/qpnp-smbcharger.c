@@ -427,7 +427,7 @@ static const unsigned int smbchg_extcon_cable[] = {
 };
 
 /* fg cc workaround */
-#if defined(CONFIG_MACH_XIAOMI_C6)
+#if defined(CONFIG_MACH_MEIZU_M1721)
 #define NO_CHARGE_COUNTER
 #endif
 

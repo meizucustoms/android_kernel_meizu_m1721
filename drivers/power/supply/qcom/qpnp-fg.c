@@ -244,7 +244,7 @@ enum fg_mem_data_index {
 
 static struct fg_mem_setting settings[FG_MEM_SETTING_MAX] = {
 	/*       ID                    Address, Offset, Value*/
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	SETTING(SOFT_COLD,       0x454,   0,      150),
 	SETTING(SOFT_HOT,        0x454,   1,      450),
 	SETTING(HARD_COLD,       0x454,   2,      0),
@@ -262,7 +262,7 @@ static struct fg_mem_setting settings[FG_MEM_SETTING_MAX] = {
 	SETTING(CHG_TERM_CURRENT, 0x4F8,   2,      250),
 	SETTING(IRQ_VOLT_EMPTY,	 0x458,   3,      3100),
 	SETTING(CUTOFF_VOLTAGE,  0x40C,   0,      3400),
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	SETTING(VBAT_EST_DIFF,	 0x000,   0,      200),
 #else
 	SETTING(VBAT_EST_DIFF,	 0x000,   0,      30),
@@ -348,7 +348,7 @@ module_param_named(
 	battery_type, fg_batt_type, charp, 00600
 );
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 static int fg_sram_update_period_ms = 3000;
 #else
 static int fg_sram_update_period_ms = 30000;

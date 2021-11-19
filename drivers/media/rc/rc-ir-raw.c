@@ -105,7 +105,7 @@ EXPORT_SYMBOL_GPL(ir_raw_event_store);
  * (or similar events) on state change.
  */
 int ir_raw_event_store_edge(struct rc_dev *dev, enum raw_event_type type)
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 {
 	return ir_raw_event_store_edge_with_adjust(dev, type, 0);
 }
@@ -123,7 +123,7 @@ int ir_raw_event_store_edge_with_adjust(struct rc_dev *dev, enum raw_event_type 
 	if (!dev->raw)
 		return -EINVAL;
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	now = ktime_add_ns(ktime_get(), ns);
 #else
 	now = ktime_get();
@@ -155,7 +155,7 @@ int ir_raw_event_store_edge_with_adjust(struct rc_dev *dev, enum raw_event_type 
 	dev->raw->last_type = type;
 	return rc;
 }
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 EXPORT_SYMBOL_GPL(ir_raw_event_store_edge_with_adjust);
 #else
 EXPORT_SYMBOL_GPL(ir_raw_event_store_edge);

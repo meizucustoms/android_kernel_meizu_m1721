@@ -228,7 +228,7 @@
  */
 #define FTS_UPGRADE_FW3_APP		"include/firmware/FT8716_app_sample.i"
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 #define FTS_UPGRADE_FW1_BLACK_APP		"include/firmware/Meizu_m1721_firmware_black_color.i"
 #define FTS_UPGRADE_FW2_BLACK_APP		"include/firmware/Meizu_m1721_firmware2_black_color.i"
 #define FTS_UPGRADE_FW3_BLACK_APP		"include/firmware/Meizu_m1721_firmware3_black_color.i"

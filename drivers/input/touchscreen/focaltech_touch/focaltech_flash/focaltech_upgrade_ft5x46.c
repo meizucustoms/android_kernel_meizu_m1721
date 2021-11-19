@@ -38,7 +38,7 @@
 #include "../focaltech_flash.h"
 #include "focaltech_upgrade_common.h"
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 extern char fts_lcd_name[40];
 #endif
 
@@ -53,7 +53,7 @@ extern char fts_lcd_name[40];
 #define CONFIG_VENDOR_ID_ADDR       (CONFIG_START_ADDR+CONFIG_VENDOR_ID_OFFSET)
 #define CONFIG_PROJECT_ID_ADDR      (CONFIG_START_ADDR+CONFIG_PROJECT_ID_OFFSET)
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 #define CONFIG_LCM_ID_OFFSET        (0x06)
 #define CONFIG_LCM_ID_ADDR       (CONFIG_START_ADDR+CONFIG_LCM_ID_OFFSET)
 #endif
@@ -82,7 +82,7 @@ struct fts_upgrade_fun fts_updatefun = {
 /*****************************************************************************
  * Static function prototypes
  *****************************************************************************/
-#if (FTS_GET_VENDOR_ID_NUM != 0) || (defined CONFIG_MACH_XIAOMI_C6)
+#if (FTS_GET_VENDOR_ID_NUM != 0) || (defined CONFIG_MACH_MEIZU_M1721)
 /************************************************************************
  * Name: fts_ft5x46_get_vendor_id_flash
  * Brief:
@@ -171,7 +171,7 @@ static int fts_ft5x46_get_i_file(struct i2c_client *client, int fw_valid)
 		return ret;
 	}
 
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	// Get LCM id
 	rw_buf[0] = 0x03;
 	rw_buf[1] = 0x00;

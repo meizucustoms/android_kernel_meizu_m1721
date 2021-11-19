@@ -1199,7 +1199,7 @@ static struct rcg_clk camss_gp1_clk_src = {
 };
 
 static struct clk_freq_tbl ftbl_mclk0_clk_src[] = {
-#ifdef CONFIG_MACH_XIAOMI_C6
+#ifdef CONFIG_MACH_MEIZU_M1721
 	F(  19200000,              xo,    1,    0,     0),
 #endif
 	F(  24000000, gpll6_main_div2,    1,    2,    45),
