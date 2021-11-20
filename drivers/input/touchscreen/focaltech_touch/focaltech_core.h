@@ -69,6 +69,9 @@
 #if FTS_PSENSOR_EN
 #include <linux/sensors.h>
 #endif
+
+#define FTS_REG_ID		0xA3
+
 /*****************************************************************************
  * Private constant and macro definitions using #define
  *****************************************************************************/

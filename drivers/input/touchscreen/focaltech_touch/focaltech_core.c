@@ -1055,6 +1055,29 @@ static void fts_ts_late_resume(struct early_suspend *handler)
 #endif
 
 /*****************************************************************************
+ *  Name: fts_check_chip_version
+ *  Brief: Check chip version
+ *  Input: client - i2c client
+ *  Return: error code/0 on success
+ *****************************************************************************/
+static int fts_check_chip_version(struct i2c_client *client) {
+	char val = 0;
+	int i, ret;
+
+	for (i = 0; i < 5; i++) {
+		ret = fts_i2c_read_reg(client, 0xA3, &val);
+		if (ret > 0)
+			return 0;
+
+		msleep(5);
+	}
+
+	FTS_ERROR("Failed to read chip version %d", ret);
+
+	return ret;
+}
+
+/*****************************************************************************
  *  Name: fts_ts_probe
  *  Brief:
  *  Input:
@@ -1133,8 +1156,6 @@ static int fts_ts_probe(struct i2c_client *client,
 	fts_power_source_ctrl(data, 1);
 #endif
 
-	fts_ctpm_get_upgrade_array();
-
 	err = fts_gpio_configure(data);
 	if (err < 0) {
 		FTS_ERROR("[GPIO]Failed to configure the gpios");
@@ -1142,7 +1163,17 @@ static int fts_ts_probe(struct i2c_client *client,
 	}
 
 	fts_reset_proc(200);
+	fts_ctpm_get_upgrade_array();
 	fts_wait_tp_to_valid(client);
+
+	err = fts_check_chip_version(client);
+	if (err) {
+		FTS_ERROR("Chip version check failed!");
+		input_unregister_device(data->input_dev);
+		devm_kfree(&client->dev, data);
+		devm_kfree(&client->dev, pdata);
+		goto free_gpio;
+	}
 
 	err = request_threaded_irq(client->irq, NULL, fts_ts_interrupt,
 				pdata->irq_gpio_flags | IRQF_ONESHOT |
