@@ -281,6 +281,9 @@
     };
 
 	i2c@78b7000 { /* BLSP1 QUP3 */
+		/* Required for very chinese touchscreens */
+		qcom,disable-dma;
+		
 		focaltech@38 {
             reg = <0x38>;
             compatible = "focaltech,fts";
@@ -324,6 +327,8 @@
 	};
 
 	i2c@7af6000 { /* BLSP2 QUP2 */
+		qcom,disable-dma;
+
         aw36413_flash: qcom,led-flash@6b {
             cell-index = <0x0>;
             reg = <0x6b>;
