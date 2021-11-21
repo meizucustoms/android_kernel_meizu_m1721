@@ -473,18 +473,6 @@ static int msm_flash_aw36413_i2c_remove(struct i2c_client *client) {
   return ret;
 }
 
-static struct i2c_driver aw36413_i2c_driver = {
-    .id_table = aw36413_i2c_id,
-    .probe = msm_flash_aw36413_i2c_probe,
-    .remove = msm_flash_aw36413_i2c_remove,
-    .driver =
-        {
-            .name = "awinic,aw36413",
-            .owner = THIS_MODULE,
-            .of_match_table = aw36413_i2c_trigger_dt_match,
-        },
-};
-
 static int msm_flash_aw36413_led_init(struct msm_led_flash_ctrl_t *fctrl) {
   aw_info("enter\n");
   aw36413_hwen(AW36413_BOTH, AW36413_HWEN_OFF);
@@ -706,16 +694,27 @@ static struct msm_led_flash_ctrl_t fctrl = {
     .led_state = MSM_CAMERA_LED_OFF,
 };
 
+static struct i2c_driver aw36413_i2c_driver = {
+    .id_table = aw36413_i2c_id,
+    .probe = msm_flash_aw36413_i2c_probe,
+    .remove = msm_flash_aw36413_i2c_remove,
+    .driver =
+        {
+            .name = "awinic,aw36413",
+            .owner = THIS_MODULE,
+            .of_match_table = aw36413_i2c_trigger_dt_match,
+        },
+};
+
 static int __init msm_flash_aw36413_init(void) {
-  i2c_add_driver(&aw36413_i2c_driver);
-  return 0;
+  return i2c_add_driver(&aw36413_i2c_driver);
 }
 
 static void __exit msm_flash_aw36413_exit(void) {
   i2c_del_driver(&aw36413_i2c_driver);
 }
 
-module_init(msm_flash_aw36413_init);
+late_initcall(msm_flash_aw36413_init);
 module_exit(msm_flash_aw36413_exit);
 MODULE_DESCRIPTION("AW36413 (x2) LED driver");
 MODULE_LICENSE("GPL v2");
