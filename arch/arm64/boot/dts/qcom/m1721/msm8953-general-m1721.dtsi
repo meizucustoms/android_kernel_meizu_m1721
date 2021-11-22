@@ -14,7 +14,7 @@
 
 / {
 	qrd_batterydata: qcom,battery-data {
-		qcom,batt-id-range-pct = <5>;
+		qcom,batt-id-range-pct = <24>;
 
 		#include "msm8953-batterydata-m1721.dtsi"
 	};
@@ -86,7 +86,9 @@
 			qcom,resume-delta-mv = <100>;
 			qcom,thermal-mitigation = <3000 2500 2000 1500 1000 500 0>;
 			qcom,precharging-timeout-mins = <48>;
+			qcom,charging-timeout-mins = <768>;
 			qcom,charge-unknown-battery;
+			qcom,override-usb-current;
 
 			/delete-property/ qcom,autoadjust-vfloat;
 			/delete-property/ qcom,external-typec;
@@ -95,6 +97,7 @@
 
 		qcom_fg: qcom,fg {
 			qcom,resume-soc-raw = <254>;
+			qcom,resume-soc = <99>;
 			qcom,fg-iterm-ma = <290>;
 			qcom,fg-chg-iterm-ma = <220>;
 			qcom,fg-cutoff-voltage-mv = <3320>;
@@ -102,14 +105,16 @@
 			qcom,fg-slope-limit-high-temp-dischg = <1>;
 			qcom,fg-slope-limit-low-temp-chg = <2>;
 			qcom,fg-slope-limit-low-temp-dischg = <1>;
+			qcom,fg-control-slope-limiter;
 			qcom,vbat-estimate-diff-mv = <300>;
 			qcom,hold-soc-while-full;
-			qcom,fg-restore-batt-info;
 			qcom,thermal-coefficients = [da 86 f0 50 08 3c];
-			qcom,cold-bat-decidegc = <0>;
-			qcom,cool-bat-decidegc = <150>;
-			qcom,warm-bat-decidegc = <450>;
-			qcom,resume-soc = <99>;
+			qcom,cold-bat-decidegc = <0xffffff9c>; /* -99 */
+			qcom,cool-bat-decidegc = <0>;
+			qcom,warm-bat-decidegc = <550>;
+			qcom,hot-bat-decidegc = <550>;
+			qcom,bad-battery-detection-enable;
+			qcom,ext-sense-type;
 		};
 	};
 
