@@ -55,25 +55,7 @@ struct crus_triple_data_t {
   int32_t data3;
 };
 
-/* Payload struct for setting the RX and TX use cases */
-struct crus_rx_run_case_ctrl_t {
-  int32_t value;
-  int32_t status;
-  int32_t checksum;
-  int32_t z;
-  int32_t atemp;
-};
-
-/* Payload struct for getting calibration result from DSP module */
-struct cirrus_cal_result_t {
-  int32_t status;
-  int32_t checksum;
-  int32_t z;
-};
-
-#define APR_CHUNK_SIZE 256
-#define CONFIG_FILE_SIZE 128
-#define PAYLOAD_FOLLOWS_CONFIG 4
+#define APR_CHUNK_SIZE 4000
 
 /* Payload struct for sending an external configuration string to the DSP
  * module
@@ -82,9 +64,22 @@ struct crus_external_config_t {
   uint32_t total_size;
   uint32_t chunk_size;
   int32_t done;
-  int32_t reserved;
-  int32_t config;
-  char data[APR_CHUNK_SIZE];
+  void *config;
+};
+
+struct crus_config_pkt_t {
+  struct afe_custom_crus_set_config_t afe;
+  struct crus_external_config_t ext;
+};
+
+struct crus_gb_cali_data {
+	// Calibration data
+	uint32_t temp_acc;
+	uint32_t count;
+	uint32_t ambient;
+
+	// Return data
+	int ret;
 };
 
 extern int afe_apr_send_pkt_crus(void *data, int index, int set);

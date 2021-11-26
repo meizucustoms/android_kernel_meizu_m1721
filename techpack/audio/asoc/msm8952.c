@@ -2937,7 +2937,6 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
 {
     struct snd_soc_dapm_context *dapm;
 	struct snd_soc_pcm_runtime *rtd;
-	struct crus_gb_cali_data cali;
 	int ret = 0;
 	bool found = false;
 
@@ -2970,33 +2969,7 @@ static int cs35l35_late_probe(struct snd_soc_card *card)
     snd_soc_dapm_ignore_suspend(dapm, "SPK");
     snd_soc_dapm_sync(dapm);
 
-	pr_info("%s(): get speaker calibration data from proinfo\n", __func__);
-	cali = msm_cirrus_get_speaker_calibration_data();
-	if (cali.ret) {
-		pr_err("%s(): failed getting calibration data (ret = %d)\n", __func__, cali.ret);
-		return cali.ret;
-	}
-
-	pr_info("%s(): flashing RX config...\n", __func__);
-	ret = msm_cirrus_flash_rx_config();
-	if (ret) {
-		pr_err("%s(): failed to flash RX config: %d\n", __func__, ret);
-		return ret;
-	}
-
-	pr_info("%s(): flashing TX config...\n", __func__);
-	ret = msm_cirrus_flash_tx_config();
-	if (ret) {
-		pr_err("%s(): failed to flash TX config: %d\n", __func__, ret);
-		return ret;
-	}
-
-	pr_info("%s(): writing speaker calibration data\n", __func__);
-	ret = msm_cirrus_write_speaker_calibration_data(&cali);
-	if (ret) {
-		pr_err("%s(): failed writing calibration data (ret = %d)\n", __func__, ret);
-		return ret;
-	}
+	msm_cirrus_callback();
 
     pr_info("%s(): exit\n", __func__);
     return 0;

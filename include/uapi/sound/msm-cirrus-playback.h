@@ -80,35 +80,10 @@
 
 #define CRUS_AFE_PARAM_ID_ENABLE	0x00010203
 
-struct crus_gb_ioctl_header {
-	uint32_t module_id;
-	uint32_t param_id;
-	uint32_t data_length;
-	void *data;
-};
-
-/*
- * Cirrus's audio HAL functions -> kernel functions
- */
-
-struct crus_gb_cali_data {
-	// Calibration data
-	uint32_t temp_acc;
-	uint32_t count;
-	uint32_t ambient;
-
-	// Return data
-	int ret;
-};
-
 #define SPK_CAL_DATA_LENGTH 30
 #define SPK_CAL_DATA_START_ADDR 0xD8
 
-int msm_cirrus_set_speaker_calibration_data(struct crus_gb_cali_data *cali);
-struct crus_gb_cali_data msm_cirrus_get_speaker_calibration_data(void);
-int msm_cirrus_flash_rx_config(void);
-int msm_cirrus_flash_tx_config(void);
-int msm_cirrus_write_speaker_calibration_data(struct crus_gb_cali_data *cali);
+void msm_cirrus_callback(void);
 
 #endif /* _UAPI_MSM_CIRRUS_SPK_PR_H */
  
