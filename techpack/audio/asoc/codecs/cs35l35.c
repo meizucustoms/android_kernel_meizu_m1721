@@ -37,6 +37,7 @@
 #include <sound/cs35l35.h>
 #include <linux/of_irq.h>
 #include <linux/completion.h>
+#include <linux/timekeeping.h>
 
 #include "cs35l35.h"
 
@@ -518,9 +519,6 @@ static int cs35l35_hw_params(struct snd_pcm_substream *substream,
 	u8 sp_sclks;
 	int audin_format;
 	int errata_chk;
-
-	pr_err("%s: enter\n", __func__);
-
 	int clk_ctl = cs35l35_get_clk_config(cs35l35->sysclk, srate);
 
 	if (clk_ctl < 0) {
@@ -1397,14 +1395,25 @@ static const struct reg_sequence cs35l35_errata_patch[] = {
 	{ 0x7F, 0x00 },
 };
 
+static ktime_t work_callback_prev_time = {0};
+
 static void cs35l35_eint_work_callback(struct work_struct *work) 
 {
-  struct cs35l35_private *cs35l35 = 
-    container_of(work, struct cs35l35_work_data, ws)->cs35l35;
+	struct cs35l35_private *cs35l35 = 
+		container_of(work, struct cs35l35_work_data, ws)->cs35l35;
+	ktime_t cur_time;
 	unsigned int sticky1, sticky2, sticky3, sticky4;
 	unsigned int mask1, mask2, mask3, mask4, current1;
 
-	pr_err_ratelimited("%s: enter\n", __func__);
+	cur_time = ktime_get();
+
+	if (cur_time.tv64 < work_callback_prev_time.tv64 + 10) {
+		pr_err_ratelimited("%s: too much calls, be careful\n", __func__);
+		return;
+	} else {
+		pr_err("%s: enter\n", __func__);
+		work_callback_prev_time = cur_time;
+	}
 
 	if (!cs35l35) {
 		pr_err_ratelimited("%s: cs35l35 is null!\n", __func__);
