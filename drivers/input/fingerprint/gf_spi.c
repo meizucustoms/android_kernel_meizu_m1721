@@ -48,6 +48,8 @@
 #include <net/netlink.h>
 #include "gf_spi.h"
 
+extern bool mback_disable;
+
 static DECLARE_BITMAP(minors, N_SPI_MINORS);
 static LIST_HEAD(device_list);
 static DEFINE_MUTEX(device_list_lock);
@@ -319,7 +321,8 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 		input_sync(gf_dev->input);
 	}
 
-	if (GF_KEY_HOME == gf_key->key) {
+	if ((GF_KEY_HOME == gf_key->key || GF_KEY_LONG_PRESS == gf_key->key) 
+													  && !mback_disable) {
 		input_report_key(gf_dev->input, key_input, gf_key->value);
 		input_sync(gf_dev->input);
 	}

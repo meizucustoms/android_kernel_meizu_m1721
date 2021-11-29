@@ -20,12 +20,60 @@
 #include <linux/init.h>
 #include <linux/module.h>
 #include <linux/types.h>
+#include <linux/proc_fs.h>
 
 #define MZHW_USED_FOR_CAMERA
 
 #include <media/meizu_hw.h>
 
 struct class *mzhw_class;
+bool mback_disable = false;
+
+static struct proc_dir_entry *ent;
+ 
+static ssize_t disable_mback_write(struct file *file, const char __user *buf,
+                       size_t count, loff_t *ppos) 
+{
+	char value[2];
+  int ret, i, c;
+
+  ret = copy_from_user(&value, buf, 2);
+  if (ret)
+    return ret;
+
+  ret = sscanf(value, "%u", &i);
+  if (ret != 1 || i > 1)
+    return ret;
+
+  mback_disable = i;
+
+  c = strlen(buf);
+  *ppos = c;
+	return c;
+}
+ 
+static ssize_t disable_mback_read(struct file *file, char __user *buf,
+                      size_t count, loff_t *ppos) 
+{
+	char value[2];
+  int len = 0, ret = 0;
+
+  len = sprintf(value, "%c\n", (char)mback_disable ? '1' : '0');
+
+  ret = copy_to_user(buf, value, len);
+  if (ret)
+    return ret;
+
+  *ppos = len;
+	return len;
+}
+ 
+static struct file_operations disable_mback_ops = 
+{
+	.owner = THIS_MODULE,
+	.read = disable_mback_read,
+	.write = disable_mback_write,
+};
 
 int meizu_sensor_parse_id(struct meizu_camera_data *camera,
                           struct msm_sensor_ctrl_t *s_ctrl) {
@@ -175,8 +223,14 @@ int meizu_hw_class_init(void) {
 }
 
 static int __init meizu_hw_init(void) {
+  ent = proc_create("mback_disable", 0666, NULL, &disable_mback_ops);
   mz_info("inited.\n");
   return 0;
 }
 
+static void meizu_hw_exit(void) {
+  proc_remove(ent);
+}
+
 module_init(meizu_hw_init);
+module_exit(meizu_hw_exit);
