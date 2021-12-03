@@ -374,6 +374,9 @@
 	i2c@7af8000 { /* BLSP2 QUP4 */
 		status = "ok";
 
+		// For stability...?
+		qcom,disable-dma;
+
         cs35l35@40 {
 			compatible = "cirrus,cs35l35";
 			reg = <0x40>;
