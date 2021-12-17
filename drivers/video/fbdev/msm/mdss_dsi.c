@@ -36,6 +36,10 @@
 #include "mdss_dsi_phy.h"
 #include "mdss_dba_utils.h"
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+char fts_lcd_name[40];
+#endif
+
 #define XO_CLK_RATE	19200000
 #define CMDLINE_DSI_CTL_NUM_STRING_LEN 2
 
@@ -2994,6 +2998,11 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 		if (!strcmp(panel_name, NONE_PANEL))
 			goto exit;
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+		strncpy(fts_lcd_name, panel_name + 14, strlen(panel_name) - 14);
+		fts_lcd_name[strlen(fts_lcd_name)] = '\0';
+#endif
+
 		mdss_node = of_parse_phandle(pdev->dev.of_node,
 			"qcom,mdss-mdp", 0);
 		if (!mdss_node) {
@@ -3030,6 +3039,7 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 
 		return dsi_pan_node;
 	}
+
 end:
 	if (strcmp(panel_name, NONE_PANEL))
 		dsi_pan_node = mdss_dsi_pref_prim_panel(pdev);
