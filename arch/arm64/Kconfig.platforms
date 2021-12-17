@@ -354,4 +354,35 @@ config ARCH_ZYNQMP
 	help
 	  This enables support for Xilinx ZynqMP Family
 
+config MACH_MEIZU
+	bool "Meizu devices"
+	help
+	  This enables support for Meizu devices.
+
+if MACH_MEIZU
+
+config MACH_MEIZU_MSM8953
+	bool
+	select ARCH_QCOM
+	select ARCH_MSM8953
+
+choice
+	prompt "Meizu device"
+	default MACH_MEIZU_DUMMY
+
+config MACH_MEIZU_DUMMY
+	bool "Dummy device"
+	help
+	  A stub configuration that doesn't enable support for anything.
+
+config MACH_MEIZU_M1721
+	bool "M1721 board"
+	select MACH_MEIZU_MSM8953
+	help
+	  This enables support for Meizu M6 Note.
+
+endchoice
+
+endif
+
 endmenu
