@@ -33,6 +33,10 @@
 #include <linux/of_irq.h>
 #include <linux/spinlock.h>
 
+#ifdef CONFIG_MACH_MEIZU_M1721
+extern bool mback_disable;
+#endif
+
 struct gpio_button_data {
 	const struct gpio_keys_button *button;
 	struct input_dev *input;
@@ -368,6 +372,11 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 			"failed to get gpio state: %d\n", state);
 		return;
 	}
+
+#ifdef CONFIG_MACH_MEIZU_M1721
+	if (button->code == 102 && mback_disable)
+		return;
+#endif
 
 	if (type == EV_ABS) {
 		if (state)
