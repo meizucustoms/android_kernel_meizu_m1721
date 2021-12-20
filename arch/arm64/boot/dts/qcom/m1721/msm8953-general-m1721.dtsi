@@ -380,8 +380,8 @@
         cs35l35@40 {
 			compatible = "cirrus,cs35l35";
 			reg = <0x40>;
-			reset-gpio = <&tlmm 91 0x1>;
-			irq-gpio = <&tlmm 90 0x1>;
+			reset-gpio = <&tlmm 91 0>;
+			irq-gpio = <&tlmm 90 1>;
 			interrupt-parent = <&tlmm>;
 			interrupts = <90 8>;
 			pinctrl-names = "default";

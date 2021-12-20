@@ -1395,30 +1395,12 @@ static const struct reg_sequence cs35l35_errata_patch[] = {
 	{ 0x7F, 0x00 },
 };
 
-static ktime_t work_callback_prev_time = {0};
-
-static void cs35l35_eint_work_callback(struct work_struct *work) 
+static irqreturn_t cs35l35_irq(int irq, void *data)
 {
-	struct cs35l35_private *cs35l35 = 
-		container_of(work, struct cs35l35_work_data, ws)->cs35l35;
-	ktime_t cur_time;
+	struct cs35l35_private *cs35l35 = data;
+	struct device *dev = cs35l35->dev;
 	unsigned int sticky1, sticky2, sticky3, sticky4;
 	unsigned int mask1, mask2, mask3, mask4, current1;
-
-	cur_time = ktime_get();
-
-	if (cur_time.tv64 < work_callback_prev_time.tv64 + 10) {
-		pr_err_ratelimited("%s: too much calls, be careful\n", __func__);
-		return;
-	} else {
-		pr_err("%s: enter\n", __func__);
-		work_callback_prev_time = cur_time;
-	}
-
-	if (!cs35l35) {
-		pr_err_ratelimited("%s: cs35l35 is null!\n", __func__);
-		return;
-	}
 
 	/* ack the irq by reading all status registers */
 	regmap_read(cs35l35->regmap, CS35L35_INT_STATUS_4, &sticky4);
@@ -1434,7 +1416,7 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 	/* Check to see if unmasked bits are active */
 	if (!(sticky1 & ~mask1) && !(sticky2 & ~mask2) && !(sticky3 & ~mask3)
 			&& !(sticky4 & ~mask4))
-		return;
+		return IRQ_NONE;
 
 	if (sticky2 & CS35L35_PDN_DONE)
 		complete(&cs35l35->pdn_done);
@@ -1444,11 +1426,11 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 
 	/* handle the interrupts */
 	if (sticky1 & CS35L35_CAL_ERR) {
-		dev_crit(cs35l35->dev, "Calibration Error\n");
+		dev_err(dev, "Calibration Error\n");
 
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_CAL_ERR)) {
-			pr_debug("%s : Cal error release\n", __func__);
+			dev_dbg(dev, "Cal error release\n");
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_CAL_ERR_RLS, 0);
@@ -1463,10 +1445,10 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 	}
 
 	if (sticky1 & CS35L35_AMP_SHORT) {
-		dev_crit(cs35l35->dev, "AMP Short Error\n");
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_AMP_SHORT)) {
-			dev_dbg(cs35l35->dev, "Amp short error release\n");
+			dev_dbg(dev,
+				"Amp short error release\n");
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_SHORT_RLS, 0);
@@ -1481,11 +1463,12 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 	}
 
 	if (sticky1 & CS35L35_OTW) {
-		dev_warn(cs35l35->dev, "Over temperature warning\n");
+		dev_err(dev, "Over temperature warning\n");
 
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_OTW)) {
-			dev_dbg(cs35l35->dev, "Over temperature warn release\n");
+			dev_dbg(dev,
+				"Over temperature warning release\n");
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_OTW_RLS, 0);
@@ -1500,10 +1483,12 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 	}
 
 	if (sticky1 & CS35L35_OTE) {
-		dev_crit(cs35l35->dev, "Over temperature error\n");
+		dev_crit(dev, "Over temperature error\n");
+
 		/* error is no longer asserted; safe to reset */
 		if (!(current1 & CS35L35_OTE)) {
-			dev_dbg(cs35l35->dev, "Over temperature error release\n");
+			dev_dbg(dev,
+				"Over temperature error release\n");
 			regmap_update_bits(cs35l35->regmap,
 					CS35L35_PROT_RELEASE_CTL,
 					CS35L35_OTE_RLS, 0);
@@ -1518,7 +1503,7 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 	}
 
 	if (sticky3 & CS35L35_BST_HIGH) {
-		dev_crit(cs35l35->dev, "VBST error: powering off!\n");
+		dev_crit(dev, "VBST error: powering off!\n");
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
 			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
@@ -1526,7 +1511,7 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 	}
 
 	if (sticky3 & CS35L35_LBST_SHORT) {
-		dev_crit(cs35l35->dev, "LBST error: powering off!\n");
+		dev_crit(dev, "LBST error: powering off!\n");
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL2,
 			CS35L35_PDN_AMP, CS35L35_PDN_AMP);
 		regmap_update_bits(cs35l35->regmap, CS35L35_PWRCTL1,
@@ -1534,25 +1519,15 @@ static void cs35l35_eint_work_callback(struct work_struct *work)
 	}
 
 	if (sticky2 & CS35L35_VPBR_ERR)
-		dev_dbg(cs35l35->dev, "Error: Reactive Brownout\n");
+		dev_err(dev, "Error: Reactive Brownout\n");
 
 	if (sticky4 & CS35L35_VMON_OVFL)
-		dev_dbg(cs35l35->dev, "Error: VMON overflow\n");
+		dev_err(dev, "Error: VMON overflow\n");
 
 	if (sticky4 & CS35L35_IMON_OVFL)
-		dev_dbg(cs35l35->dev, "Error: IMON overflow\n");
-  return;
-}
+		dev_err(dev, "Error: IMON overflow\n");
 
-static irqreturn_t cs35l35_eint_func(int irq, void *data)
-{
-  struct cs35l35_work_data *work_data =
-            (struct cs35l35_work_data *)data;
-
-  work_data->irq = irq;
-  queue_work_on(8, work_data->wq, &work_data->ws);
-
-  return IRQ_HANDLED;
+	return IRQ_HANDLED;
 }
 
 static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
@@ -1561,8 +1536,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	struct cs35l35_private *cs35l35;
 	struct device *dev = &i2c_client->dev;
 	struct cs35l35_platform_data *pdata = dev_get_platdata(dev);
-  	struct cs35l35_work_data *work_data;
-	int i, irq;
+	int i;
 	int ret;
 	unsigned int devid = 0;
 	unsigned int reg;
@@ -1572,12 +1546,6 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 	cs35l35 = devm_kzalloc(dev, sizeof(struct cs35l35_private), GFP_KERNEL);
 	if (!cs35l35)
 		return -ENOMEM;
-
- 	work_data = devm_kzalloc(dev, sizeof(struct cs35l35_work_data), GFP_KERNEL);
-	if (!work_data)
-		return -ENOMEM;
-
-  	work_data->cs35l35 = cs35l35;
 
 	cs35l35->dev = dev;
 
@@ -1624,43 +1592,37 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 		return ret;
 	}
 
-	cs35l35->reset_gpio =
-		of_get_named_gpio_flags(i2c_client->dev.of_node, "reset-gpio", 0, 0);
-	if (cs35l35->reset_gpio < 0) {
-		dev_err(dev, "invalid reset GPIO: %d\n", __func__, cs35l35->reset_gpio);
+	/* returning NULL can be an option if in stereo mode */
+	cs35l35->reset_gpio = devm_gpiod_get_optional(&i2c_client->dev,
+		"reset", GPIOD_OUT_LOW);
+	if (IS_ERR(cs35l35->reset_gpio)){
+		ret = PTR_ERR(cs35l35->reset_gpio);
 		goto err;
 	}
 
-	ret = gpio_request_one(cs35l35->reset_gpio, 0, "cs35l35_reset");
-	if (ret != 0) {
-		dev_err(dev, "failed to request reset GPIO: %d\n", __func__, ret);
-		goto err;
-	}
-
-	gpio_direction_output(cs35l35->reset_gpio, 1);
+	if (cs35l35->reset_gpio)
+		gpiod_set_value_cansleep(cs35l35->reset_gpio, 1);
 
 	init_completion(&cs35l35->pdn_done);
 
-	cs35l35->irq_gpio =
-		of_get_named_gpio_flags(i2c_client->dev.of_node, "irq-gpio", 0, 0);
-	if (cs35l35->irq_gpio < 0) {
-		dev_err(dev, "invalid IRQ GPIO: %d\n", __func__, cs35l35->irq_gpio);
+	cs35l35->irq_gpio = devm_gpiod_get_optional(&i2c_client->dev,
+		"irq", GPIOD_IN);
+	if (IS_ERR_OR_NULL(cs35l35->irq_gpio)){
+		ret = PTR_ERR(cs35l35->irq_gpio);
 		goto err;
 	}
 
-	/* MEIZU SHIT */
-	work_data->wq = alloc_ordered_workqueue("cs35l35_eint", WQ_MEM_RECLAIM);
-
-	INIT_WORK(&work_data->ws, cs35l35_eint_work_callback);
-
-	irq = irq_of_parse_and_map(dev->of_node, 0);
-
-	ret = request_threaded_irq(irq, cs35l35_eint_func, 
-          NULL, 0, "cirrus-cs35l35-eint", work_data);
+	ret = devm_request_threaded_irq(&i2c_client->dev,
+					gpiod_to_irq(cs35l35->irq_gpio),
+					NULL, cs35l35_irq,
+					IRQF_ONESHOT | IRQF_TRIGGER_LOW,
+					"cs35l35", cs35l35);
+	/* CS35L35 needs INT for PDN_DONE */
 	if (ret != 0) {
-		dev_err(dev, "Failed to request IRQ: %d\n", ret);
+		dev_err(&i2c_client->dev, "Failed to request IRQ: %d\n", ret);
 		goto err;
 	}
+
 	/* initialize codec */
 	ret = regmap_read(cs35l35->regmap, CS35L35_DEVID_AB, &reg);
 
@@ -1735,7 +1697,7 @@ static int cs35l35_i2c_probe(struct i2c_client *i2c_client,
 err:
 	regulator_bulk_disable(cs35l35->num_supplies,
 			       cs35l35->supplies);
-	gpio_direction_output(cs35l35->reset_gpio, 0);
+	gpiod_set_value_cansleep(cs35l35->reset_gpio, 0);
 
 	return ret;
 }

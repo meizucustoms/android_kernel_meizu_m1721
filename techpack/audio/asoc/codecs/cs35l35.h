@@ -14,6 +14,8 @@
 #ifndef __CS35L35_H__
 #define __CS35L35_H__
 
+#include <linux/gpio/consumer.h>
+
 #define CS35L35_FIRSTREG		0x01
 #define CS35L35_LASTREG			0x7E
 #define CS35L35_CHIP_ID			0x00035A35
@@ -298,16 +300,9 @@ struct cs35l35_private {
 	bool i2s_mode;
 	bool slave_mode;
 	/* GPIO for /RST */
-	int reset_gpio;
-	int irq_gpio;
+	struct gpio_desc *reset_gpio;
+	struct gpio_desc *irq_gpio;
 	struct completion pdn_done;
-};
-
-struct cs35l35_work_data {
-	struct workqueue_struct *wq;
-	struct work_struct ws;
-	struct cs35l35_private *cs35l35;
-	int irq;
 };
 
 static const char * const cs35l35_supplies[] = {

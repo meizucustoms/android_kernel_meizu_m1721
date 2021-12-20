@@ -43,7 +43,6 @@
 				pins = "gpio90";
 				bias-pull-up;
 				drive-strength = <2>; /* 2 mA */
-				input-enable;
 			};
 		};
 
