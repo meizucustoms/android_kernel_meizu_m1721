@@ -94,13 +94,13 @@
  * show debug log info
  * enable it for debug, disable it for release
  */
-#define FTS_DEBUG_EN                            0
+#define FTS_DEBUG_EN                            1
 
 /*
  * Linux MultiTouch Protocol
  * 1: Protocol B(default), 0: Protocol A
  */
-#define FTS_MT_PROTOCOL_B_EN                    0
+#define FTS_MT_PROTOCOL_B_EN                    1
 
 
 /*
@@ -127,7 +127,7 @@
  * ESD check & protection
  * default: disable
  */
-#define FTS_ESDCHECK_EN                         1
+#define FTS_ESDCHECK_EN                         0
 
 /*
  * Production test enable
@@ -139,7 +139,7 @@
  * Glove mode enable
  * 1: enable, 0:disable(default)
  */
-#define FTS_GLOVE_EN                            1
+#define FTS_GLOVE_EN                            0
 /*
  * cover enable
  * 1: enable, 0:disable(default)
