@@ -3035,6 +3035,10 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 		pr_info("%s: cmdline:%s panel_name:%s\n",
 			__func__, panel_cfg, panel_name);
 #ifdef CONFIG_MACH_MEIZU_M1721
+		strncpy(fts_lcd_name, panel_name + 14, strlen(panel_name) - 14);
+		fts_lcd_name[strlen(fts_lcd_name)] = '\0';
+#endif
+#ifdef CONFIG_MACH_MEIZU_M1721
 		if (!strcmp(panel_name, "qcom,mdss_dsi_otm1911_fhd_video"))
 			panel_suspend_reset_flag = 2;
 		else if (!strcmp(panel_name, "qcom,mdss_dsi_ili9885_boe_fhd_video"))
@@ -3083,11 +3087,6 @@ static struct device_node *mdss_dsi_find_panel_of_node(
 end:
 	if (strcmp(panel_name, NONE_PANEL))
 		dsi_pan_node = mdss_dsi_pref_prim_panel(pdev);
-
-#ifdef CONFIG_MACH_MEIZU_M1721
-	strncpy(fts_lcd_name, panel_name + 14, strlen(panel_name) - 14);
-	fts_lcd_name[strlen(fts_lcd_name)] = '\0';
-#endif
 
 exit:
 	return dsi_pan_node;
