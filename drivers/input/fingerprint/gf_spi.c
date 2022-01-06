@@ -60,19 +60,20 @@ static struct sock *nl_sk = NULL;
 static int gf_major = -1;
 
 struct gf_key_map maps[] = {
-	{ EV_KEY, GF_KEY_INPUT_HOME },
-	{ EV_KEY, GF_KEY_INPUT_MENU },
-	{ EV_KEY, GF_KEY_INPUT_BACK },
-	{ EV_KEY, GF_KEY_INPUT_POWER },
-	{ EV_KEY, GF_NAV_INPUT_UP },
-	{ EV_KEY, GF_NAV_INPUT_DOWN },
-	{ EV_KEY, GF_NAV_INPUT_RIGHT },
-	{ EV_KEY, GF_NAV_INPUT_LEFT },
-	{ EV_KEY, GF_KEY_INPUT_CAMERA },
-	{ EV_KEY, GF_NAV_INPUT_CLICK },
-	{ EV_KEY, GF_NAV_INPUT_DOUBLE_CLICK },
-	{ EV_KEY, GF_NAV_INPUT_LONG_PRESS },
-	{ EV_KEY, GF_NAV_INPUT_HEAVY },
+	{ EV_KEY, KEY_HOME },
+	{ EV_KEY, KEY_MENU },
+	{ EV_KEY, KEY_BACK },
+	{ EV_KEY, KEY_POWER },
+	{ EV_KEY, KEY_F24 },
+	{ EV_KEY, KEY_UP },
+	{ EV_KEY, KEY_DOWN },
+	{ EV_KEY, KEY_RIGHT },
+	{ EV_KEY, KEY_LEFT },
+	{ EV_KEY, KEY_CAMERA },
+	{ EV_KEY, KEY_VOLUMEDOWN },
+	{ EV_KEY, KEY_VOLUMEUP },
+	{ EV_KEY, KEY_SEARCH },
+	{ EV_KEY, KEY_CHAT },
 };
 
 static void sendnlmsg(char *message)
@@ -300,13 +301,13 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 {
 	uint32_t key_input = 0;
 	if (GF_KEY_HOME == gf_key->key) {
-		key_input = 158;
-    } else if (GF_KEY_LONG_PRESS == gf_key->key) {
-        key_input = 192;
-	} else if (GF_KEY_POWER == gf_key->key) {
-		key_input = 112;
+		key_input = KEY_BACK;
+    } else if (GF_KEY_POWER == gf_key->key) {
+		key_input = KEY_POWER;
 	} else if (GF_KEY_CAMERA == gf_key->key) {
-		key_input = 212;
+		key_input = KEY_CAMERA;
+	} else if (GF_KEY_LONG_PRESS == gf_key->key) {
+        key_input = KEY_F24;
 	} else {
 		key_input = gf_key->key;
 	}
@@ -634,12 +635,14 @@ static int gf_probe(struct spi_device *spi)
 		mutex_unlock(&device_list_lock);
 		goto error_hw;
 	}
+
 	if (status == 0) {
 		set_bit(minor, minors);
 		list_add(&gf_dev->device_entry, &device_list);
 	} else {
 		gf_dev->devt = 0;
 	}
+
 	mutex_unlock(&device_list_lock);
 
 	if (status == 0) {
@@ -650,13 +653,9 @@ static int gf_probe(struct spi_device *spi)
 			status = -ENOMEM;
 			goto error_dev;
 		}
-		gf_info("--------------");
-		for (i = 0; i < ARRAY_SIZE(maps); i++) {
-            gf_info("type [%d]\n", maps[i].type);
-            gf_info("code [%d]\n", maps[i].code);
-            gf_info("pos  [%d]\n", i);
+
+		for (i = 0; i < ARRAY_SIZE(maps); i++)
 			input_set_capability(gf_dev->input, maps[i].type, maps[i].code);
-        }
 
 		gf_dev->input->name = "gf-keys";
 		status = input_register_device(gf_dev->input);
