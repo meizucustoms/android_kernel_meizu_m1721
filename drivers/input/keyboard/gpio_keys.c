@@ -359,16 +359,6 @@ static struct attribute_group gpio_keys_attr_group = {
 	.attrs = gpio_keys_attrs,
 };
 
-#ifdef CONFIG_MACH_MEIZU_M1721
-static void mback_report_wakeup(struct input_dev *input)
-{
-	input_report_key(input, KEY_WAKEUP, 1);
-	input_sync(input);
-	input_report_key(input, KEY_WAKEUP, 0);
-	input_sync(input);
-}
-#endif
-
 static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 {
 	const struct gpio_keys_button *button = bdata->button;
@@ -384,12 +374,8 @@ static void gpio_keys_gpio_report_event(struct gpio_button_data *bdata)
 	}
 
 #ifdef CONFIG_MACH_MEIZU_M1721
-	if (button->code == 102) {
-		if (state)
-			mback_report_wakeup(input);
-
-		if (mback_disable)
-			return;
+	if (button->code == 102 && mback_disable) {
+		return;
 	}
 #endif
 
@@ -820,10 +806,6 @@ static int gpio_keys_probe(struct platform_device *pdev)
 		if (button->wakeup)
 			wakeup = 1;
 	}
-
-#ifdef CONFIG_MACH_MEIZU_M1721
-	input_set_capability(input, EV_KEY, KEY_WAKEUP);
-#endif
 
 	error = sysfs_create_group(&pdev->dev.kobj, &gpio_keys_attr_group);
 	if (error) {
