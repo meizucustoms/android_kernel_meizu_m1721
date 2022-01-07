@@ -302,28 +302,15 @@ static void gf_kernel_key_input(struct gf_dev *gf_dev, struct gf_key *gf_key)
 	uint32_t key_input = 0;
 	if (GF_KEY_HOME == gf_key->key) {
 		key_input = KEY_BACK;
-    } else if (GF_KEY_POWER == gf_key->key) {
-		key_input = KEY_POWER;
-	} else if (GF_KEY_CAMERA == gf_key->key) {
-		key_input = KEY_CAMERA;
-	} else if (GF_KEY_LONG_PRESS == gf_key->key) {
-        key_input = KEY_F24;
-	} else {
-		key_input = gf_key->key;
+    } else {
+		gf_err("Key %d is unsupported", gf_key->key);
+		return;
 	}
+
 	gf_info("recieved key event[%d], key=%d, value=%d\n",
                         key_input, gf_key->key, gf_key->value);
 
-	if ((GF_KEY_POWER == gf_key->key || GF_KEY_CAMERA == gf_key->key)
-			&& (gf_key->value == 1)) {
-		input_report_key(gf_dev->input, key_input, 1);
-		input_sync(gf_dev->input);
-		input_report_key(gf_dev->input, key_input, 0);
-		input_sync(gf_dev->input);
-	}
-
-	if ((GF_KEY_HOME == gf_key->key || GF_KEY_LONG_PRESS == gf_key->key) 
-													  && !mback_disable) {
+	if (!mback_disable) {
 		input_report_key(gf_dev->input, key_input, gf_key->value);
 		input_sync(gf_dev->input);
 	}
