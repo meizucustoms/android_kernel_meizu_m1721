@@ -87,6 +87,9 @@
 			qcom,thermal-mitigation = <3000 2500 2000 1500 1000 500 0>;
 			qcom,precharging-timeout-mins = <48>;
 			qcom,charging-timeout-mins = <768>;
+			qcom,parallel-en-gpio = <&pmi8950_gpios 2 0>;
+			qcom,vusbin-adc-channel-id = <0x00>;
+
 			qcom,charge-unknown-battery;
 			qcom,override-usb-current;
 

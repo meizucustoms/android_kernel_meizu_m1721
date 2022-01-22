@@ -92,6 +92,9 @@ static u32 mdss_fb_pseudo_palette[16] = {
 };
 
 static struct msm_mdp_interface *mdp_instance;
+#ifdef CONFIG_MACH_MEIZU_M1721
+extern int usbchg_lcd_brightness;
+#endif
 
 static int mdss_fb_register(struct msm_fb_data_type *mfd);
 static int mdss_fb_open(struct fb_info *info, int user);
@@ -282,6 +285,10 @@ static void mdss_fb_set_bl_brightness(struct led_classdev *led_cdev,
 {
 	struct msm_fb_data_type *mfd = dev_get_drvdata(led_cdev->dev->parent);
 	u64 bl_lvl;
+
+#ifdef CONFIG_MACH_MEIZU_M1721
+	usbchg_lcd_brightness = value;
+#endif
 
 	if (mfd->boot_notification_led) {
 		led_trigger_event(mfd->boot_notification_led, 0);
