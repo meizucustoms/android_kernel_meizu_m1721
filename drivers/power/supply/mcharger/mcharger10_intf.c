@@ -61,6 +61,7 @@ static int mcharger_set_high_usb_chg_current_time(int current_ma)
 	return time.tv_nsec / 1000000;
 }
 
+// From MTK common Pump Express driver with Meizu stuff
 void charging_set_ta_current_pattern(bool increase)
 {
   if (charger_present()) {
@@ -349,13 +350,13 @@ int mcharger_p10_check_charger(void)
 	int ret = 0;
 
 	if (mcharger_p20_get_is_connect()) {
-		pr_err( "%s: stop, PE+20 is connected\n",
+		pr_debug( "%s: stop, PE+20 is connected\n",
 			    __func__);
 		return ret;
 	}
 
 	if (!p10_is_enabled) {
-		pr_err( "%s: stop, PE+ is disabled\n",
+		pr_debug( "%s: stop, PE+ is disabled\n",
 			    __func__);
 		return ret;
 	}
@@ -373,10 +374,8 @@ int mcharger_p10_check_charger(void)
 	 * Not standard charger or
 	 * SOC is not in range
 	 */
-	if (!p10_to_check_chr_type ||
-	    g_get_prop_batt_capacity() > 85 ||
-	    g_get_prop_batt_capacity() > 0 ||
-        chr_type_is_dcp())
+	if (!(p10_to_check_chr_type && g_get_prop_batt_capacity() <= 84 
+		&& (g_get_prop_batt_capacity() <= 0) < chr_type_is_dcp()))
 		goto _err;
 
 	/* Reset/Init/Detect TA */
@@ -416,13 +415,13 @@ int mcharger_p10_start_algorithm(void)
 	int ret = 0, chr_volt;
 
 	if (mcharger_p20_get_is_connect()) {
-		pr_err( "%s: stop, PE+20 is connected\n",
+		pr_debug( "%s: stop, PE+20 is connected\n",
 			    __func__);
 		return ret;
 	}
 
 	if (!p10_is_enabled) {
-		pr_err( "%s: stop, PE+ is disabled\n",
+		pr_debug( "%s: stop, PE+ is disabled\n",
 			    __func__);
 		return ret;
 	}
@@ -439,7 +438,7 @@ int mcharger_p10_start_algorithm(void)
 	/* TA is not connected */
 	if (!p10_is_connect) {
 		ret = -EIO;
-		pr_err( "%s: stop, PE+ is not connected\n",
+		pr_debug( "%s: stop, PE+ is not connected\n",
 			    __func__);
 		goto _out;
 	}
@@ -447,7 +446,7 @@ int mcharger_p10_start_algorithm(void)
 	/* No need to tune TA */
 	if (!p10_to_tune_ta_vchr) {
 		ret = p10_check_leave_status();
-		pr_err( "%s: stop, not to tune TA vchr\n",
+		pr_debug( "%s: stop, not to tune TA vchr\n",
 			    __func__);
 		goto _out;
 	}

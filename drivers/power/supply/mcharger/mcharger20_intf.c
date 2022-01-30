@@ -133,7 +133,9 @@ static int tmp_dtime(int i)
 {
     struct timespec ts;
 
-    ts = timespec_sub(tmp_ptime, ptime[i]);
+    ts = timespec_sub(tmp_ptime, ptime[i-1]);
+	pr_err("%s: tmp_ptime = %d, ptime[%d] = %d, %d\n", __func__,
+		tmp_ptime.tv_nsec / 1000000, i - 1, ptime[i-1].tv_nsec / 1000000, ts.tv_nsec / 1000000);
     return ts.tv_nsec / 1000000;
 }
 
@@ -142,27 +144,31 @@ static int dtime(int i)
 	struct timespec time;
 
 	time = timespec_sub(ptime[i], ptime[i-1]);
+	pr_err("%s: ptime[%d] = %d, ptime[%d] = %d, %d\n", __func__,
+		i, ptime[i].tv_nsec / 1000000, i - 1, ptime[i-1].tv_nsec / 1000000, time.tv_nsec / 1000000);
 	return time.tv_nsec / 1000000;
 }
 
 #define PEOFFTIME 40
 #define PEONTIME 90
 
+// From MTK common Pump Express driver with Meizu stuff
 static int charging_set_ta20_current_pattern(u32 chr_vol) {
     int value = (chr_vol - 5500) / 500;
     int flag, i, j = 0;
     
-    usleep_range(1000, 1200);
-    mcharger_set_high_usb_chg_current(100);
+    mcharger_set_high_usb_chg_current(500);
+	usleep_range(1000, 1200);
+	mcharger_set_high_usb_chg_current(100);
     msleep(70);
     get_monotonic_boottime(&ptime[j++]);
-    mcharger_set_high_usb_chg_current(500);
 
 	for (i = 4; i >= 0; i--) {
 		flag = value & (1 << i);
 
         if (flag == 0) {
             mcharger_set_high_usb_chg_current(500);
+			get_monotonic_boottime(&tmp_ptime);
             tmp_cptime = tmp_dtime(j);
             if (tmp_cptime <= 39)
                 usleep_range(1000 * (40 - tmp_cptime), 1000 * (40 - tmp_cptime));
@@ -180,6 +186,7 @@ static int charging_set_ta20_current_pattern(u32 chr_vol) {
 			j++;
 
             mcharger_set_high_usb_chg_current(100);
+			get_monotonic_boottime(&tmp_ptime);
             tmp_cptime = tmp_dtime(j);
             if (tmp_cptime <= 89)
                 usleep_range(1000 * (90 - tmp_cptime), 1000 * (90 - tmp_cptime));
@@ -197,6 +204,7 @@ static int charging_set_ta20_current_pattern(u32 chr_vol) {
 			j++;
         } else {
             mcharger_set_high_usb_chg_current(100);
+			get_monotonic_boottime(&tmp_ptime);
             tmp_cptime = tmp_dtime(j);
             if (tmp_cptime <= 89)
                 usleep_range(1000 * (90 - tmp_cptime), 1000 * (90 - tmp_cptime));
@@ -214,6 +222,7 @@ static int charging_set_ta20_current_pattern(u32 chr_vol) {
 			j++;
 
             mcharger_set_high_usb_chg_current(500);
+			get_monotonic_boottime(&tmp_ptime);
             tmp_cptime = tmp_dtime(j);
             if (tmp_cptime <= 39)
                 usleep_range(1000 * (40 - tmp_cptime), 1000 * (40 - tmp_cptime));
@@ -238,7 +247,6 @@ static int charging_set_ta20_current_pattern(u32 chr_vol) {
     if (tmp_cptime <= 159)
         usleep_range(1000 * (160 - tmp_cptime), 1000 * (160 - tmp_cptime));
 
-    msleep(160);
 	get_monotonic_boottime(&ptime[j]);
 	cptime[j][0] = 160;
 	cptime[j][1] = dtime(j);
@@ -289,7 +297,11 @@ static int __p20_set_ta_vchr(u32 chr_vol)
 		return -EIO;
 	}
 
-    charging_set_ta20_current_pattern(chr_vol);
+    ret = charging_set_ta20_current_pattern(chr_vol);
+	if (ret) {
+		pr_err("%s: ta20 current pattern set failed.\n", __func__);
+		return ret;
+	}
 
 	pr_err("%s: OK voltage %d\n", __func__, smbchg_get_vchar_usbin());
 
@@ -456,7 +468,7 @@ int mcharger_p20_check_charger(void)
 	int ret = 0;
 
 	if (!p20_is_enabled) {
-		pr_err("%s: stop, PE+20 is disabled\n",
+		pr_debug("%s: stop, PE+20 is disabled\n",
 			    __func__);
 		return ret;
 	}
@@ -474,10 +486,8 @@ int mcharger_p20_check_charger(void)
 	 * Not standard charger or
 	 * SOC is not in range
 	 */
-	if (!p20_to_check_chr_type ||
-	    g_get_prop_batt_capacity() > 85 ||
-	    g_get_prop_batt_capacity() > 0 ||
-        chr_type_is_dcp())
+	if (!(p20_to_check_chr_type && g_get_prop_batt_capacity() <= 84 
+		&& (g_get_prop_batt_capacity() <= 0) < chr_type_is_dcp()))
 		goto _out;
 
 	ret = mcharger_p20_reset_ta_vchr();
