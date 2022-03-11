@@ -140,7 +140,7 @@ static struct page *alloc_buffer_page(struct ion_system_heap *heap,
 	}
 	if (!page)
 		return 0;
-
+	
 	return page;
 }
 
