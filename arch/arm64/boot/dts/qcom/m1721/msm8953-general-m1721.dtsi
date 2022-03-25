@@ -34,8 +34,8 @@
 			system {
 				compatible = "android,system";
 				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/system";
-				type = "ext4";
-				mnt_flags = "ro,barrier=1,discard";
+				type = "f2fs";
+				mnt_flags = "ro,noatime,nosuid,nodev,discard,nodiratime,inline_xattr,errors=recover";
 				fsmgr_flags = "wait";
 				status = "okay";
 			};
