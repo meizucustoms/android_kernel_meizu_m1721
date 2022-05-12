@@ -29,7 +29,9 @@ extern int afe_apr_send_pkt_crus(void *data, int index, int set);
 static int msm_cirrus_get_temp_cal(void);
 static int msm_cirrus_write_calibration_data(struct crus_gb_cali_data *cali);
 static int msm_cirrus_config_opalum_music(void);
+static int msm_cirrus_config_opalum_voice(void);
 static int msm_cirrus_flash_rx_config(void);
+static int msm_cirrus_flash_rx_new_config(void);
 static int msm_cirrus_flash_tx_config(void);
 static struct crus_gb_cali_data msm_cirrus_get_speaker_calibration_data(void);
 
@@ -44,7 +46,8 @@ struct mutex crus_gb_get_param_lock;
 struct mutex crus_gb_lock;
 static int crus_gb_enable;
 static int crus_gb_cfg, crus_gb_ext_cfg;
-static int music_config_loaded;
+static int music_config_loaded = false;
+static int voice_config_loaded = false;
 static int cirrus_fb_port = AFE_PORT_ID_QUATERNARY_MI2S_TX;
 static int cirrus_ff_port = AFE_PORT_ID_QUATERNARY_MI2S_RX;
 static struct crus_gb_cali_data g_cali;
@@ -394,7 +397,13 @@ static int msm_routing_crus_gb_cfg(struct snd_kcontrol *kcontrol,
     pr_debug("%s: setting Opalum config to Music\n", __func__);
     ret = msm_cirrus_config_opalum_music();
     if (ret)
-      pr_err("%s: failed to set Opalum config %d\n", __func__, ret);
+      pr_err("%s: failed to set Opalum Music config %d\n", __func__, ret);
+    break;
+  case 3:
+    pr_debug("%s: setting Opalum config to Voice\n", __func__);
+    ret = msm_cirrus_config_opalum_voice();
+    if (ret)
+      pr_err("%s: failed to set Opalum Voice config %d\n", __func__, ret);
     break;
   default:
     return -EINVAL;
@@ -432,6 +441,12 @@ static int msm_routing_crus_gb_ext_cfg(struct snd_kcontrol *kcontrol,
     ret = msm_cirrus_flash_tx_config();
     if (ret)
       pr_err("%s: failed to flash TX config %d\n", __func__, ret);
+    break;
+  case 3:
+    pr_debug("%s: flashing RX new config\n", __func__);
+    ret = msm_cirrus_flash_rx_new_config();
+    if (ret)
+      pr_err("%s: failed to flash RX (new) config %d\n", __func__, ret);
     break;
   default:
     return -EINVAL;
@@ -475,12 +490,14 @@ static const char *const crus_cfg_text[] = {
   "Get Current Temp", 
   "Set Temp Calibration",
   "Opalum Music",
+  "Opalum Voice",
 };
 
 static const char *const crus_ext_cfg_text[] = {
   "Default", 
   "RX Default",
   "TX New",
+  "RX New",
 };
 
 static const struct soc_enum crus_en_enum[] = {
@@ -488,11 +505,11 @@ static const struct soc_enum crus_en_enum[] = {
 };
 
 static const struct soc_enum crus_cfg_enum[] = {
-    SOC_ENUM_SINGLE_EXT(3, crus_cfg_text),
+    SOC_ENUM_SINGLE_EXT(4, crus_cfg_text),
 };
 
 static const struct soc_enum crus_ext_cfg_enum[] = {
-    SOC_ENUM_SINGLE_EXT(3, crus_ext_cfg_text),
+    SOC_ENUM_SINGLE_EXT(4, crus_ext_cfg_text),
 };
 
 static const struct snd_kcontrol_new crus_mixer_controls[] = {
@@ -602,6 +619,38 @@ static int msm_cirrus_flash_tx_config(void) {
   return 0;
 }
 
+static int msm_cirrus_flash_rx_new_config(void) {
+  char *data;
+  const struct firmware *fw;
+  int ret = 0;
+
+  ret = request_firmware(&fw, "crus_gb_config_new_rx.bin", crus_gb_device);
+  if (ret != 0) {
+    pr_err("%s: failed to load RX config: %d\n", __func__, ret);
+    return ret;
+  }
+
+  data = kmalloc(fw->size, GFP_KERNEL);
+  memcpy(data, fw->data, fw->size);
+  data[fw->size] = '\0';
+  pr_debug("%s: length = %d; data = %lx\n", __func__, (unsigned int)fw->size,
+           (long unsigned int)fw->data);
+
+  // Protection for double load
+  if (!voice_config_loaded) {
+    voice_config_loaded = 1;
+    ret = crus_afe_send_config(data, CIRRUS_GB_FFPORT);
+    pr_debug("%s: ret: %d\n", __func__, ret);
+  } else {
+    pr_debug("%s: skip config load\n", __func__);
+  }
+
+  release_firmware(fw);
+  kfree(data);
+
+  return 0;
+}
+
 static int msm_cirrus_flash_rx_config(void) {
   char *data;
   const struct firmware *fw;
@@ -638,6 +687,20 @@ static int msm_cirrus_config_opalum_music(void) {
   struct crus_single_data_t opalum_ctl = {0};
 
   pr_debug("%s: setting Opalum to Music mode\n", __func__);
+
+  music_config_loaded = 0;
+
+  return crus_afe_set_param(cirrus_ff_port, CIRRUS_GB_FFPORT, CRUS_PARAM_OPALUM,
+                            sizeof(struct crus_single_data_t),
+                            (void *)&opalum_ctl);
+}
+
+static int msm_cirrus_config_opalum_voice(void) {
+  struct crus_single_data_t opalum_ctl = {1};
+
+  pr_debug("%s: setting Opalum to Voice mode\n", __func__);
+
+  voice_config_loaded = 0;
 
   return crus_afe_set_param(cirrus_ff_port, CIRRUS_GB_FFPORT, CRUS_PARAM_OPALUM,
                             sizeof(struct crus_single_data_t),
