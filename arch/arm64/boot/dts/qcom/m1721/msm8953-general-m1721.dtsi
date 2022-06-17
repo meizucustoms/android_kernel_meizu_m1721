@@ -28,14 +28,16 @@
 		fstab {
 			vendor {
 				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/custom";
+				type = "erofs";
 				fsmgr_flags = "wait";
+				mnt_flags = "ro";
 			};
 
 			system {
 				compatible = "android,system";
 				dev = "/dev/block/platform/soc/7824900.sdhci/by-name/system";
-				type = "ext4";
-				mnt_flags = "ro,barrier=1,discard";
+				type = "erofs";
+				mnt_flags = "ro";
 				fsmgr_flags = "wait";
 				status = "okay";
 			};
