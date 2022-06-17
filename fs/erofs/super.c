@@ -550,7 +550,7 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 	if (err)
 		return err;
 
-	sb->s_flags |= SB_RDONLY | SB_NOATIME;
+	sb->s_flags |= MS_RDONLY | MS_NOATIME;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	sb->s_time_gran = 1;
 
@@ -565,9 +565,9 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 		return err;
 
 	if (test_opt(sbi, POSIX_ACL))
-		sb->s_flags |= SB_POSIXACL;
+		sb->s_flags |= MS_POSIXACL;
 	else
-		sb->s_flags &= ~SB_POSIXACL;
+		sb->s_flags &= ~MS_POSIXACL;
 
 #ifdef CONFIG_EROFS_FS_ZIP
 	INIT_RADIX_TREE(&sbi->workstn_tree, GFP_ATOMIC);
@@ -590,7 +590,7 @@ static int erofs_fill_super(struct super_block *sb, void *data, int silent)
 		return -ENOMEM;
 
 	erofs_shrinker_register(sb);
-	/* sb->s_umount is already locked, SB_ACTIVE and SB_BORN are not set */
+	/* sb->s_umount is already locked, MS_ACTIVE and MS_BORN are not set */
 	err = erofs_init_managed_cache(sb);
 	if (err)
 		return err;
@@ -762,11 +762,11 @@ static int erofs_remount(struct super_block *sb, int *flags, char *data)
 		goto out;
 
 	if (test_opt(sbi, POSIX_ACL))
-		sb->s_flags |= SB_POSIXACL;
+		sb->s_flags |= MS_POSIXACL;
 	else
-		sb->s_flags &= ~SB_POSIXACL;
+		sb->s_flags &= ~MS_POSIXACL;
 
-	*flags |= SB_RDONLY;
+	*flags |= MS_RDONLY;
 	return 0;
 out:
 	sbi->mount_opt = org_mnt_opt;
