@@ -16,9 +16,9 @@ static const unsigned char erofs_filetype_table[EROFS_FT_MAX] = {
 	[EROFS_FT_SYMLINK]	= DT_LNK,
 };
 
-static int erofs_fill_dentries(struct dir_context *ctx,
-	void *dentry_blk, unsigned *ofs,
-	unsigned nameoff, unsigned maxsize)
+static int erofs_fill_dentries(struct inode *dir, struct dir_context *ctx,
+							   void *dentry_blk, unsigned *ofs,
+							   unsigned nameoff, unsigned maxsize)
 {
 	struct erofs_dirent *de = dentry_blk + *ofs;
 	const struct erofs_dirent *end = dentry_blk + nameoff;
