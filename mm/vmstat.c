@@ -1721,21 +1721,19 @@ static void __init start_shepherd_timer(void)
 
 static void __init init_cpu_node_state(void)
 {
-	int node;
+	int cpu;
 
-	for_each_online_node(node) {
-		if (cpumask_weight(cpumask_of_node(node)) > 0)
-			node_set_state(node, N_CPU);
-	}
+	for_each_online_cpu(cpu)
+		node_set_state(cpu_to_node(cpu), N_CPU);
 }
 
 static void vmstat_cpu_dead(int node)
 {
-	const struct cpumask *node_cpus;
+	int cpu;
 
-	node_cpus = cpumask_of_node(node);
-	if (cpumask_weight(node_cpus) > 0)
-		return;
+	for_each_online_cpu(cpu)
+		if (cpu_to_node(cpu) == node)
+			return;
 
 	node_clear_state(node, N_CPU);
 }
