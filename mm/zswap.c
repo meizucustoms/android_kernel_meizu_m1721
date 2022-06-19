@@ -515,8 +515,10 @@ static struct zswap_pool *zswap_pool_create(char *type, char *compressor)
 	}
 
 	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
-	if (!pool)
+	if (!pool) {
+		pr_err("pool alloc failed\n");
 		return NULL;
+	}
 
 	/* unique name for each pool specifically required by zsmalloc */
 	snprintf(name, 38, "zswap%x", atomic_inc_return(&zswap_pools_count));
