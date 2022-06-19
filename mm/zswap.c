@@ -371,9 +371,10 @@ static int zswap_dstmem_prepare(unsigned int cpu)
 	u8 *dst;
 
 	dst = kmalloc_node(PAGE_SIZE * 2, GFP_KERNEL, cpu_to_node(cpu));
-	if (!dst)
+	if (!dst) {
+		pr_err("can't allocate compressor buffer\n");
 		return -ENOMEM;
-
+	}
 	per_cpu(zswap_dstmem, cpu) = dst;
 	return 0;
 }
