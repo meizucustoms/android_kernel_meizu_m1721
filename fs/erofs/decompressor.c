@@ -247,7 +247,7 @@ static int z_erofs_lz4_decompress(struct z_erofs_decompress_req *rq, u8 *out)
 	if (maptype == 0) {
 		kunmap_atomic(src);
 	} else if (maptype == 1) {
-		vunmap(src);
+		vm_unmap_ram(src, PAGE_ALIGN(rq->inputsize) >> PAGE_SHIFT);
 	} else if (maptype == 2) {
 		erofs_put_pcpubuf(src);
 	} else {
@@ -356,7 +356,7 @@ dstmap_out:
 	if (!dst_maptype)
 		kunmap_atomic(dst);
 	else if (dst_maptype == 2)
-		vunmap(dst);
+		vm_unmap_ram(dst, nrpages_out);
 	return ret;
 }
 
