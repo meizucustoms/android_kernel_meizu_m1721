@@ -98,7 +98,7 @@ static void i_callback(struct rcu_head *head)
 	/* be careful of RCU symlink path */
 	if (inode->i_op == &erofs_fast_symlink_iops)
 		kfree(inode->i_link);
-	kfree(vi->xattr_shared_xattrs);
+	kvfree(vi->xattr_shared_xattrs);
 
 	kmem_cache_free(erofs_inode_cachep, vi);
 }
@@ -152,7 +152,7 @@ static void *erofs_read_metadata(struct super_block *sb, struct page **pagep,
 	len = le16_to_cpu(*(__le16 *)&ptr[erofs_blkoff(*offset)]);
 	if (!len)
 		len = U16_MAX + 1;
-	buffer = kmalloc(len, GFP_KERNEL);
+	buffer = kvmalloc(len, GFP_KERNEL);
 	if (!buffer) {
 		buffer = ERR_PTR(-ENOMEM);
 		goto out;
@@ -172,7 +172,7 @@ static void *erofs_read_metadata(struct super_block *sb, struct page **pagep,
 			}
 			page = erofs_get_meta_page(sb, blk);
 			if (IS_ERR(page)) {
-				kfree(buffer);
+				kvfree(buffer);
 				goto err_nullpage;
 			}
 			ptr = kmap(page);
@@ -232,7 +232,7 @@ static int erofs_load_compr_cfgs(struct super_block *sb,
 			DBG_BUGON(1);
 			ret = -EFAULT;
 		}
-		kfree(data);
+		kvfree(data);
 		if (ret)
 			goto err;
 	}

@@ -64,7 +64,7 @@ int erofs_pcpubuf_growsize(unsigned int nrpages)
 		struct page **pages, **oldpages;
 		void *ptr, *old_ptr;
 
-		pages = kmalloc_array(nrpages, sizeof(*pages), GFP_KERNEL);
+		pages = kvmalloc_array(nrpages, sizeof(*pages), GFP_KERNEL);
 		if (!pages) {
 			ret = -ENOMEM;
 			break;
@@ -103,7 +103,7 @@ int erofs_pcpubuf_growsize(unsigned int nrpages)
 free_pagearray:
 		while (i)
 			list_add(&oldpages[--i]->lru, &pagepool);
-		kfree(oldpages);
+		kvfree(oldpages);
 		if (ret)
 			break;
 	}
@@ -142,7 +142,7 @@ void erofs_pcpubuf_exit(void)
 		for (i = 0; i < pcb->nrpages; ++i)
 			if (pcb->pages[i])
 				put_page(pcb->pages[i]);
-		kfree(pcb->pages);
+		kvfree(pcb->pages);
 		pcb->pages = NULL;
 	}
 }

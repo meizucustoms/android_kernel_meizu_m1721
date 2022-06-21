@@ -100,14 +100,14 @@ static int init_inode_xattrs(struct inode *inode)
 		goto out_unlock;
 	}
 
-	/* read in shared xattr array (non-atomic, see kmalloc below) */
+	/* read in shared xattr array (non-atomic, see kmvalloc below) */
 	it.kaddr = kmap(it.page);
 	atomic_map = false;
 
 	ih = (struct erofs_xattr_ibody_header *)(it.kaddr + it.ofs);
 
 	vi->xattr_shared_count = ih->h_shared_count;
-	vi->xattr_shared_xattrs = kmalloc_array(vi->xattr_shared_count,
+	vi->xattr_shared_xattrs = kvmalloc_array(vi->xattr_shared_count,
 						sizeof(uint), GFP_KERNEL);
 	if (!vi->xattr_shared_xattrs) {
 		xattr_iter_end(&it, atomic_map);
@@ -126,7 +126,7 @@ static int init_inode_xattrs(struct inode *inode)
 
 			it.page = erofs_get_meta_page(sb, ++it.blkaddr);
 			if (IS_ERR(it.page)) {
-				kfree(vi->xattr_shared_xattrs);
+				kvfree(vi->xattr_shared_xattrs);
 				vi->xattr_shared_xattrs = NULL;
 				ret = PTR_ERR(it.page);
 				goto out_unlock;
