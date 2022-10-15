@@ -291,7 +291,6 @@ static int msm_flash_aw36413_i2c_probe(struct i2c_client *client,
     return ret;
   }
 
-success:
   aw_info("done\n");
   aw36413->probed = 1;
   return 0;
