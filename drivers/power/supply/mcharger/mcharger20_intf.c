@@ -244,9 +244,10 @@ static int charging_set_ta20_current_pattern(u32 chr_vol) {
     get_monotonic_boottime(&tmp_ptime);
     tmp_cptime = tmp_dtime(j);
     mcharger_set_high_usb_chg_current(500);
-    if (tmp_cptime <= 159)
-        usleep_range(1000 * (160 - tmp_cptime), 1000 * (160 - tmp_cptime));
-
+    if (tmp_cptime <= 159) {
+		usleep_range(1000 * (160 - tmp_cptime), 1000 * (160 - tmp_cptime));
+	}
+	
 	get_monotonic_boottime(&ptime[j]);
 	cptime[j][0] = 160;
 	cptime[j][1] = dtime(j);
