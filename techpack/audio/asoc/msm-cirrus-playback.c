@@ -682,7 +682,9 @@ static int msm_cirrus_flash_rx_config(void) {
 }
 
 static int msm_cirrus_config_opalum_music(void) {
-  struct crus_single_data_t opalum_ctl = {0};
+  // By default, music Opalum mode is 1.
+  // 2 selects Dolby mode.
+  struct crus_single_data_t opalum_ctl = {2};
 
   pr_debug("%s: setting Opalum to Music mode\n", __func__);
 
