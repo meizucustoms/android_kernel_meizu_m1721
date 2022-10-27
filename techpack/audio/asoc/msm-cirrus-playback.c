@@ -64,31 +64,29 @@ void *crus_gen_afe_set_header(int length, int port, int module, int param) {
     return NULL;
 
   /* Set header section */
+  config->data.param_size = length;
   config->hdr.hdr_field = 592;
-  config->hdr.pkt_size = size;
   config->hdr.src_svc = 4;
-  config->hdr.src_domain = 5;
-  config->hdr.src_port = 0;
   config->hdr.dest_svc = 4;
   config->hdr.dest_domain = 4;
+  config->hdr.opcode = 65775;
+  config->hdr.src_domain = 5;
+  config->hdr.pkt_size = size;
+  config->hdr.src_port = 0;
   config->hdr.dest_port = 0;
   config->hdr.token = index;
-  config->hdr.opcode = 65775;
 
   /* Set param section */
   config->param.port_id = (uint16_t)port;
+  config->param.payload_size = payload_size;
   config->param.payload_address_lsw = 0;
   config->param.payload_address_msw = 0;
   config->param.mem_map_handle = 0;
-  /* max data size of the param_ID/module_ID combination */
-  config->param.payload_size = payload_size;
 
   /* Set data section */
   config->data.module_id = (uint32_t)module;
   config->data.param_id = (uint32_t)param;
   config->data.reserved = 0; /* Must be set to 0 */
-  /* actual size of the data for the module_ID/param_ID pair */
-  config->data.param_size = length;
 
   return (void *)config;
 }
@@ -146,13 +144,13 @@ void *crus_gen_afe_get_header(int length, int port, int module, int param) {
   config->hdr.hdr_field = 592;
   config->hdr.pkt_size = size;
   config->hdr.src_svc = 4;
-  config->hdr.src_domain = 5;
-  config->hdr.src_port = 0;
   config->hdr.dest_svc = 4;
   config->hdr.dest_domain = 4;
+  config->hdr.opcode = 65776;
+  config->hdr.src_domain = 5;
+  config->hdr.src_port = 0;
   config->hdr.dest_port = 0;
   config->hdr.token = index;
-  config->hdr.opcode = 65776;
 
   /* Set param section */
   config->param.port_id = (uint16_t)port;
